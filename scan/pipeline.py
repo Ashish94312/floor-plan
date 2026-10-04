@@ -66,6 +66,22 @@ def run(
     return cap, clouds, summary
 
 
+def plan_groups(cap: Capture, g: dict) -> tuple[dict[str, list], bool]:
+    """Which frames go into one backbone run. Joint (all rooms together) shares one metric scale and
+    ties rooms together (E15); it is used when it fits in memory (geometry.max_joint_views)."""
+    n_views = sum(len(fs) for fs in cap.rooms.values())
+    joint = g["joint"]
+    if joint == "auto":
+        joint = len(cap.rooms) > 1 and n_views <= g["max_joint_views"]
+        if len(cap.rooms) > 1 and not joint:
+            cap.warnings.append(
+                f"{n_views} photos > geometry.max_joint_views={g['max_joint_views']}: rooms reconstructed separately "
+                "(no shared scale; wider intervals). Use --joint to force one run if memory allows."
+            )
+    joint = bool(joint)
+    return ({"joint": [f for fs in cap.rooms.values() for f in fs]} if joint else dict(cap.rooms)), joint
+
+
 def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -> tuple[dict[str, RoomCloud], dict]:
     """C2 photo tier: MapAnything per room (default) or once over all rooms (geometry.joint)."""
     from scan.geometry.mapanything_backend import load_model, predict
@@ -82,7 +98,7 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
             timing["model_load_s"] = round(time.perf_counter() - t, 2)
         return model
 
-    groups = {"joint": [f for fs in cap.rooms.values() for f in fs]} if g["joint"] else dict(cap.rooms)
+    groups, joint = plan_groups(cap, g)
     clouds: dict[str, RoomCloud] = {}
     runs = {}
     t_all = time.perf_counter()
@@ -104,5 +120,5 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
                 views={k: v[idx] for k, v in pred.items()},
             )
     timing["geometry_s"] = round(time.perf_counter() - t_all, 2)
-    info = {"backbone": g["backbone"], "joint": g["joint"], "rays": g["rays"], "f_scale": g["f_scale"], "runs": runs}
+    info = {"backbone": g["backbone"], "joint": bool(joint), "rays": g["rays"], "f_scale": g["f_scale"], "runs": runs}
     return clouds, info

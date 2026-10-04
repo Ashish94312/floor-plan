@@ -107,17 +107,29 @@ Every decision here must be defensible live at the defense, without tools. Each 
 - **Mixed portrait/landscape in one room → keep the majority, drop the rest with a warning.** One batch needs one image shape. Rotating the odd one out would change its gravity direction. This is the same choice made by hand in E7 (`IMG_4887`).
 - **More than 8 photos → keep the 8 sharpest**, in filename order.
 
-## D20. Geometry defaults: MapAnything's own rays; the ceiling-bias fix is parked for the fix loop
-- **Context:**
-  - MapAnything's output focal is about 12% longer than the true (EXIF) focal (E12, vanishing points), so ceilings come out 6–10% low.
-  - Swapping in EXIF rays fixes ceilings but misaligns walls, because the poses were fitted to the model's rays (E10).
-  - Feeding a pre-compensated focal is inconsistent across views (E13).
-- **Decision:** default `geometry.rays: model`, which is self-consistent: walls within 0–5%, ceilings biased low. The ray source (`model` / `exif`) and the input focal scale (`f_scale`) are config switches.
-- **Why park the fix:**
-  - The G2 ceiling gate is the likely worst gate. The fix loop (25% of the score) asks for exactly this: a failing number, a root cause with evidence, a planned fix and a predicted result, declared and committed before the fix.
-  - Here we have all four: −3 to −10%; focal bias proven by an independent method; EXIF rays + ICP pose re-fit; predicted about ±1.5%.
-  - Doing it now would also take time Tier 1 needs.
-- **Cost:** ceiling heights stay biased low until Phase 5. The intervals must cover it, and calibration will widen them.
+## D20. Ceiling fix: joint run + EXIF rays by default (reverses "park for the fix loop")
+- **History:**
+  - D20 first parked the ceiling fix for the fix loop. The user chose to fix it now (2026-10-04, ~16:15).
+  - The fix loop will pick its worst gate from the benchmark later.
+- **Root cause (E12):** MapAnything's output focal is about 12% longer than the true focal. Vanishing points confirm the EXIF focal. A too-long focal compresses vertical extents, so ceilings came out 3–12% low.
+- **Tried:**
+  - EXIF rays with per-room runs (E14/E15): ceilings +4.2% / −4.0%, unbiased but each room's own scale is off by about ±5%. Bedroom walls inflated (short side +12.6%).
+  - EXIF rays + pairwise ICP pose re-fit (E14): **failed**. Sparse corner views overlap 5–30%, so ICP slides along flat walls (corrections of metres and tens of degrees) and the pose graph disconnects. Moved to `scripts/experiments/icp_refine.py` as a recorded negative result.
+  - Pre-compensating the input focal (E13): ceilings inconsistent between views.
+- **Decision:** `geometry.joint: auto` (one joint run when ≤ `max_joint_views` = 16 photos, else per room with a warning) and `geometry.rays: exif`.
+- **Evidence (E15, home01_photo_a, against tape):**
+
+  | Config | Bedroom short | Bedroom long | Bedroom ceiling | Hall short | Hall long | Hall ceiling | Mean abs |
+  |---|---|---|---|---|---|---|---|
+  | joint + EXIF | +7.9% | −1.5% | **−0.1%** | +0.4% | −0.0% | **+0.6%** | **1.75%** |
+  | joint + model rays | — | — | — | — | — | — | 3.55% |
+
+  - Gaps between views are also lower with EXIF rays (bedroom 2.6 cm against 2.9; hall 3.8 against 4.8). EXIF rays are more self-consistent, not less.
+  - Why joint helps: one metric scale shared by all rooms averages out the per-room scale error, and doorway views tie the rooms together.
+- **Costs:**
+  - Joint memory grows with photo count (14 photos = 8.1 GB). Larger homes fall back to per-room runs, which have no shared scale and get wider intervals.
+  - The bedroom short side stays +7.5–7.9% (open door leaf + wardrobe recess). It's inside the photo tier's ±8% but is the weakest number.
+  - Only one home so far. To be confirmed by the benchmark and repeat captures.
 
 ## D21. Model outputs are cached by content
 - **Why:**

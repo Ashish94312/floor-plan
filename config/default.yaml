@@ -15,13 +15,16 @@ geometry:
   backbone: mapanything
   amp_dtype: fp16                # MPS-friendly; bf16/fp32 also accepted by MapAnything
   memory_efficient: true
-  joint: false                   # true: all rooms in one run (shared scale + room placement, E9)
-  rays: model                    # model: MapAnything's own rays (consistent; focal ~12% long -> ceilings ~6-8% low, E12)
-                                 # exif: rebuild points with EXIF rays (ceilings right, walls misaligned, E10)
-  f_scale: 1.0                   # multiplies the EXIF focal fed to the model (E13). Ceiling fix parked for the fix loop.
+  joint: auto                    # auto: one joint run over all rooms if <= max_joint_views photos, else per room
+                                 # joint shares one metric scale across rooms and ties rooms together (E9, E15)
+  max_joint_views: 16            # 14 views = 8.1 GB peak on a 16 GB M4; more risks running out of memory
+  rays: exif                     # exif: points = model depth x EXIF rays (focal verified by vanishing points, E12)
+                                 # model: MapAnything's own rays (focal ~12% long -> ceilings 6-12% low)
+                                 # joint + exif: ceilings -0.1% / +0.6%, walls 5 of 6 within 1.5% (E15, D20)
+  f_scale: 1.0                   # multiplies the EXIF focal fed to the model (E13 experiment only)
   conf_percentile: 30            # drop the least confident 30% of masked pixels per run (as in E7-E11)
   voxel_m: 0.02                  # thin the merged cloud to a 2 cm grid
-  sigma_log_floor_photo: 0.04    # minimum scale uncertainty (log space) until calibrated
+  sigma_log_floor_photo: 0.05    # minimum scale uncertainty (log space) until calibrated; per-room scale spread ~5% (E14, E15)
 
 cache:
   dir: .cache                    # model outputs, keyed by input hashes + settings (gitignored)

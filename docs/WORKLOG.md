@@ -55,6 +55,11 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~16:00 | Built step 1.2: `predict()` in `scan/geometry/mapanything_backend.py` (cache-aware, model loaded lazily once), `scan/geometry/cloud.py` (model/EXIF rays, confidence filter, 2 cm voxel), `scan/cache.py` (content-addressed `.npz`, atomic write), `scan/pipeline.py` (ingest → geometry → `out/rooms/<room>/cloud.ply` + `out/geometry.json`), `--joint` flag | — |
 | ~16:05 | First run, home01_photo_a: bedroom1 142,923 points, hall 133,180. 1 min 45 s live (load 35 s, about 32 s inference per room). **Cached re-run: 7 s, byte-identical `.ply` files.** Sizes match the experiments: bedroom 2.390 (0.0%) / 2.940 (+0.9%) / ceiling −3.0%; hall ≈ E8 | Step 1.2 exit check ✅ (cloud in metres) |
 | ~16:10 | 26 unit tests pass (projection maths, the E12 focal-compression effect, confidence filter + voxel, cache round-trip, real-capture cache replay). Lint clean | — |
+| ~16:15 | User: **fix the ceiling now** instead of parking it for the fix loop. D20 reversed | — |
+| ~16:20 | Fix attempt B, EXIF rays + pairwise ICP + pose graph: **failed.** Most view pairs overlap 5–30%, ICP slides along flat walls (corrections of 1–2 m and 40–150°), the graph disconnects. ICP code moved to `scripts/experiments/` as a negative result | E14 |
+| ~16:25 | Found along the way: per room, EXIF rays don't misalign views (gap between views 2.2–3.3 cm, same as model rays), but each room's own scale is off by about ±5% (bedroom big, hall small) | E14 |
+| ~16:35 | **Joint run + EXIF rays wins:** ceilings −0.1% / +0.6%, walls 5 of 6 within 1.5%, mean abs error 1.75% (joint + model rays 3.55%). Bedroom short side +7.9% (open door leaf + wardrobe recess, inside ±8%). View gaps lower with EXIF rays | E15 → D20 |
+| ~16:40 | New defaults: `geometry.joint: auto` (joint if ≤ 16 photos, else per room with a warning), `geometry.rays: exif`, `sigma_log_floor_photo: 0.05`. CLI `--joint/--per-room`. `plan_groups()` + unit test. 27 tests pass. Pipeline default on home01_photo_a: hall +1.3 / +0.3 / ceiling +0.3%, bedroom +7.5 / +1.9 / ceiling −1.9% (rough spike measurement; the real wall fit is step 1.4) | Step 1.2 complete |
 
 ### Open data issues
 
@@ -109,7 +114,9 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 | E10 | Rebuild points with the EXIF focal instead of the model's rays | Joint ceilings **+0.6% / +1.7%** (from −6 / −8%). Walls more doubled (up to about 15 cm). Per-room runs mixed | Ceiling fix found. Pose/ray consistency still needed |
 | E11 | MapAnything in the main env, fully offline | Runs with network blocked and an empty torch cache. **Bit-identical to E7** (max point difference 0.0 m) | Switch verified. Offline requirement met for the backbone |
 | E12 | Which focal is physically right? (vanishing points) | Oblique views: focal from geometry is 0.94–1.08× EXIF. **EXIF right, MapAnything ~12% long** | Ceiling bias explained → fix-loop candidate (D20) |
-| E13 | Pre-compensate by feeding f × 0.893 | Output follows input (median 379 px). Ceilings +1.3% / +3.1%, but per-view focals inconsistent (ceilings disagree > 10 cm) | Not adopted. Fix B (EXIF rays + ICP) planned for the fix loop |
+| E13 | Pre-compensate by feeding f × 0.893 | Output follows input (median 379 px). Ceilings +1.3% / +3.1%, but per-view focals inconsistent (ceilings disagree > 10 cm) | Not adopted |
+| E14 | EXIF rays + pairwise ICP pose re-fit | **Failed:** low overlap, ICP slides along walls, graph disconnected; poses unchanged. Per-room EXIF rays: ceilings +4.2 / −4.0%, walls +12.6 / +5.7 / −3.0 / −4.9% | ICP dropped. Per-room scale ±5% is the real limit |
+| E15 | Ray source × per-room vs joint | **Joint + EXIF: ceilings −0.1% / +0.6%, walls 5 of 6 within 1.5%, mean abs 1.75%** (joint + model 3.55%, per-room EXIF 5.7%, per-room model 4.8%) | **D20: joint + EXIF is the default** |
 
 ### What affects the results (so far)
 
@@ -127,7 +134,9 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 | Peak-picking heuristic | Strongest-peak picking fails. Same result at threshold 0.2 and 0.08 once the photos are good | E4, E7 | Rewrite in `layout/room.py` |
 | View alignment | Walls doubled by about 8 cm | E7 | Fix-loop candidate (G3, 1 cm) |
 | Per-room scale | MapAnything metric scale +1 to +2.5% in the bedroom, −5 to −9% in the hall when run separately | E7, E8 | **Joint run shares one scale** (E9) |
-| Model focal ≠ EXIF focal | MapAnything outputs a focal ~1.12× EXIF, and vanishing points prove EXIF right (E12). Compresses vertical extents, so ceilings come out 6–10% low | E6–E13 | Parked as the fix-loop candidate (D20). Planned fix: EXIF rays + ICP pose re-fit |
+| Model focal ≠ EXIF focal | MapAnything outputs a focal ~1.12× EXIF, and vanishing points prove EXIF right (E12). Compresses vertical extents, so ceilings come out 3–12% low | E6–E15 | **Fixed:** EXIF rays + joint run (D20) |
+| Per-room metric scale | Each separate run guesses absolute size off by about ±5% (bedroom big, hall small) | E7, E8, E14 | Joint run shares one scale (E15). Fallback per-room runs get wider intervals |
+| Open doors, built-in wardrobes | An open door leaf and a wardrobe recess confuse the room's extent (bedroom short side +7.5–7.9%) | E15 | Layout step 1.4 must pick the room boundary, not the outermost points |
 | Input resolution to backbone | 1024 px ingest copies instead of full-resolution photos: bedroom short side 2.450 → 2.390 m (+2.5% → 0.0%) | E11 vs step 1.2 | Keep 1024 px |
 | Sparse far walls | Heuristic misses walls seen only from far away, or picks things outside the room (hall long side 1.47 / 6.69 m) | E9, E10 | Layout must use per-room polygons, not global percentile peaks |
 | File handling | AirDrop renamed a duplicate `IMG_4876 2.HEIC` into the wrong folder. Capture folders vanished from disk (13:3x) | E4 | Hash-check on ingest. Keep originals on the phone |
@@ -426,6 +435,66 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 - **What affected it:** the output focal follows the input only on average. The per-view focal spread (329–427) gives each view a different vertical scale.
 - **Impact:** not adopted. It fixes the average ceiling but not consistency. The planned fix is EXIF rays + ICP pose re-fit (fix B), parked for the fix loop (D20).
 
+### E14. EXIF rays + ICP pose re-fit (fix attempt B): negative result
+
+- **Question:**
+  - Can pairwise ICP re-align views built with EXIF rays, removing E10's wall doubling?
+  - And so give correct ceilings with consistent walls?
+- **Setup:**
+  - `scripts/experiments/icp_refine.py`:
+    - Per view: EXIF-ray cloud in the camera frame, 2 cm voxel, normals.
+    - Every pair: coarse-to-fine point-to-plane ICP with a Tukey loss (40 → 15 → 5 cm matching radius), starting from MapAnything's relative pose.
+    - Edges where fitness ≥ 0.30, then Open3D pose-graph global optimisation.
+  - `scripts/experiments/icp_eval.py captures/home01_photo_a/out <plots>` compares model / exif / exif_icp on the cached step 1.2 runs.
+  - Metrics: inter-view residual (median distance from each view's points to the nearest point of the other views, over points within 20 cm) and size against tape.
+- **Results:**
+  - Pose graph **not connected**: bedroom 5 / 21 pairs, hall 10 / 21 pass fitness 0.30. Open3D refused to optimise, so the poses were unchanged (shift 0.0 m). Deterministic on rerun.
+  - Pair diagnostics: overlap at 5 cm mostly 0.00–0.30. ICP corrections of 1–2 m / 40–150° on low-overlap pairs, up to 169 m (hall 2-5). Even good pairs ask for 10–50 cm.
+
+  | Room | Mode | Residual | Short | Long | Ceiling |
+  |---|---|---|---|---|---|
+  | bedroom | model | 2.9 cm | +2.1% | +0.9% | −3.3% |
+  | bedroom | exif | 3.3 cm | +12.6% | +5.7% | +4.2% |
+  | hall | model | 2.9 cm | −5.7% | −4.9% | −11.9% |
+  | hall | exif | 2.2 cm | −3.0% | −4.9% | −4.0% |
+
+- **What affected it:** corner photos of flat walls overlap little, and point-to-plane ICP on planar scenes can slide. The per-room metric scale differs between rooms (bedroom about +5%, hall about −4% with EXIF rays).
+- **Impact:**
+  - ICP dropped; the code is kept only as an experiment.
+  - Insight: the ceiling error has **two parts**: the focal bias (fixed by EXIF rays) and the per-room scale (about ±5%, needs a shared scale or an anchor). That led to E15.
+
+### E15. Ray source × per-room vs joint run
+
+- **Question:** does a joint run (one shared scale) plus EXIF rays fix both parts of the ceiling error, without doubled walls?
+- **Setup:**
+  - `uv run scan captures/home01_photo_a --joint --out captures/home01_photo_a/out_joint` (fills the cache).
+  - `scripts/experiments/rays_eval.py captures/home01_photo_a/out captures/home01_photo_a/out_joint --plots captures/home01_photo_a/experiments/E15_rays_joint`: residual + spike measurement per room, for model and EXIF rays.
+- **Results:**
+
+  | Run | Room | Rays | Residual | Short | Long | Ceiling |
+  |---|---|---|---|---|---|---|
+  | per-room | bedroom1 | model | 2.9 cm | +2.1% | +0.9% | −3.3% |
+  | per-room | bedroom1 | exif | 3.3 cm | +12.6% | +5.7% | +4.2% |
+  | per-room | hall | model | 2.9 cm | −5.7% | −4.9% | −11.9% |
+  | per-room | hall | exif | 2.2 cm | −3.0% | −4.9% | −4.0% |
+  | joint | bedroom1 | model | 2.9 cm | −1.3% | −2.9% | −6.2% |
+  | joint | bedroom1 | **exif** | **2.6 cm** | +7.9% | **−1.5%** | **−0.1%** |
+  | joint | hall | model | 4.8 cm | −0.4% | −2.2% | −8.3% |
+  | joint | hall | **exif** | **3.8 cm** | **+0.4%** | **−0.0%** | **+0.6%** |
+
+  Mean absolute error over the 6 numbers:
+  - joint + EXIF **1.75%**
+  - joint + model 3.55%
+  - per-room + model 4.8%
+  - per-room + EXIF 5.7%
+
+  Bedroom (joint + EXIF) plot: left wall −0.23, wall behind the wardrobe 2.33 (2.56 m against tape 2.39). The line at x ≈ 1.78 near the door is the **open door leaf**; the wardrobe front is about 1.75.
+- **What affected it:**
+  - The joint run shares one metric scale (it cancels the opposite per-room scale errors of E14).
+  - EXIF rays remove the focal bias.
+  - The open door leaf and the wardrobe recess affect the bedroom's short side.
+- **Impact:** **new default (D20): `joint: auto` + `rays: exif`.** Ceiling G2 is within reach: bedroom −0.3 cm (pass), hall +1.7 cm (0.2 cm over), pending the real layout fit (step 1.4).
+
 ## Open questions / next experiments
 
 - **Repeatability:** bedroom1 again (`home01_photo_b`). Walls must agree within 1 cm (G3). The 8 cm doubled walls from E7 are the main risk.
@@ -434,7 +503,8 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 - **MapAnything load time:** 33–44 s. Investigate caching or keeping the model loaded across rooms.
 - **Hall:** not a rectangle (W1 361 vs W3 230). This tests layout beyond 4 walls.
 - **Stitching via joint reconstruction (after E9):** does it hold with more rooms, and with rooms whose doorway views are weak? Compare against door matching + least squares on G5.
-- **Ceiling fix (fix-loop candidate, D20):** EXIF rays + ICP pose re-fit (Open3D multiway registration starting from MapAnything poses). Predicted: ceiling error from −3 to −10% down to about ±1.5%. Declare it in `docs/FIX_DECLARATION.md` before any code (PLAN Phase 5).
+- **Joint runs for larger homes:** a 5-room capture (30–40 photos) exceeds `max_joint_views`. Options: a room plus its doorway neighbours, overlapping groups merged by shared views, or lower resolution. Measure memory first.
+- **Fix loop:** pick the worst gate from the benchmark (Phase 4); the ceiling bias is already fixed (D20).
 - **Ceiling G2 (≤ 1.5 cm):** current error 8–25 cm. Probably the hardest gate for the photo tier. Report honestly with intervals if it can't be met.
 - **Mixed orientation within a room:** `IMG_4887` was excluded in E7; the pipeline must handle it.
 - **E7 OWLv2 detections:** review, then start tuning O4.

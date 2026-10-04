@@ -360,12 +360,12 @@ Each stage lists its input, output, algorithm, key parameters and failure behavi
 
 ### 10.2 C2 Geometry — photo tier (`geometry/`)
 
-1. **Backbone (MapAnything, D17):** run on the room's photos with **EXIF intrinsics** (focal from `FocalLengthIn35mmFilm`, principal point at the centre). Output: metric depth `D_i`, confidence `C_i`, camera poses `T_i` in metres. Portrait and landscape both work, but don't mix them within one room.
-   - **Open (E9):** run **all rooms jointly** instead of one room at a time. In E9 this shared one scale and registered bedroom and hall through the doorway (photo-tier stitching for free). To be confirmed on more rooms before replacing door-matching stitching (C5).
-   - **Open (E10):** the model's output focal is about 1.12× the EXIF focal, which compresses vertical extents (ceilings 6–8% low). EXIF rays fix ceilings but conflict with the predicted poses. A pose-consistent fix is needed.
-2. **Metric scale uncertainty:** `s = 1` (already metric). Separate runs show per-room offsets of −9% to +2.5% (E7, E8). `σ_log` comes from leave-one-room-out calibration residuals (C9), with floor `σ_floor_photo = 0.04`.
+1. **Backbone (MapAnything, D17):** run with **EXIF intrinsics** (focal from `FocalLengthIn35mmFilm` on the film diagonal, D18; principal point at the centre). Output per photo: metric z-depth `D_i`, confidence `C_i`, validity mask, camera-to-world pose `T_i`, the model's own intrinsics.
+   - **Joint by default (`geometry.joint: auto`, D20):** all rooms in **one** run when the capture has ≤ 16 photos. Rooms then share one metric scale and are already placed relative to each other (E9, E15). Above 16 photos (memory: 14 photos = 8.1 GB), each room runs separately with a warning and wider intervals. `--joint` / `--per-room` force either.
+   - **EXIF rays (`geometry.rays: exif`, D20):** points = `D_i` × EXIF ray, placed with `T_i`. The model's own focal is about 12% too long (E12, verified with vanishing points), which compressed ceilings 3–12%. Joint + EXIF: ceilings −0.1% / +0.6%, walls 5 of 6 within 1.5% (E15).
+2. **Metric scale uncertainty:** `s = 1` (already metric). Per-room runs show per-room offsets of about ±5% (E7, E8, E14). A joint run shares one scale. `σ_log` comes from leave-one-room-out calibration residuals (C9), with floor `σ_floor_photo = 0.05`.
 3. **Door-height anchor (optional):** if a door is detected with both its top and bottom visible, its height `h` gives `log s_door ~ N(log(2.03 / h), 0.05²)`. Fuse by inverse-variance weighting in log space.
-4. **Point cloud** (`geometry/cloud.py`): world points from MapAnything's own rays (`geometry.rays: model`, D20) or rebuilt from depth with EXIF rays (`exif`). Keep pixels in the model's validity mask with confidence above the room's 30th percentile. Merge views and voxel-downsample to 2 cm (Open3D, averaged points and colours). Outputs are cached by content (D21). Each room's per-view depth, pose and intrinsics stay attached for later stages (openings, damage).
+4. **Point cloud** (`geometry/cloud.py`): world points rebuilt from depth with EXIF rays (`geometry.rays: exif`, default) or MapAnything's own points (`model`). Keep pixels in the model's validity mask with confidence above the room's 30th percentile. Merge views and voxel-downsample to 2 cm (Open3D, averaged points and colours). Outputs are cached by content (D21). Each room's per-view depth, pose and intrinsics stay attached for later stages (openings, damage).
 
 ### 10.3 C2 Geometry — video tier
 

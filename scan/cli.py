@@ -20,14 +20,16 @@ def scan(
     out: Path | None = typer.Option(None, help="Output dir (default: <capture_dir>/out)"),
     no_drift_correction: bool = typer.Option(False, "--no-drift-correction", help="Ablation: stitch with poses as-is"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Force the live model path"),
-    joint: bool = typer.Option(False, "--joint", help="Photo tier: reconstruct all rooms in one run (E9)"),
+    joint: bool | None = typer.Option(
+        None, "--joint/--per-room", help="Photo tier: one joint run over all rooms, or one run per room (default: auto)"
+    ),
     device: str | None = typer.Option(None, help="cpu | mps | cuda"),
 ) -> None:
     """Turn a capture folder into plans, damage, scope, intervals, JSON and renders."""
     from scan.config import load_config
     from scan.pipeline import run
 
-    cfg = load_config(overrides={"geometry": {"joint": True}} if joint else None)
+    cfg = load_config(overrides=None if joint is None else {"geometry": {"joint": joint}})
     try:
         cap, _clouds, summary = run(capture_dir, cfg, tier, out, use_cache=not no_cache, device=device, log=typer.echo)
     except ScanError as e:
