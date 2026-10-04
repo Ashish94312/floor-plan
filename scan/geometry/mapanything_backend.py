@@ -50,6 +50,29 @@ def load_model(device: torch.device):
     return model.to(device).eval()
 
 
+# ------------------------------------------------------------------------------- portrait turning
+# geometry.rotate_portrait: portrait frames go into the model turned 90 deg clockwise (np.rot90(img, -1))
+# and every output is turned back, so the rest of the pipeline never sees the difference (E5: portrait
+# input made a backbone misjudge the focal ~26%; MapAnything puts video frames at ~22 mm vs ~30, E22b).
+# Pixel centres: u_old = v_new, v_old = H - u_new; camera axes: x_old = y_new, y_old = -x_new.
+M_TURN = np.array([[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])  # p_old = M_TURN @ p_new
+
+
+def turn_K(K: np.ndarray, H: float) -> np.ndarray:
+    """Intrinsics of an image of height H turned 90 deg clockwise."""
+    return np.array([[K[1, 1], 0.0, H - K[1, 2]], [0.0, K[0, 0], K[0, 2]], [0.0, 0.0, 1.0]])
+
+
+def unturn_K(K: np.ndarray, W_turned: float) -> np.ndarray:
+    """Inverse of turn_K; W_turned = width of the turned image (= the original height)."""
+    return np.array([[K[1, 1], 0.0, K[1, 2]], [0.0, K[0, 0], W_turned - K[0, 2]], [0.0, 0.0, 1.0]])
+
+
+def unturn_R(R: np.ndarray) -> np.ndarray:
+    """Camera-to-world rotation of the original (portrait) camera from the turned one."""
+    return R @ M_TURN.T
+
+
 # ------------------------------------------------------------------------------- inference
 
 MAPANYTHING_COMMIT = "3d10cf7a3016fc0f9bb13a071ee66c47b10be0d9"  # pinned in pyproject.toml
@@ -71,7 +94,16 @@ def _cache_key(frames, cfg) -> str:
         f_scale=g["f_scale"],
         amp_dtype=g["amp_dtype"],
         memory_efficient=g["memory_efficient"],
+        **({"rotate_portrait": True} if _turns(frames, cfg) else {}),  # old keys unchanged when off
     )
+
+
+def _turns(frames, cfg) -> list[bool]:
+    """Per frame: is it turned before the model? Empty list when the switch is off."""
+    if not cfg["geometry"].get("rotate_portrait"):
+        return []
+    t = [f.rgb.shape[0] > f.rgb.shape[1] for f in frames]
+    return t if any(t) else []
 
 
 def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dict[str, np.ndarray], dict]:
@@ -99,16 +131,22 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
 
     g = cfg["geometry"]
     fs = float(g["f_scale"])
+    turned = _turns(frames, cfg) or [False] * len(frames)
     views = []
-    for f in frames:
-        K = f.K.copy()
+    for f, t in zip(frames, turned):
+        K, img = f.K.copy(), f.rgb
+        if t:
+            K, img = turn_K(K, img.shape[0]), np.ascontiguousarray(np.rot90(img, -1))
         K[0, 0] *= fs
         K[1, 1] *= fs
-        views.append({"img": Image.fromarray(f.rgb), "intrinsics": torch.tensor(K, dtype=torch.float32)})
+        views.append({"img": Image.fromarray(img), "intrinsics": torch.tensor(K, dtype=torch.float32)})
     views = preprocess_inputs(views)  # -> 518 px long side, intrinsics rescaled to match
     K_exif = np.stack([v["intrinsics"][0].numpy().astype(np.float64) for v in views])
     K_exif[:, 0, 0] /= fs
     K_exif[:, 1, 1] /= fs
+    for i, (v, t) in enumerate(zip(views, turned)):
+        if t:
+            K_exif[i] = unturn_K(K_exif[i], v["img"].shape[-1])
 
     from scan.device import PeakMemory
 
@@ -129,16 +167,25 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
         torch.mps.synchronize()
     infer_s = time.perf_counter() - t0
 
-    def stack(k, fn=lambda x: x):
-        return np.stack([fn(p[k][0].float().cpu().numpy()) for p in preds])
+    def back(a, t):  # per-pixel output of a turned view -> original orientation
+        return np.ascontiguousarray(np.rot90(a, 1, axes=(0, 1))) if t else a
 
+    def stack(k, fn=lambda x: x, pixels=True):
+        return np.stack([back(fn(p[k][0].float().cpu().numpy()), t and pixels) for p, t in zip(preds, turned)])
+
+    T_wc = stack("camera_poses", pixels=False).astype(np.float64)
+    K_model = stack("intrinsics", pixels=False).astype(np.float64)
+    for i, (p, t) in enumerate(zip(preds, turned)):
+        if t:
+            T_wc[i, :3, :3] = unturn_R(T_wc[i, :3, :3])
+            K_model[i] = unturn_K(K_model[i], p["pts3d"].shape[2])
     out = {
         "pts": stack("pts3d").astype(np.float32),
         "depth": stack("depth_z", lambda x: x[..., 0]).astype(np.float32),
         "conf": stack("conf").astype(np.float32),
-        "mask": np.stack([p["mask"][0, ..., 0].cpu().numpy().astype(bool) for p in preds]),
-        "T_wc": stack("camera_poses").astype(np.float64),
-        "K_model": stack("intrinsics").astype(np.float64),
+        "mask": np.stack([back(p["mask"][0, ..., 0].cpu().numpy().astype(bool), t) for p, t in zip(preds, turned)]),
+        "T_wc": T_wc,
+        "K_model": K_model,
         "K_exif": K_exif,
         "rgb": stack("img_no_norm", lambda x: (np.clip(x, 0, 1) * 255).round().astype(np.uint8)),
         "names": np.array([f.image_path.name for f in frames]),

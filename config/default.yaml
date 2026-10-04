@@ -22,6 +22,7 @@ geometry:
   rays: exif                     # exif: points = model depth x EXIF rays (focal verified by vanishing points, E12)
                                  # model: MapAnything's own rays (focal ~12% long -> ceilings 6-12% low)
                                  # joint + exif: ceilings -0.1% / +0.6%, walls 5 of 6 within 1.5% (E15, D20)
+  rotate_portrait: false          # portrait frames go into the model turned 90 deg, outputs turned back (E22i)
   f_scale: 1.0                   # multiplies the EXIF focal fed to the model (E13 experiment only)
   conf_percentile: 30            # drop the least confident 30% of masked pixels per run (as in E7-E11)
   voxel_m: 0.02                  # thin the merged cloud to a 2 cm grid

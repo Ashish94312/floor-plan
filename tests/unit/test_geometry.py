@@ -112,6 +112,28 @@ def test_cache_hit_takes_labels_from_frames(tmp_path):
     assert info["cache"] == "hit" and list(pred["rooms"]) == ["bedroom1"] * 2  # renamed folder still matches
 
 
+def test_portrait_turn_round_trip_gives_the_same_world_points():
+    from scipy.spatial.transform import Rotation
+
+    from scan.geometry.mapanything_backend import M_TURN, turn_K, unturn_K, unturn_R
+
+    rng = np.random.default_rng(0)
+    H, W = 40, 24  # portrait
+    depth = rng.uniform(1.0, 4.0, (H, W))
+    K = np.array([[30.0, 0, 11.0], [0, 31.0, 21.5], [0, 0, 1]])  # off-centre, fx != fy on purpose
+    T = np.eye(4)
+    T[:3, :3] = Rotation.from_euler("xyz", [10, -20, 35], degrees=True).as_matrix()
+    T[:3, 3] = [0.3, -1.2, 1.4]
+    P = unproject(depth, K, T)
+    # what the model would see and return for the turned view
+    Kt = turn_K(K, H)
+    Tt = T.copy()
+    Tt[:3, :3] = T[:3, :3] @ M_TURN
+    Pt = unproject(np.rot90(depth, -1), Kt, Tt)
+    assert np.allclose(np.rot90(Pt, 1, axes=(0, 1)), P)  # per-pixel outputs turned back
+    assert np.allclose(unturn_K(Kt, W_turned=H), K) and np.allclose(unturn_R(Tt[:3, :3]), T[:3, :3])
+
+
 def test_plan_groups_auto_joint_and_fallback():
     from scan.pipeline import plan_groups
     from scan.types import Capture
