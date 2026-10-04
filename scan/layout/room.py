@@ -230,6 +230,24 @@ def _refine(segs, wall_xy, inside, outside):
     return out
 
 
+def _drop_short_edges(segs, min_edge: float):
+    """_refine moves each line on its own, so the two parallel lines around a short edge can meet and
+    leave a (near) zero-length wall. Drop such an edge; its two neighbours (same orientation) become
+    one line at the better-supported neighbour's coordinate."""
+    while len(segs) > 4:
+        V = _vertices([s[:3] for s in segs])
+        L = np.linalg.norm(V - np.roll(V, 1, 0), axis=1)  # segment i runs from corner i-1 to corner i
+        i = int(np.argmin(L))
+        if L[i] >= min_edge:
+            break
+        n = len(segs)
+        p, q = segs[(i - 1) % n], segs[(i + 1) % n]
+        keep = p if p[3] >= q[3] else q
+        merged = [p[0], keep[1], p[2] + q[2], p[3] + q[3], keep[4]]
+        segs = [merged if k == (i - 1) % n else s for k, s in enumerate(segs) if k not in (i, (i + 1) % n)]
+    return segs
+
+
 def _signed_area(V: np.ndarray) -> float:
     x, y = V[:, 0], V[:, 1]
     return 0.5 * float(np.dot(x, np.roll(y, -1)) - np.dot(np.roll(x, -1), y))
@@ -330,7 +348,7 @@ def _layout_one(room_id, cloud, d, own, free, lo, shape, cfg) -> Layout:
     segs, notch = _fill_small_notches(segs, lc["notch_max_area_m2"], lc["notch_max_len_m"])
     if notch > 0:
         warnings.append(f"filled a {notch:.2f} m2 corner notch (corner furniture / unseen corner treated as room)")
-    segs = _refine(segs, walls_pts[:, :2], *lc["refine_window_m"])
+    segs = _drop_short_edges(_refine(segs, walls_pts[:, :2], *lc["refine_window_m"]), lc["min_edge_m"])
     V = _vertices([s_[:3] for s_ in segs])
     support = [(s_[3], s_[4]) for s_ in segs]
     poly, walls = _walls_clockwise(V, support, room_id)

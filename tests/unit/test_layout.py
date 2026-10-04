@@ -156,3 +156,15 @@ def test_small_corner_notch_filled_big_l_kept():
     ell = np.array([(0, 0), (4, 0), (4, 2), (2.5, 2), (2.5, 3.5), (0, 3.5)], float)  # real L (2.25 m2 concavity)
     segs, filled = _fill_small_notches(_rectilinear(ell, 0.15), 0.6, 1.0)
     assert len(segs) == 6 and filled == 0 and abs(_signed_area(_vertices(segs))) == pytest.approx(4 * 2 + 2.5 * 1.5)
+
+
+def test_refined_lines_meeting_leave_no_zero_length_wall():
+    from scan.layout.room import _drop_short_edges, _signed_area, _vertices
+
+    # 4 x 3 room whose top edge was a jog; refinement moved both top lines to ~y=3, so the jog is 4 cm long
+    segs = [["h", 0.0, 4, 80, 0.01], ["v", 4.0, 3, 60, 0.01], ["h", 3.0, 2, 50, 0.01],
+            ["v", 2.0, 0.3, 5, 0.02], ["h", 3.04, 2, 10, 0.02], ["v", 0.0, 3, 60, 0.01]]
+    out = _drop_short_edges(segs, 0.15)
+    V = _vertices([s[:3] for s in out])
+    assert len(out) == 4 and abs(_signed_area(V)) == pytest.approx(12.0)  # top line at the better-supported y=3.0
+    assert min(np.linalg.norm(V - np.roll(V, 1, 0), axis=1)) > 2.9
