@@ -1,0 +1,23 @@
+# Written by scan-calibrate (D30). Per tier_mode and measurement type: interval inflation k.
+photo_joint:
+  area:
+    k: 0.5
+    loo_coverage: null
+    loo_n: 0
+    max_ratio_at_k_used: 0.0694
+    method: 'n=1 too small for q=0.9: max x 2.0, floored at k_min=0.5'
+    n: 1
+  ceiling:
+    k: 0.5
+    loo_coverage: 1.0
+    loo_n: 2
+    max_ratio_at_k_used: 0.0655
+    method: 'n=2 too small for q=0.9: max x 2.0, floored at k_min=0.5'
+    n: 2
+  wall:
+    k: 0.5
+    loo_coverage: 1.0
+    loo_n: 7
+    max_ratio_at_k_used: 0.115
+    method: 'n=7 too small for q=0.9: max x 2.0, floored at k_min=0.5'
+    n: 7

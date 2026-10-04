@@ -3,6 +3,7 @@ out/result.json, out/plan.png, out/plan.svg, out/rooms/<room>.png. Diagnostics l
 
 from __future__ import annotations
 
+import json
 import math
 import subprocess
 from pathlib import Path
@@ -47,17 +48,16 @@ def software_info(cfg: dict) -> dict[str, str]:
     }
 
 
-def _room(r: str, c, cfg: dict, tier: str) -> Room:
-    u = cfg["uncertainty"]
+def _room(r: str, c, cfg: dict, tier: str, u: dict) -> Room:
     lay, pl = c.layout, c.planes
     s_log = c.scale.sigma_log
     sig = wall_sigmas(lay, s_log, u, tier)
-    walls = [Wall(wall_id=w.wall_id, start=w.start, end=w.end, length=measurement(w.length_m, s, "m", u, tier),
+    walls = [Wall(wall_id=w.wall_id, start=w.start, end=w.end, length=measurement(w.length_m, s, "m", u, tier, mtype="wall"),
                   kind=w.kind) for w, s in zip(lay.walls, sig)]
     cs = ceiling_sigma(pl, s_log, u, tier)
-    ceiling = None if cs is None else measurement(pl.ceiling_height_m, cs, "m", u, tier)
+    ceiling = None if cs is None else measurement(pl.ceiling_height_m, cs, "m", u, tier, mtype="ceiling")
     a_scale, a_edge = area_sigma_parts(lay, s_log, u, tier)
-    area = measurement(lay.floor_area_m2, math.hypot(a_scale, a_edge), "m2", u, tier)
+    area = measurement(lay.floor_area_m2, math.hypot(a_scale, a_edge), "m2", u, tier, mtype="area")
     status = "ok" if (lay.status == "ok" and pl.status == "ok") else "partial"
     ow = cfg["openings"]["sigma_width_m"]
     g = u["sigma_geom_m"][tier]
@@ -71,8 +71,8 @@ def _room(r: str, c, cfg: dict, tier: str) -> Room:
         ops.append(Opening(
             opening_id=o.opening_id, type=o.type, wall_id=o.wall_id,
             offset_along_wall=measurement(o.offset_m, math.hypot(g, ow), "m", u, tier),
-            width=measurement(o.width_m, sig(o.width_m), "m", u, tier),
-            height=measurement(o.height_m, sig(o.height_m), "m", u, tier),
+            width=measurement(o.width_m, sig(o.width_m), "m", u, tier, mtype="opening"),
+            height=measurement(o.height_m, sig(o.height_m), "m", u, tier, mtype="opening"),
             sill_height=None if o.sill_m is None else measurement(o.sill_m, sig(o.sill_m), "m", u, tier),
             connects_to=o.connects_to, views=o.views,
         ))
@@ -81,10 +81,14 @@ def _room(r: str, c, cfg: dict, tier: str) -> Room:
 
 
 def assemble(cap, clouds: dict, cfg: dict, timing: dict) -> ScanResult:
+    from scan.uncertainty.calibrate import load as load_calibration
+    from scan.uncertainty.intervals import k_for
+
     tier = cap.tier
-    u = cfg["uncertainty"]
+    mode = "joint" if (len({c.frame_id for c in clouds.values()}) == 1 and len(clouds) > 1) else "per_room"
+    u = {**cfg["uncertainty"], "mode": mode, "calibration": load_calibration()}
     warnings = list(cap.warnings)
-    rooms = [_room(r, c, cfg, tier) for r, c in clouds.items()]
+    rooms = [_room(r, c, cfg, tier, u) for r, c in clouds.items()]
     method, poses, adjacency, overlaps, drift = stitch(clouds, cfg, warnings)
     # footprint = sum of room areas (D10). Shared scale (joint frame) -> scale terms add linearly.
     parts = [area_sigma_parts(c.layout, c.scale.sigma_log, u, tier) for c in clouds.values()]
@@ -93,10 +97,14 @@ def assemble(cap, clouds: dict, cfg: dict, timing: dict) -> ScanResult:
     footprint = measurement(sum(c.layout.floor_area_m2 for c in clouds.values()), math.hypot(scale, edge), "m2", u, tier)
     plan = StitchedPlan(placement_method=method, room_poses=poses, adjacency=adjacency, footprint_area=footprint,
                         overlaps=overlaps, drift_correction=drift)
-    damage, flags, scope = _damage(clouds, cfg, tier)
+    damage, flags, scope = _damage(clouds, {**cfg, "uncertainty": u}, tier)
+    software = software_info(cfg) | {
+        "interval_mode": mode,
+        "interval_k": json.dumps({t: round(k_for(u, tier, t), 4) for t in ("default", "wall", "ceiling", "area", "opening")}),
+    }
     return ScanResult(capture_id=cap.capture_id, tier=tier, devices=cap.devices, interval_level=u["interval_level"],
                       rooms=rooms, stitched_plan=plan, damage=damage, concealed_damage_flags=flags, scope_items=scope,
-                      timing_s=timing, warnings=warnings, software=software_info(cfg))
+                      timing_s=timing, warnings=warnings, software=software)
 
 
 def _damage(clouds: dict, cfg: dict, tier: str):

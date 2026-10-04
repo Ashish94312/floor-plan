@@ -91,9 +91,13 @@ def evaluate(result, gt: dict[str, GTRoom], cfg: dict) -> dict:
         f"calibration (target {result.interval_level:.0%})": (f"{coverage:.0%} of {len(scored)} intervals contain the truth"
                                                               if coverage is not None else "n/a"),
     }
+    import json
+
     return {
         "capture_id": result.capture_id,
         "tier": result.tier,
+        "mode": f"{result.tier}_{result.software.get('interval_mode', 'per_room')}",
+        "interval_k": json.loads(result.software.get("interval_k", "{}")) or {"default": 1.5},
         "rooms": rooms_out,
         "adjacency": {"plan": sorted(map(sorted, pred_adj)), "gt": sorted(map(sorted, true_adj)), "equal": pred_adj == true_adj},
         "overlaps": len(sp.overlaps),

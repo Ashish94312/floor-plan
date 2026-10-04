@@ -36,7 +36,8 @@ def test_gates_on_synthetic_result():
                            floor_area=Measurement(value=6.0, lo=5.0, hi=7.0, unit="m2"), openings=[])
     sp = SimpleNamespace(adjacency=[], overlaps=[], footprint_area=Measurement(value=6.0, lo=5, hi=7, unit="m2"),
                          drift_correction=SimpleNamespace(enabled=False, method="none"))
-    res = SimpleNamespace(capture_id="c", tier="photo", rooms=[room], stitched_plan=sp, interval_level=0.9, damage=[])
+    res = SimpleNamespace(capture_id="c", tier="photo", rooms=[room], stitched_plan=sp, interval_level=0.9, damage=[],
+                          software={})
     gt = {"r": GTRoom("r", True, 2.80, [GTWall("W1", 2.95), GTWall("W2", 2.0), GTWall("W3", 2.95), GTWall("W4", 2.0)])}
     ev = evaluate(res, gt, CFG)
     walls = ev["rooms"]["r"]["walls"]

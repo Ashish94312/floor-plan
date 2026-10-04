@@ -104,6 +104,8 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~21:20 | **Step 1.9 damage + detector.** E18: OWLv2 (8 queries, per-class thresholds, NMS) on 17 photos in 35 s (cached after). Frame → depth mapping verified (scale + centre crop, 1 px). Lifted boxes: window on bedroom W3 in 4 photos ✓, closed sticker door on hall W3 in 3 ✓, wardrobe as a "door" (1 photo), dozens of stain/crack false positives on marble floors and the kitchen splashback | E18 |
 | ~21:35 | Rules: ≥ 2 distinct photos per object, damage on walls/ceilings only, detector doors/windows only where voting found none (after W1), mirrors cancel see-through openings; rules engine + `config/rules.yaml`; damage/flags/scope in the output with intervals; damage drawn on plans; damage scoring in `scan-eval` | D29 |
 | ~21:40 | home01: window added (0.69 × 1.06; tape 0.90 × 1.21 → −21 cm), sticker door added (hall W3, 0.93 × 1.93; not yet in the tape file → counted as a phantom), **0 damage** (stain D1 missed: in no photo). G1 0/5. 56 tests pass | Step 1.9 ✅ |
+| ~21:55 | **Step 1.10 calibration** (D30): split-conformal k per tier_mode × type, small-sample guards (n < 9 → max × 2; k ≥ 0.5), leave-one-room-out coverage; `scan-calibrate` writes `config/calibration.yaml`; results record the k used. Bug found: per-room measurements were built from the uncalibrated config → fixed | D30 |
+| ~22:00 | home01 calibrated: wall/ceiling/area k = 0.5 (floor; n too small), LOO coverage 100%. **Interval mean half-width ±15% → ±5.0%, coverage still 100% (10/10)**. 61 tests pass | Step 1.10 ✅ |
 
 ### Open data issues
 

@@ -127,6 +127,23 @@ def fetch_weights(
     typer.secho("All weights present and verified.", fg=typer.colors.GREEN)
 
 
+def calibrate(
+    evals: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help="eval.json files from scan-eval"),
+) -> None:
+    """Fit interval inflation k per mode and measurement type (split-conformal), write config/calibration.yaml."""
+    import json
+
+    from scan.config import load_config
+    from scan.uncertainty.calibrate import fit, write
+
+    cal = fit([json.loads(p.read_text()) for p in evals], load_config())
+    for mode, types in cal.items():
+        for t, v in types.items():
+            typer.echo(f"{mode:15s} {t:8s} k={v['k']:.3f}  n={v['n']}  ({v['method']})  "
+                       f"LOO coverage {v['loo_coverage']} on {v['loo_n']}")
+    typer.secho(f"Wrote {write(cal)}", fg=typer.colors.GREEN)
+
+
 def schema() -> None:
     """Write schema/scan_output.schema.json from scan/schema.py."""
     import json
@@ -153,6 +170,10 @@ def bench_main() -> None:
 
 def fetch_weights_main() -> None:
     typer.run(fetch_weights)
+
+
+def calibrate_main() -> None:
+    typer.run(calibrate)
 
 
 def schema_main() -> None:

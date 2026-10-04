@@ -69,7 +69,7 @@ layout:
 
 uncertainty:
   interval_level: 0.90             # every [lo, hi] is a nominal 90% interval
-  k_tier: {photo: 1.5, video: 1.5, lidar: 1.5}   # inflation; conservative until calibrated (step 1.10)
+  k_tier: {photo: 1.5, video: 1.5, lidar: 1.5}   # default inflation; config/calibration.yaml overrides per mode + type (D30)
   sigma_geom_m: {photo: 0.03, video: 0.02, lidar: 0.01}  # local geometry noise per tier
   sigma_extra_m:
     weak_wall: 0.10                # a wall with < 20 supporting points: position from the outline only
@@ -123,3 +123,7 @@ damage:
   sigma_extent_m: 0.05             # box-edge uncertainty of a damage extent
   min_photos: 2                    # keep only things seen in >= 2 different photos at the same place
   surfaces: [wall, ceiling]        # marble / patterned floors produce stain & crack false positives (E18)
+
+calibration_fit:                   # scan-calibrate (D30)
+  k_min: 0.5                       # never narrower than this, whatever few residuals say
+  small_n_inflate: 2.0             # too few residuals for the conformal quantile: max ratio x this

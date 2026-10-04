@@ -38,6 +38,7 @@ scan-eval = "scan.cli:eval_main"
 scan-bench = "scan.cli:bench_main"
 scan-fetch-weights = "scan.cli:fetch_weights_main"
 scan-schema = "scan.cli:schema_main"
+scan-calibrate = "scan.cli:calibrate_main"
 
 [dependency-groups]
 dev = [

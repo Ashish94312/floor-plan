@@ -263,3 +263,20 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - Single-photo damage is dropped (could miss damage seen once).
   - Floor damage is not supported on patterned floors.
   - Thresholds were tuned on one home (O4).
+
+## D30. Interval calibration: split-conformal k per mode and measurement type, with small-sample guards
+- **Why:** with k = 1.5, intervals were about ±15% wide while observed errors were 0.1–1.6% (coverage 100%). They were honest but uninformative.
+- **Rule (`uncertainty/calibrate.py`, `uv run scan-calibrate <eval.json>…` → `config/calibration.yaml`):**
+  - For each scored measurement: r = |error| / half-width used, converted to units of z·σ by multiplying by the k used.
+  - New k = the ⌈(n+1)·q⌉-th smallest value. This is split-conformal: coverage ≥ q if future rooms resemble these.
+  - Fitted separately per **tier_mode** (`photo_joint` vs `photo_per_room`: separate runs have no shared scale and bigger errors) and per **type** (wall, ceiling, area).
+  - **Guards:** if n is too small for that order statistic, use max r × 2. Never go below k = 0.5.
+  - Leave-one-room-out coverage is reported.
+- **Excluded:** opening widths stay at the default k while their −18 cm looks like a tape-definition issue (D28). Their coverage is still reported (currently missed).
+- **home01:**
+  - n = 7 walls / 2 ceilings / 1 area: all below the conformal minimum (9), so every k = 0.5 (floor).
+  - Max ratio at k = 1.5: walls 0.115, ceilings 0.066, so the floor leaves a 3× margin.
+  - LOO coverage 100% (7/7, 2/2).
+  - **Mean half-width ±15% → ±5.0%, coverage still 100%.**
+  - The result records the k used (`software.interval_k`, `interval_mode`); eval and calibration read it from there.
+- **Limit:** one home. The benchmark (Phase 4) must refit with more captures, and the floor should come down only when n ≥ 9 per type.

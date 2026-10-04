@@ -21,8 +21,15 @@ def z(level: float) -> float:
     return float(norm.ppf(0.5 + level / 2))
 
 
-def measurement(value: float, sigma: float, unit: str, ucfg: dict, tier: str, nonneg: bool = True) -> Measurement:
-    half = ucfg["k_tier"][tier] * z(ucfg["interval_level"]) * sigma
+def k_for(ucfg: dict, tier: str, mtype: str) -> float:
+    """Calibrated k for (tier_mode, measurement type) if config/calibration.yaml has it, else the default."""
+    cal = (ucfg.get("calibration") or {}).get(f"{tier}_{ucfg.get('mode', 'per_room')}", {})
+    return float(cal[mtype]["k"]) if mtype in cal else float(ucfg["k_tier"][tier])
+
+
+def measurement(value: float, sigma: float, unit: str, ucfg: dict, tier: str, nonneg: bool = True,
+                mtype: str = "default") -> Measurement:
+    half = k_for(ucfg, tier, mtype) * z(ucfg["interval_level"]) * sigma
     lo = value - half
     return Measurement(value=round(value, 4), lo=round(max(lo, 0.0) if nonneg else lo, 4),
                        hi=round(value + half, 4), unit=unit)
