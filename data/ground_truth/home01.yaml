@@ -64,4 +64,21 @@ rooms:
       # - {id: O5, type: window, wall: ?, width_cm: null, height_cm: null, sill_cm: null}       # window beside the sticker door
     damage: []
 
+  - id: kitchen
+    label: Kitchen
+    captured: false                  # no photos yet -> not scored. Add photos/kitchen/ to include it in the plan.
+    # North-west corner of the flat, beyond the hall (user, 2026-10-04): its south wall is the hall's W4, its east
+    # wall is the hall's W5 (kitchen opening), and it runs west to the line of the hall's west wall (W3).
+    # Plan values in comments are ONLY a guide for measuring. Never copy them in: ground truth must be tape/laser,
+    # or the evaluation would grade the pipeline against itself.
+    ceiling_height_cm: [null, null]
+    walls:
+      - {id: W1, length_cm: null}    # wall with the opening from the hall (= hall W5 side)   plan guide ~1.41 m
+      - {id: W2, length_cm: null}    # south (back of hall W4)                               plan guide ~2.77 m
+      - {id: W3, length_cm: null}    # west                                                  plan guide ~1.41 m
+      - {id: W4, length_cm: null}    # north                                                 plan guide ~2.77 m
+    openings:
+      - {id: O1, type: opening, wall: W1, width_cm: null, height_cm: null, connects_to: hall}
+    damage: []
+
 repeat_captures: []
