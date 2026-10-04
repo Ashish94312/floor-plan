@@ -35,3 +35,13 @@ def test_keyframes_one_sharpest_per_slice_and_skip_blur():
     assert picks == [2, 13, 27]
     picks, _ = keyframes(np.stack([blur] * 10), 3, min_sharpness=30)
     assert picks == []  # all slices blurry -> no keyframes
+
+
+def test_keyframes_min_gap_avoids_near_duplicates():
+    sharp = np.random.default_rng(0).integers(0, 256, (40, 40, 3), dtype=np.uint8)
+    softer = (sharp // 2 + 64).astype(np.uint8)  # same texture, lower contrast: sharp, but less so
+    blur = np.full((40, 40, 3), 128, np.uint8)
+    frames = np.stack([sharp if i in (9, 10) else softer if i == 15 else blur
+                       for i in range(20)])  # sharpest frames 9 and 10 sit on the slice border
+    assert keyframes(frames, 2, min_sharpness=30)[0] == [9, 10]
+    assert keyframes(frames, 2, min_sharpness=30, min_gap=4)[0] == [9, 15]

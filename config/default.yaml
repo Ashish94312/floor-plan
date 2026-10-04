@@ -136,6 +136,7 @@ video:
   decode_fps: 4                    # candidate frames per second
   keyframes_per_room: 12           # per room; more rooms x frames than geometry.max_joint_views -> per-room runs + door stitching
   min_sharpness: 30                # Laplacian variance; blurrier slices give no keyframe
+  min_keyframe_gap_s: 1.0          # keyframes at least this far apart (video_c picked 69.0 s and 69.2 s)
   rays: model                      # overrides geometry.rays for video: MapAnything ignores the given video focal and keeps
                                    # its own (~22 mm vs ~30-33 by VP); EXIF rays then break multi-view consistency.
                                    # model rays: ceilings 2.16/1.94 -> 2.83/2.91 m (tape 2.79/2.80), E22c

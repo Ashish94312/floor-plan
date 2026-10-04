@@ -52,11 +52,14 @@ def decode(path: Path, fps: float, max_side: int) -> tuple[np.ndarray, np.ndarra
     return frames, np.arange(len(frames)) / fps, info
 
 
-def keyframes(frames: np.ndarray, k: int, min_sharpness: float) -> list[int]:
-    """One sharpest frame per equal time slice (coverage + no motion blur)."""
+def keyframes(frames: np.ndarray, k: int, min_sharpness: float, min_gap: int = 0) -> list[int]:
+    """One sharpest frame per equal time slice (coverage + no motion blur), at least `min_gap` frames
+    after the previous pick (neighbouring slices could otherwise pick near-duplicates at their border)."""
     sharp = np.array([cv2.Laplacian(cv2.cvtColor(f, cv2.COLOR_RGB2GRAY), cv2.CV_64F).var() for f in frames])
     picks = []
     for sl in np.array_split(np.arange(len(frames)), k):
+        if picks:
+            sl = sl[sl >= picks[-1] + min_gap]
         if len(sl) and sharp[sl].max() >= min_sharpness:
             picks.append(int(sl[np.argmax(sharp[sl])]))
     return picks, sharp
@@ -82,7 +85,8 @@ def ingest_video(cap, cfg: dict) -> None:
         fr_list, names, sharps = [], [], []
         for f in files:
             frames, ts, info = decode(f, vc["decode_fps"], cfg["ingest"]["working_max_side"])
-            picks, sharp = keyframes(frames, max(1, per_room // len(files)), vc["min_sharpness"])
+            picks, sharp = keyframes(frames, max(1, per_room // len(files)), vc["min_sharpness"],
+                                     min_gap=round(vc["min_keyframe_gap_s"] * vc["decode_fps"]))
             for i in np.argsort(sharp)[::-1][: vc["vp_frames_per_clip"]]:  # focal: many sharp frames, not just keyframes
                 f_px = focal_px(frames[i], seed=int(i))
                 if f_px is not None:
