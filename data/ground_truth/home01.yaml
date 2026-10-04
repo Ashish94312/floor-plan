@@ -32,16 +32,36 @@ rooms:
   - id: hall
     label: Hallway
     ceiling_height_cm: [280, 280.5]
+    # L-shaped (user, 2026-10-04): a passage notch runs along the bedroom wall at the north end,
+    # and the KITCHEN lies beyond W4/W5 (north of W4, west of W5), entered through an opening in W5.
+    # Clockwise from W1 seen from above (W1 = bedroom-door wall, as originally measured):
+    #
+    #            W6 (notch top)
+    #           +----+
+    #   kitchen | W5 |                    <- kitchen opening in W5
+    #   +-------+    |
+    #   |   W4       |  W1  (shared with bedroom1, bedroom door)
+    #   W3           |
+    #   |            |
+    #   +----- W2 ---+
+    #
+    # null = not measured yet. First measured as a 4-wall room: W1 361, W2 370, W3 230, W4 369.5.
     walls:
-      - {id: W1, length_cm: 361}         # wall with the main (front) door, or the bedroom door
-      - {id: W2, length_cm: 370}
-      - {id: W3, length_cm: 230}
-      - {id: W4, length_cm: 369.5}
+      - {id: W1, length_cm: 361}         # east, shared with bedroom1 (bedroom door), full length incl. the notch
+      - {id: W2, length_cm: 370}         # south
+      - {id: W3, length_cm: 230}         # west
+      - {id: W4, length_cm: null}        # north, from the west corner to the notch (plan: ~2.77 m)
+      - {id: W5, length_cm: null}        # notch side facing the kitchen, holds the kitchen opening (plan: ~1.41 m)
+      - {id: W6, length_cm: null}        # notch top (plan: ~0.95 m)
+    checks:
+      # the first "W4 = 369.5" was measured straight across the notch mouth: W4 + width of the notch (= W6)
+      - {sum: [W4, W6], length_cm: 369.5}
     openings:
       - {id: O1, type: door, wall: W1, width_cm: 90, height_cm: 211, connects_to: bedroom1}
-      # - {id: O2, type: door, wall: W1, width_cm: 90, height_cm: 211, connects_to: bathroom}
-      - {id: O3, type: door, wall: W3, width_cm: 89,  height_cm: 210, connects_to: outside}
-
+      - {id: O2, type: opening, wall: W5, width_cm: null, height_cm: null, connects_to: kitchen}   # to measure
+      # - {id: O3, type: door, wall: ?, width_cm: null, height_cm: null, connects_to: bathroom}   # sticker door: wall + size to measure
+      - {id: O4, type: door, wall: W3, width_cm: 89, height_cm: 210, connects_to: outside}       # carved front door: confirm wall (photos 4891/4897 show it beside the bedroom door)
+      # - {id: O5, type: window, wall: ?, width_cm: null, height_cm: null, sill_cm: null}       # window beside the sticker door
     damage: []
 
 repeat_captures: []
