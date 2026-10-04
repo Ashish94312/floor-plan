@@ -1,0 +1,47 @@
+# Ground truth for home01. Rules and how-to-measure: see TEMPLATE.yaml.
+#
+# UNITS: centimetres, nearest 0.5 cm.
+# WALL NUMBERING: W1 = wall with the room's main door. Stand inside facing W1;
+#                 W2 = wall on your RIGHT, then W3, W4 continuing the same way.
+# Rectangular room: W1 and W3 are opposite (should be about equal), W2 and W4 too.
+
+property_id: home01
+measured_by: Ashish Kumar
+date: 2026-10-04
+tool: laser           # tape | laser
+
+rooms:
+  - id: bedroom1      # must match the photo folder name
+    label: Bedroom 1
+    ceiling_height_cm: [279, 279.5]          # two different spots
+    walls:
+      - {id: W1, length_cm: 239}         # wall with the door
+      - {id: W2, length_cm: 289}         # to your right when facing W1
+      - {id: W3, length_cm: 239}         # opposite the door
+      - {id: W4, length_cm: 294}
+    openings:
+      - {id: O1, type: door, wall: W1, width_cm: 90, height_cm: 211, connects_to: hall}
+      - {id: O2, type: window, wall: W3, width_cm: 90, height_cm: 121, sill_cm: 93}
+    damage:
+      # - {id: D1, wall: W2, type: crack, length_cm: 15, height_from_floor_cm: 120}
+      # Raw: on W2, 35 x 50 cm, 55 cm from floor, 85 cm from the W3 corner.
+      # Facing W2 from inside, W1 corner is LEFT, W3 corner is RIGHT, so
+      # from_left = 289 - 85 - 50 = 154 (assumes 50 = horizontal, 85 = to the stain's near edge).
+      - {id: D1, class: water_stain, wall: W2, width_cm: 50, height_cm: 35, from_left_cm: 154, from_floor_cm: 55}
+
+  - id: hall
+    label: Hallway
+    ceiling_height_cm: [280, 280.5]
+    walls:
+      - {id: W1, length_cm: 361}         # wall with the main (front) door, or the bedroom door
+      - {id: W2, length_cm: 370}
+      - {id: W3, length_cm: 230}
+      - {id: W4, length_cm: 369.5}
+    openings:
+      - {id: O1, type: door, wall: W1, width_cm: 90, height_cm: 211, connects_to: bedroom1}
+      # - {id: O2, type: door, wall: W1, width_cm: 90, height_cm: 211, connects_to: bathroom}
+      - {id: O3, type: door, wall: W3, width_cm: 89,  height_cm: 210, connects_to: outside}
+
+    damage: []
+
+repeat_captures: []

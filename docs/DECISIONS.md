@@ -1,0 +1,99 @@
+# Design Decisions Log
+
+Every decision here must be defensible live at the defense, without tools. Each entry: the decision, why, and what it costs.
+
+## D1. Capture route: Route 2 (stock apps + one-page protocol)
+- **Why:** No Apple Developer account and no LiDAR device available to test an iOS app. App Store apps install in minutes. Capture route is 5% of the score; pipeline accuracy, the fix loop and the walk-in test are 70%.
+- **Cost:** Less control over capture (no live guidance or quality checks on the phone).
+- **Protocol:** [CAPTURE_PROTOCOL.md](CAPTURE_PROTOCOL.md)
+
+## D2. Development device: iPhone 13 (no LiDAR)
+- **Why:** It is the only device available within the 48-hour deadline.
+- **Deviation from spec:** The spec asks for photo and video tiers from an iPhone 15 or newer. Benchmark photo and video captures were taken on an iPhone 13. This is disclosed in the device matrix and compliance matrix.
+- **Mitigation:** The pipeline reads camera intrinsics per image from EXIF and never hardcodes a phone model, so iPhone 15+ captures at the walk-in use the same code path.
+
+## D3. LiDAR tier: implemented against the Stray Scanner export format, validated on synthetic rooms only
+- **Why:** No Pro device is available. The walk-in may still choose LiDAR, so the code path must exist and run.
+- **Cost:** No real-capture accuracy numbers at the LiDAR tier. Reported honestly as "Partial".
+
+## D4. Head-to-head: magicplan on iPhone 13 vs our pipeline
+- **Why:** The spec asks for the LiDAR tier. That's impossible without a Pro device. magicplan runs without LiDAR, so this is the closest honest comparison available.
+- **Deviation:** Disclosed. The comparison is made against our video tier.
+
+## D5. Architecture: one shared core with thin tier adapters
+- **Why:** The output contract is identical across tiers. Each adapter only produces frames, depth, poses, intrinsics and their uncertainty. Layout, stitching, damage, rules, intervals and output are shared, so all tiers stay consistent and share fixes.
+
+## D6. Drift handling: plane-anchored (Manhattan-world) correction, switchable for ablation
+- **Why:** Most indoor walls are axis-aligned. Snapping room orientations to shared dominant axes removes accumulated rotation drift cheaply and robustly. "Poses as-is" is an automatic fail.
+- **Ablation:** A `--no-drift-correction` flag produces the stitched footprint without it.
+
+## D7. Concealed damage and scope: explicit YAML rules
+- **Why:** The spec requires stating "the rule that fired". Readable rules are auditable and easy to defend.
+
+## D8. Uncertainty: per-tier error model calibrated on benchmark residuals (leave-one-room-out)
+- **Why:** Confident garbage caps the total score. Intervals widen with tier. Calibrating with leave-one-room-out avoids grading the intervals on the same data used to fit them.
+
+## D9. Manhattan-world assumption for layout and stitching
+- **Why:** Most rooms have walls at 90°. The assumption makes wall fitting, stitching rotation (multiples of 90°) and drift correction simple and robust.
+- **Cost:** Angled or curved walls are approximated. Documented as a known failure mode, with a fallback rectangle and wider intervals.
+
+## D10. Footprint = sum of room floor areas (net internal area)
+- **Why:** This is what a tape measure can verify. The PDF doesn't define "footprint". The outline polygon is still rendered.
+
+## D11. Wall numbering: W1 = main-door wall, then clockwise from above
+- **Why:** The same rule is used in the ground-truth sheet and the pipeline, so walls can be matched for scoring. If the main door is ambiguous, eval takes the best cyclic shift and discloses it.
+
+## D12. Single open-vocabulary detector (OWLv2) for openings, mirrors and damage
+- **Why:** One model download, no training, readable text queries. Mirror detection suppresses phantom openings.
+- **Cost:** Box-level extent overestimates damage area. Intervals reflect this.
+
+## D13. VGGT runs with an fp16 aggregator, fp32 heads, no point head, depth head chunked 2 frames at a time (spike, O2)
+- **Why:** Stock fp32 VGGT on 8 images on the M4 (16 GB) peaked at 17 GB of MPS memory, grew swap by 15 GB and took 212 s. fp16 autocast barely helped (17 GB, 178 s) because the fp32 weights stay resident. Running the stages by hand fixes it: the 0.9B-parameter aggregator in fp16, camera and depth heads in fp32, point head skipped (we unproject depth + cameras instead), depth head 2 frames per pass.
+- **Measured (VGGT example scenes, 518×392):**
+
+  | Frames | Inference | Peak MPS | Swap growth |
+  |---|---|---|---|
+  | 8 | 28 s | 6.8 GB | 1.5 GB |
+  | 16 | 54 s | 6.8 GB | 0.8 GB |
+  | 24 | 100 s | 6.8 GB | 0.2 GB |
+
+  Weight load takes about 20 s on top of that. Room dimensions match fp32 to the millimetre and scale to 0.1%.
+- **Cost:** Time grows faster than linear with frame count. A photo room (6–8 images) costs about 25 s, so 5 rooms fit the 2-minute backbone budget. A 5-minute video at 2 fps (600 keyframes) does **not** fit the 5-minute budget at 24-frame chunks. Tier 2 needs a keyframe budget (about 0.5 fps, or coverage-based selection). This is decided in Tier 2 step 2.1.
+
+## D14. Open3D kept (O3)
+- **Why:** Open3D 0.20.0 installs from a wheel on arm64 / Python 3.11 with numpy 1.26, and plane segmentation works. No pure-NumPy fallback needed.
+
+## D15. Model licences (disclosed in README)
+- VGGT-1B: **CC-BY-NC-4.0** (non-commercial). The commercial variant is gated behind manual approval, so it can't be relied on within 48 h. Acceptable for a case-study evaluation, and disclosed.
+- MapAnything (Apache-2.0 build), Depth Anything V2 Metric Indoor Small, OWLv2 base: Apache-2.0.
+- If O1 picks MapAnything, the whole stack is Apache-2.0. That is a point in its favour if accuracy is comparable.
+- All weights are pinned to a Hugging Face commit + SHA256 in `scan/weights.py`.
+
+## D16. Portrait photos are rotated to landscape before VGGT
+- **Why:** On the first real capture (iPhone 13, portrait, 392×518), VGGT predicted fx ≈ 290 px against fy ≈ 383 px and an EXIF focal of 390 px. The predicted horizontal field of view was 26% too wide, so the room came out stretched sideways. With the same photos rotated 90°, it predicts fx = fy ≈ 422 px (within 8% of EXIF). Depth Anything still sees the upright photo, and its depth map is rotated to match. Gravity is read from camera +x instead of +y.
+- **Also:** frames are resized so the long side is 518 px, with no centre-crop. VGGT's stock crop mode would cut a portrait frame to a square and lose the floor and ceiling.
+
+## D17. O1 decided: MapAnything (Apache) with EXIF intrinsics replaces VGGT-1B + Depth Anything V2 metric
+- **Evidence:** bedroom1, 4 portrait photos (home01_photo_a), against the tape measure (239 × 291.5 cm, ceiling 279.25 cm):
+
+  | Backbone | Walls | Ceiling | Infer / load / peak MPS |
+  |---|---|---|---|
+  | VGGT-1B (rotated) + DAv2 metric scale | ~+40% (wall behind the wardrobe at 3.38 m against 2.39 m; one wall missing) | +14% to +45% | 13 s / 18 s / 6.8 GB |
+  | MapAnything, no intrinsics | +0.2% long, +6.7% short | +11.8% | 14 s / 37 s / 6.1 GB |
+  | **MapAnything + EXIF intrinsics** | **−1.5% long, −0.4% short** (measured to the wall behind the wardrobe) | **+5.7%** | 19.5 s / 44 s / 6.1 GB |
+
+- **Why it wins:** VGGT can't take the known focal length, and the DAv2 metric scale was biased about 1.4× on this room. MapAnything accepts the focal length from EXIF and outputs metres directly. The whole stack then becomes Apache-2.0 (see D15).
+- **Confirmed** on the reshoot (home01_photo_a/bedroom1: 7 portrait photos following the protocol, measured automatically, results the same at peak thresholds 0.2 and 0.08):
+
+  | Backbone | Short side | Long side | Ceiling | Infer / peak MPS |
+  |---|---|---|---|---|
+  | VGGT-1B (rotated) + DAv2 metric | 3.650 m (+52.7%) | 4.570 m (+56.8%) | 4.300 m (+54.0%) | 25 s / 7.8 GB |
+  | **MapAnything + EXIF intrinsics** | **2.450 m (+2.5%)** | **2.950 m (+1.2%)** | **2.710 m (−3.0%)** | 29 s / 7.1 GB |
+
+  VGGT gets the shape right (all three errors are about equal) but the DAv2 metric scale is about 1.55× too big. MapAnything passes the Phase 0 exit check (within 10% of the tape). Remaining error: walls doubled by about 8 cm where views don't align perfectly. That is a fix-loop candidate for the repeatability gate (G3).
+- **Protocol note:** both bedroom captures came back portrait, though the protocol says landscape. Portrait keeps floor and ceiling in frame, and MapAnything + EXIF handles it. Proposal: allow either orientation, but one orientation per room.
+- **Costs to fix if adopted:**
+  - At load, MapAnything fetches DINOv2 code from GitHub through torch hub. This breaks the offline requirement, so it must be pre-cached by `scan-fetch-weights`.
+  - Load takes about 40 s.
+  - Its `opencv-python-headless` pin clashes with VGGT's `opencv-python`. Dropping VGGT removes the clash.
+- **Spike lessons for the layout stage:** built-in wardrobes create a false wall in front of the real one. A bed covering the floor creates a false floor peak. Pick the outermost plane with real support, not the strongest peak.
