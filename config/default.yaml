@@ -63,6 +63,8 @@ layout:
   min_wall_points: 500             # fewer -> bounding-rectangle fallback
   min_room_area_m2: 1.5
   min_edge_m: 0.15                 # outline jogs shorter than this are removed
+  min_wall_support: 20             # wall points needed to place a wall from data; fewer = position from the outline
+  camera_wall_margin_m: 0.20       # an unseen wall is at least this far behind every camera (phone held in front of the body, E22f)
   refine_window_m: [0.10, 0.35]    # wall = median of wall points from 10 cm inside to 35 cm outside the outline
   coverage_window_m: 0.12          # wall coverage: vertical-surface points within 12 cm of the wall line ...
   coverage_min_points: 5           # ... at least this many per 10 cm of wall

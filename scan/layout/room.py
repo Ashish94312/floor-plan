@@ -248,6 +248,32 @@ def _drop_short_edges(segs, min_edge: float):
     return segs
 
 
+def _contain_cameras(segs, cams: np.ndarray, margin: float, min_support: int):
+    """A wall nobody filmed (support < min_support) is somewhere behind the cameras: push it out until
+    every camera within its span is `margin` inside (the phone is held in front of the body). A lower
+    bound, not a measurement; the wall keeps its weak-support interval. Returns (segs, moved wall indices)."""
+    V = _vertices(segs)
+    ccw = _signed_area(V) > 0
+    out, moved = [], []
+    for i, s in enumerate(segs):
+        s = list(s)
+        if s[3] < min_support and len(cams):
+            a, b = V[i - 1], V[i]
+            d = b - a
+            n_out = np.array([d[1], -d[0]]) if ccw else np.array([-d[1], d[0]])
+            n_out = n_out / (np.linalg.norm(n_out) + 1e-12)
+            k, span = (1, 0) if s[0] == "h" else (0, 1)
+            lo, hi = sorted((a[span], b[span]))
+            near = cams[(cams[:, span] > lo) & (cams[:, span] < hi)]
+            if len(near):
+                need = float(np.max((near[:, k] - s[1]) * n_out[k])) + margin  # >0: a camera is too close or outside
+                if need > 0:
+                    s[1] += need * n_out[k]
+                    moved.append(i)
+        out.append(s)
+    return out, moved
+
+
 def _signed_area(V: np.ndarray) -> float:
     x, y = V[:, 0], V[:, 1]
     return 0.5 * float(np.dot(x, np.roll(y, -1)) - np.dot(np.roll(x, -1), y))
@@ -349,10 +375,14 @@ def _layout_one(room_id, cloud, d, own, free, lo, shape, cfg) -> Layout:
     if notch > 0:
         warnings.append(f"filled a {notch:.2f} m2 corner notch (corner furniture / unseen corner treated as room)")
     segs = _drop_short_edges(_refine(segs, walls_pts[:, :2], *lc["refine_window_m"]), lc["min_edge_m"])
+    segs, pushed = _contain_cameras(segs, d["cams"], lc["camera_wall_margin_m"], lc["min_wall_support"])
     V = _vertices([s_[:3] for s_ in segs])
     support = [(s_[3], s_[4]) for s_ in segs]
     poly, walls = _walls_clockwise(V, support, room_id)
-    weak = [w.wall_id for w in walls if w.support < 20]
+    weak = [w.wall_id for w in walls if w.support < lc["min_wall_support"]]
+    if pushed:
+        warnings.append(f"{len(pushed)} unseen wall(s) placed {lc['camera_wall_margin_m']:.2f} m behind the cameras "
+                        "(lower bound: the wall was never filmed)")
     if weak:
         warnings.append(f"walls with little point support (position from the outline only): {', '.join(weak)}")
     area = abs(_signed_area(np.array(poly)))
