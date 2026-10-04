@@ -78,6 +78,12 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~18:35 | **MILESTONE A ✅**: `uv run scan captures/home01_photo_a` → `out/result.json` (validated on write), `out/plan.png`, `out/plan.svg`, `out/rooms/<room>.png`; diagnostics moved to `out/debug/` (cloud.ply, align.png, layout.png, geometry.json). Footprint 17.08 m² ±4.35. Whole run 9 s cached. 40 tests pass | PLAN 1.5 |
 | ~18:45 | User marked the hall's north part on the plan: **the kitchen lies beyond plan walls W3/W4** (north of the main hall box, west of the notch); the notch is the passage along the bedroom wall and the kitchen opening is in the notch's west wall (plan W4, ~1.41 m; matches photo 4894). Hall ground truth rewritten as a **6-wall L** in the user's numbering (W1 = bedroom-door wall, clockwise): W1 361, W2 370, W3 230 kept; W4 / W5 / W6 (north segment, kitchen-side notch wall, notch top) `null` until measured; kitchen opening O2 on W5 (size to measure). The old "W4 = 369.5" was measured across the notch mouth → kept as a check `W4 + W6 = 369.5`: plan gives 2.772 + 0.954 = 3.726 (+0.8%) | `data/ground_truth/home01.yaml` |
 | ~18:55 | User: the kitchen spans from plan W4 (~1.41 m deep) west to the line of the hall's west wall, so the flat is a full rectangle (hall + passage notch + kitchen in the north-west corner). Added `kitchen` to the ground truth as `captured: false` with **all values null**; plan values appear only as measuring guides in comments. **Ground truth is never copied from the pipeline's plan**: that would grade the pipeline against itself | `home01.yaml` |
+| ~19:05 | Kitchen photographed: 3 photos (`IMG_4898`–`4900`), portrait, 1× lens, no duplicates. Thin: the protocol asks for 4–8, and `4900` is a plain wall | `photos/kitchen/` |
+| ~19:10 | Added a peak-memory recorder to the backbone step (`PeakMemory`, logged per run). **3-room joint run, 17 photos: 9.14 GB peak, 87 s.** First plan: kitchen 6 odd walls, adjacency hall↔kitchen via hall-W4 (the kitchen-opening wall) ✓, **1 overlap** | E16 |
+| ~19:15 | Kitchen walls in two inconsistent sets. Per-photo check of wall-normal angle against the house axes: all bedroom/hall photos 1.5–4.6°; kitchen `4899` 2.1°, `4898` 7.2°, **`4900` 19.0° → misplaced by the backbone** | E16 |
+| ~19:20 | Added `check_views`: photos > 8° off the house axes are dropped and the room is rebuilt (never below 2 photos; otherwise all are kept and the room is marked partial). `max_joint_views` 16 → 20 (measured). Result: `4900` dropped, kitchen 4 walls 3.12 m², ceiling 2.52 m (suspicious), **0 overlaps**, adjacency bedroom↔hall and hall↔kitchen | E16 |
+| ~19:25 | User: no gap between kitchen and hall (one continuous wall); kitchen W3 (north) is on the same line as hall W5 (passage end); kitchen W2 (west) on the same line as hall W2. So the kitchen is as deep as hall W4. → next: structural wall snapping | — |
+| ~19:25 | Work log: open data issues reviewed. 5 resolved items moved to a "Resolved" table with their resolution; kitchen `captured: true` in the ground truth | — |
 
 ### Open data issues
 
@@ -145,6 +151,7 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 | E13 | Pre-compensate by feeding f × 0.893 | Output follows input (median 379 px). Ceilings +1.3% / +3.1%, but per-view focals inconsistent (ceilings disagree > 10 cm) | Not adopted |
 | E14 | EXIF rays + pairwise ICP pose re-fit | **Failed:** low overlap, ICP slides along walls, graph disconnected; poses unchanged. Per-room EXIF rays: ceilings +4.2 / −4.0%, walls +12.6 / +5.7 / −3.0 / −4.9% | ICP dropped. Per-room scale ±5% is the real limit |
 | E15 | Ray source × per-room vs joint | **Joint + EXIF: ceilings −0.1% / +0.6%, walls 5 of 6 within 1.5%, mean abs 1.75%** (joint + model 3.55%, per-room EXIF 5.7%, per-room model 4.8%) | **D20: joint + EXIF is the default** |
+| E16 | 3-room joint run + photo consistency | 17 photos = 9.14 GB (fits). One kitchen photo misplaced 19° → auto-dropped. Kitchen weak (2 photos) | `max_joint_views` 20; `check_views` in the pipeline |
 
 ### What affects the results (so far)
 
@@ -527,6 +534,26 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
   - EXIF rays remove the focal bias.
   - The open door leaf and the wardrobe recess affect the bedroom's short side.
 - **Impact:** **new default (D20): `joint: auto` + `rays: exif`.** Ceiling G2 is within reach: bedroom −0.3 cm (pass), hall +1.7 cm (0.2 cm over), pending the real layout fit (step 1.4).
+
+### E16. Three rooms in one joint run; detecting misplaced photos
+
+- **Question:**
+  - Does a 3-room joint run (17 photos) fit in memory?
+  - Does the kitchen join the plan correctly?
+- **Setup:**
+  - `uv run scan captures/home01_photo_a --joint` with a new `PeakMemory` sampler (accelerator memory every 50 ms) around inference.
+  - Per-photo check: in the aligned frame, the median angle between each photo's wall normals and the nearest house axis.
+- **Results:**
+  - Memory: 9.14 GB peak, 87 s inference (14 photos was 8.1 GB, so about 0.35 GB per photo).
+  - First plan: kitchen 6 walls, 4.63 m²; hall↔kitchen adjacency through hall-W4 (the kitchen-opening wall, correct); 1 overlap (kitchen edge 10 cm into the passage).
+  - Off-axis angle per photo: bedroom 1.5–4.3°, hall 2.3–4.6°, kitchen 4899 2.1°, 4898 7.2°, **4900 19.0°**.
+  - After dropping photos > 8°: kitchen from 2 photos, 4 walls, 3.12 m², ceiling 2.52 m; 0 overlaps.
+- **What affected it:** a plain, low-texture wall photo (`4900`) gave the backbone too little to place it, so it came out rotated about 19°. With only 3 photos in the room, nothing outvoted it.
+- **Impact:**
+  - `max_joint_views` = 20 (measured).
+  - `check_views` drops misplaced photos automatically (this protects the walk-in).
+  - Kitchen needs a retake (4–8 photos).
+  - The ceiling of 2.52 m needs verifying.
 
 ## Open questions / next experiments
 
