@@ -41,7 +41,7 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~14:45 | Gotcha: uninstalling `opencv-python` in place deleted `cv2` files shared with the headless build (`cv2.__version__` missing). Fixed with `uv sync --reinstall-package opencv-python-headless`. A fresh clone won't hit this | — |
 | ~14:50 | **Offline:** DINOv2 encoder code vendored at `facebookresearch/dinov2@7764ea0` into `weights/dinov2-code` by `scan-fetch-weights` (verified by `hubconf.py` SHA256). `scan/geometry/mapanything_backend.py` routes `torch.hub.load("facebookresearch/dinov2")` to it, so no network call at load. It's the same code E6–E10 used (only `__pycache__` differs) | — |
 | ~14:55 | Offline run with network blocked and an empty torch cache: works, and is **bit-identical to E7** | E11 |
-| ~14:55 | ARCHITECTURE updated (stack, layout, §10.2 photo geometry, risks, O1–O3 decided). Spike script marked legacy (re-run E1–E7 at commit `31dbc88`). Temp `.venv-mapanything` removed | — |
+| ~14:55 | ARCHITECTURE updated (stack, layout, §10.2 photo geometry, risks, O1–O3 decided). Spike script marked legacy (re-run E1–E7 at commit `1d4eca8`). Temp `.venv-mapanything` removed | — |
 | ~15:05 | **Tier 1 started.** Step 1.1 ingest: `scan/io/ingest.py` (tier detection incl. bare Stray Scanner exports, validation), `scan/io/photos.py` (EXIF-upright decode, diagonal-based intrinsics, sharpness), `scan/types.py`, `scan/config.py` + `config/default.yaml`, `scan/errors.py` (exit codes 2/3). `uv run scan` prints the capture summary | D18, D19 |
 | ~15:10 | Found while writing ingest: ARCHITECTURE's f35 → pixels formula used the film width (4% short on 4:3). Switched to the diagonal, which E6–E11 already used | D18 |
 | ~15:15 | Ingest on `home01_photo_a`: bedroom1 7 + hall 7 photos, portrait, f35 = 26. `IMG_4887` (landscape) dropped automatically, as done by hand in E7. Bad folders give clear errors with exit code 2 (empty `photo_b`, the old portrait folder, a LiDAR sample detected as LiDAR) | — |
@@ -349,7 +349,7 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
   - Commands:
     - `PYTORCH_ENABLE_MPS_FALLBACK=1 .venv-mapanything/bin/python scripts/experiments/mapanything_run.py captures/home01_photo_a/photos/hall captures/home01_photo_a/experiments/E8_hall_mapanything_k k`
     - `uv run python scripts/experiments/measure_cloud.py <out>/ma_raw.npz 0.08 361 370 280.25`
-  - Code at commit `5e99225`, plus a `measure_cloud.py` change to take tape values as arguments.
+  - Code at commit `e143866`, plus a `measure_cloud.py` change to take tape values as arguments.
 - **Results:** load 39.3 s, infer 23.7 s, peak MPS 7.13 GB. Focal out 395–449 px (input 389).
 
   | | Tape | MapAnything | Error |
@@ -374,7 +374,7 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 - **Setup:**
   - `scripts/experiments/mapanything_run.py captures/home01_photo_a/photos/bedroom1,captures/home01_photo_a/photos/hall <out> k IMG_4887.HEIC`. The runner now accepts several room folders and saves each image's room.
   - Analysis: `scripts/experiments/joint_rooms.py <out>/ma_raw.npz bedroom1=239,291.5,279.25 hall=230,370,280.25`.
-  - 14 photos (7 + 7). Code at commit `8fe2940`, plus the runner and analysis changes.
+  - 14 photos (7 + 7). Code at commit `bfb1a8c`, plus the runner and analysis changes.
   - Outputs: `captures/home01_photo_a/experiments/E9_joint_bedroom_hall/`.
 - **Results:** load 37.1 s, infer 59.6 s, peak MPS 8.14 GB. Focal out 389–458 px (mean 436) against EXIF 390.
 

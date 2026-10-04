@@ -1,7 +1,7 @@
 """Phase 0 spike (PLAN.md): one measured room's photos -> metric point cloud.
 
 LEGACY (VGGT + Depth Anything): needs the `vggt` package, removed at the MapAnything switch (D17).
-To re-run E1-E7: `git checkout 31dbc88 && uv sync && uv run scan-fetch-weights --optional`.
+To re-run E1-E7: `git checkout 1d4eca8 && uv sync && uv run scan-fetch-weights --optional`.
 
 Answers O1/O2 with numbers:
   * VGGT-1B time + peak memory on this machine, fp32 vs fp16
