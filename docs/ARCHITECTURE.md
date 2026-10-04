@@ -511,7 +511,7 @@ scope_rules:
 
 - **Per room:** the polygon with wall lengths printed at mid-edge as `3.62 m ±0.22`, openings drawn as gaps with door swing arcs or window double lines, damage drawn as hatched marks on the walls, and the ceiling height and floor area in the room centre.
 - **Stitched:** all rooms placed, room labels and areas, matched doors drawn as connections, any overlaps in red.
-- Output: `plan.png` (stitched), `plan.svg` and `rooms/<room>.png`.
+- Output: `out/plan.png` (stitched), `out/plan.svg`, `out/rooms/<room>.png`, `out/result.json` (validated against the schema on write). Diagnostics (`cloud.ply`, `align.png`, `layout.png`, `geometry.json`) go to `out/debug/` (D24).
 
 ## 11. Uncertainty model
 

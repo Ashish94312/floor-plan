@@ -1,0 +1,62 @@
+"""Stitched multi-room plan (C7). In a joint run every room is already in one property frame
+(placement = the joint reconstruction itself). Door-based stitching for separate runs is step 1.8."""
+
+from __future__ import annotations
+
+from shapely.geometry import Polygon
+
+from scan.schema import Adjacency, DriftCorrection, Overlap, RoomPose
+
+
+def _orient(w):
+    return "h" if abs(w.end[1] - w.start[1]) < abs(w.end[0] - w.start[0]) else "v"
+
+
+def shared_walls(lay_a, lay_b, max_gap: float, min_overlap: float) -> tuple[str, str] | None:
+    """Best pair of parallel walls (one per room) within max_gap of each other, overlapping >= min_overlap."""
+    best = None
+    for a in lay_a.walls:
+        for b in lay_b.walls:
+            o = _orient(a)
+            if o != _orient(b):
+                continue
+            k, span = (1, 0) if o == "h" else (0, 1)
+            gap = abs(a.start[k] - b.start[k])
+            a0, a1 = sorted((a.start[span], a.end[span]))
+            b0, b1 = sorted((b.start[span], b.end[span]))
+            overlap = min(a1, b1) - max(a0, b0)
+            if gap <= max_gap and overlap >= min_overlap and (best is None or overlap > best[0]):
+                best = (overlap, (a.wall_id, b.wall_id))
+    return None if best is None else best[1]
+
+
+def stitch(clouds: dict, cfg: dict, warnings: list[str]):
+    """-> (placement_method, poses, adjacency, overlaps, drift)"""
+    sc = cfg["stitch"]
+    frames = {c.frame_id for c in clouds.values()}
+    joint = len(frames) == 1 and len(clouds) > 1
+    single = len(clouds) == 1
+    placed = joint or single
+    poses = [RoomPose(room_id=r, x=0.0, y=0.0, theta_deg=0.0, placed=placed) for r in clouds]
+    if not placed:
+        warnings.append("rooms were reconstructed separately and are not placed in one frame yet "
+                        "(door-based photo stitching is Tier 1 step 1.8)")
+    adjacency, overlaps = [], []
+    if placed and not single:
+        names = list(clouds)
+        for i, ra in enumerate(names):
+            for rb in names[i + 1 :]:
+                la, lb = clouds[ra].layout, clouds[rb].layout
+                sw = shared_walls(la, lb, sc["adjacency_max_gap_m"], sc["adjacency_min_overlap_m"])
+                if sw:
+                    adjacency.append(Adjacency(room_a=ra, room_b=rb, via_opening=None, shared_wall=sw))
+                inter = Polygon(la.polygon).intersection(Polygon(lb.polygon)).area
+                if inter > sc["overlap_tolerance_m2"]:
+                    overlaps.append(Overlap(room_a=ra, room_b=rb, area_m2=round(inter, 3)))
+    method = "joint_reconstruction" if joint else ("single_room" if single else "unplaced")
+    drift = DriftCorrection(
+        enabled=False,
+        method="photo tier: rooms reconstructed jointly in one shared frame (no sequential pose chaining); "
+               "drift ablation is Tier 1 step 1.8" if joint else "not applicable yet (Tier 1 step 1.8)",
+    )
+    return method, poses, adjacency, overlaps, drift

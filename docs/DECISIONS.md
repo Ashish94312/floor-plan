@@ -169,3 +169,16 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - Corner-notch filling can't tell a built-in wardrobe from a real wall jog under 0.6 m². A real small jog would be squared off (warned).
   - W1 is provisional (south-most wall) until doors are found in step 1.7.
   - Thresholds were set on one home plus synthetic rooms; the benchmark must confirm them.
+
+## D24. Output contract, interval model v1, and stitched plan from the joint frame
+- **Schema** (`scan/schema.py`, the published `schema/scan_output.schema.json`):
+  - Every number is a `Measurement` (value, lo, hi, unit) with a validator that lo ≤ value ≤ hi. Unknown keys are rejected.
+  - Stable surface ids: `<room>-W<n>`, `-F` (floor), `-C` (ceiling).
+  - Keys produced by later steps (openings, damage, flags, scope) are present as empty lists, so the shape never changes between tiers or versions (REQUIREMENTS §7.2 key rules).
+- **Interval model v1:** ARCHITECTURE §11 with σ_fit taken from each wall's **measured spread** rather than the standard error of the median. Views disagree by a few cm, so the spread is the honest position uncertainty. k_tier = 1.5 until calibration (step 1.10), which gives intervals about ±13% while observed errors are 1–3%. That's wide on purpose: the requirements penalise confidently-wrong outputs harder than wide ones.
+- **Footprint interval:** in a joint frame all rooms share one metric scale, so their scale terms add linearly (fully correlated). With separate runs they add in quadrature.
+- **Stitching (photo tier, joint):**
+  - The joint reconstruction *is* the placement (poses = identity in the shared frame).
+  - Adjacency = parallel walls ≤ 35 cm apart (wall thickness + error) overlapping ≥ 50 cm. `via_opening` is filled once doors are detected (step 1.7).
+  - Separate runs → `unplaced`, until door-based stitching (step 1.8).
+- **Output layout:** deliverables at `out/` (`result.json`, `plan.png`, `plan.svg`, `rooms/<room>.png`); diagnostics in `out/debug/`.

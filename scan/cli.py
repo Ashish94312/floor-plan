@@ -38,19 +38,27 @@ def scan(
     except NotImplementedError as e:
         _not_yet(f"{e} (see PLAN.md)")
     _print_capture(cap)
+    res = summary["result"]
     g = summary["geometry"]
     typer.echo(f"Geometry: {g['backbone']}, joint={g['joint']}, rays={g['rays']}, runs: "
                + ", ".join(f"{k}={v['cache']}" for k, v in g["runs"].items()))
-    for r, info in summary["rooms"].items():
-        pl = info["planes"]
-        ceil = f"ceiling {pl['ceiling_height_m']:.3f} m" if pl["ceiling_height_m"] is not None else "ceiling NOT FOUND"
-        lay = info["layout"]
-        walls = ", ".join(f"{w['wall_id'].split('-')[-1]} {w['length_m']:.3f}" for w in lay["walls"])
-        typer.echo(f"  {r:12s} {ceil}, area {lay['floor_area_m2']:.2f} m2, {lay['status']} ({lay['method']})"
-                   f"\n               walls: {walls}")
+
+    def pm(m):
+        return f"{m.value:.3f} [{m.lo:.3f}, {m.hi:.3f}]"
+
+    for room in res.rooms:
+        ceil = pm(room.ceiling_height) if room.ceiling_height else "not visible"
+        typer.echo(f"  {room.room_id:10s} {room.status:7s} ceiling {ceil} m, area {pm(room.floor_area)} m2")
+        for w in room.walls:
+            typer.echo(f"      {w.wall_id:14s} {pm(w.length)} m")
+    sp = res.stitched_plan
+    typer.echo(f"Stitched: {sp.placement_method}, footprint {pm(sp.footprint_area)} m2, adjacency "
+               + (", ".join(f"{a.room_a}-{a.room_b} via {a.shared_wall}" for a in sp.adjacency) or "none")
+               + f", overlaps {len(sp.overlaps)}")
+    out_dir = out or capture_dir / "out"
     typer.echo(f"Timing: {summary['timing_s']}")
-    typer.secho(f"Wrote {(out or capture_dir / 'out') / 'geometry.json'}. Schema + JSON + render is Tier 1 step 1.5 (next).",
-                fg=typer.colors.YELLOW)
+    typer.secho(f"Wrote {out_dir / 'result.json'}, plan.png, plan.svg, rooms/*.png (diagnostics in debug/)",
+                fg=typer.colors.GREEN)
 
 
 def _print_capture(cap) -> None:
@@ -99,7 +107,14 @@ def fetch_weights(
 
 def schema() -> None:
     """Write schema/scan_output.schema.json from scan/schema.py."""
-    _not_yet("Tier 1 step 1.5")
+    import json
+
+    from scan.schema import json_schema
+
+    out = Path(__file__).resolve().parents[1] / "schema" / "scan_output.schema.json"
+    out.parent.mkdir(exist_ok=True)
+    out.write_text(json.dumps(json_schema(), indent=2) + "\n")
+    typer.echo(f"Wrote {out}")
 
 
 def scan_main() -> None:

@@ -18,6 +18,7 @@ from scan.geometry.align import Alignment, apply, estimate_alignment, room_plane
 from scan.geometry.cloud import build_cloud, save_ply
 from scan.io.ingest import ingest
 from scan.layout.room import layout_rooms
+from scan.output import assemble, write
 from scan.render.debug import alignment_plot, layout_plot
 from scan.types import Capture, RoomCloud, Scale, Tier
 
@@ -53,6 +54,13 @@ def run(
         log(f"  layout {r}: {len(lay.walls)} walls, area {lay.floor_area_m2:.2f} m2, {lay.status} ({lay.method})")
     timing["layout_s"] = round(time.perf_counter() - t, 2)
 
+    t = time.perf_counter()
+    result = assemble(cap, clouds, cfg, timing)
+    files = write(result, out)
+    timing["output_s"] = round(time.perf_counter() - t, 2)
+
+    # diagnostics (not part of the contract)
+    dbg = out / "debug"
     summary = {
         "capture_id": cap.capture_id,
         "tier": cap.tier,
@@ -66,22 +74,23 @@ def run(
                 "frame_id": c.frame_id,
                 "extent_m": np.round(c.points.max(0) - c.points.min(0), 3).tolist(),
                 "planes": vars(c.planes),
-                "layout": {k: v for k, v in asdict(c.layout).items()},
-                "ply": str(Path("rooms") / r / "cloud.ply"),
+                "layout": dict(asdict(c.layout).items()),
+                "ply": str(Path("debug") / r / "cloud.ply"),
             }
             for r, c in clouds.items()
         },
         "timing_s": timing,
         "warnings": cap.warnings,
+        "files": {k: str(v.relative_to(out)) for k, v in files.items()},
     }
     t = time.perf_counter()
     for r, c in clouds.items():
-        save_ply(out / "rooms" / r / "cloud.ply", c.points, c.colors)
-        alignment_plot(r, c.points, c.planes, out / "rooms" / r / "align.png")
-        layout_plot(r, c.layout, out / "rooms" / r / "layout.png")
-    timing["write_s"] = round(time.perf_counter() - t, 2)
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "geometry.json").write_text(json.dumps(summary, indent=2))
+        save_ply(dbg / r / "cloud.ply", c.points, c.colors)
+        alignment_plot(r, c.points, c.planes, dbg / r / "align.png")
+        layout_plot(r, c.layout, dbg / r / "layout.png")
+    timing["debug_s"] = round(time.perf_counter() - t, 2)
+    (dbg / "geometry.json").write_text(json.dumps(summary, indent=2))
+    summary["result"] = result
     return cap, clouds, summary
 
 

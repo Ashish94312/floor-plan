@@ -60,3 +60,16 @@ layout:
   min_room_area_m2: 1.5
   min_edge_m: 0.15                 # outline jogs shorter than this are removed
   refine_window_m: [0.10, 0.35]    # wall = median of wall points from 10 cm inside to 35 cm outside the outline
+
+uncertainty:
+  interval_level: 0.90             # every [lo, hi] is a nominal 90% interval
+  k_tier: {photo: 1.5, video: 1.5, lidar: 1.5}   # inflation; conservative until calibrated (step 1.10)
+  sigma_geom_m: {photo: 0.03, video: 0.02, lidar: 0.01}  # local geometry noise per tier
+  sigma_extra_m:
+    weak_wall: 0.10                # a wall with < 20 supporting points: position from the outline only
+    fallback_layout: 0.20          # bounding-rectangle fallback
+
+stitch:
+  adjacency_max_gap_m: 0.35        # two rooms' walls this close and parallel = shared wall (wall thickness + error)
+  adjacency_min_overlap_m: 0.50    # ... overlapping along at least this length
+  overlap_tolerance_m2: 0.02       # polygon intersections smaller than this are numerical noise
