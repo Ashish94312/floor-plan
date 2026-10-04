@@ -47,6 +47,14 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~15:15 | Ingest on `home01_photo_a`: bedroom1 7 + hall 7 photos, portrait, f35 = 26. `IMG_4887` (landscape) dropped automatically, as done by hand in E7. Bad folders give clear errors with exit code 2 (empty `photo_b`, the old portrait folder, a LiDAR sample detected as LiDAR) | — |
 | ~15:20 | Speed: HEIC decode is 283 of 355 ms per photo. Threaded decode → 185 ms per photo (15 photos in 2.78 s, about 5.6 s for 30 against the guessed 5 s budget). 19 unit tests pass. Lint clean in `scan/` and `tests/` | Step 1.1 exit check ✅ |
 | ~15:20 | Moved the portrait-capture thumbnails out of `photos/` to `captures/home01_photo_portrait/thumbnails_640px/`, so the folder isn't read as a room | — |
+| ~15:30 | **Step 1.2 started.** First, settle which focal is physically right before building on it | — |
+| ~15:35 | Checked our side: MapAnything's preprocessing passes the EXIF focal through correctly (769 px at 1024 → 392.6 px at 392×518). The ~436 px output is the model's own bias, not our bug | E12 |
+| ~15:40 | **Vanishing-point check (no learned model):** on oblique corner views, the focal from geometry is 0.94–1.08× EXIF. **EXIF is right; MapAnything's focal is ~12% too long**, which is why ceilings come out low. Head-on views can't be used for this check | E12 |
+| ~15:50 | Pre-compensating (feeding f × 0.893): the output focal follows the input (median 379 px). Ceilings +1.3% / +3.1%, but per-view focals spread 329–427 px and ceiling points from different views disagree by > 10 cm. Not clean | E13 |
+| ~15:55 | **Decision: park the ceiling fix as the fix-loop candidate (G2).** Root cause proven (E10, E12, E13), fix planned (EXIF rays + ICP pose re-fit). Default stays MapAnything's own consistent rays. Both are config switches | D20 |
+| ~16:00 | Built step 1.2: `predict()` in `scan/geometry/mapanything_backend.py` (cache-aware, model loaded lazily once), `scan/geometry/cloud.py` (model/EXIF rays, confidence filter, 2 cm voxel), `scan/cache.py` (content-addressed `.npz`, atomic write), `scan/pipeline.py` (ingest → geometry → `out/rooms/<room>/cloud.ply` + `out/geometry.json`), `--joint` flag | — |
+| ~16:05 | First run, home01_photo_a: bedroom1 142,923 points, hall 133,180. 1 min 45 s live (load 35 s, about 32 s inference per room). **Cached re-run: 7 s, byte-identical `.ply` files.** Sizes match the experiments: bedroom 2.390 (0.0%) / 2.940 (+0.9%) / ceiling −3.0%; hall ≈ E8 | Step 1.2 exit check ✅ (cloud in metres) |
+| ~16:10 | 26 unit tests pass (projection maths, the E12 focal-compression effect, confidence filter + voxel, cache round-trip, real-capture cache replay). Lint clean | — |
 
 ### Open data issues
 
@@ -100,6 +108,8 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 | E9 | One joint run over bedroom + hall | Rooms register through the doorway, shared scale. Bedroom −0.8% / +0.5%. Hall about +1 to +4% (read from the plot; the heuristic failed). Ceilings −6.2% / −8.3% | Photo-tier stitching may come from the joint run (G5) |
 | E10 | Rebuild points with the EXIF focal instead of the model's rays | Joint ceilings **+0.6% / +1.7%** (from −6 / −8%). Walls more doubled (up to about 15 cm). Per-room runs mixed | Ceiling fix found. Pose/ray consistency still needed |
 | E11 | MapAnything in the main env, fully offline | Runs with network blocked and an empty torch cache. **Bit-identical to E7** (max point difference 0.0 m) | Switch verified. Offline requirement met for the backbone |
+| E12 | Which focal is physically right? (vanishing points) | Oblique views: focal from geometry is 0.94–1.08× EXIF. **EXIF right, MapAnything ~12% long** | Ceiling bias explained → fix-loop candidate (D20) |
+| E13 | Pre-compensate by feeding f × 0.893 | Output follows input (median 379 px). Ceilings +1.3% / +3.1%, but per-view focals inconsistent (ceilings disagree > 10 cm) | Not adopted. Fix B (EXIF rays + ICP) planned for the fix loop |
 
 ### What affects the results (so far)
 
@@ -117,7 +127,8 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 | Peak-picking heuristic | Strongest-peak picking fails. Same result at threshold 0.2 and 0.08 once the photos are good | E4, E7 | Rewrite in `layout/room.py` |
 | View alignment | Walls doubled by about 8 cm | E7 | Fix-loop candidate (G3, 1 cm) |
 | Per-room scale | MapAnything metric scale +1 to +2.5% in the bedroom, −5 to −9% in the hall when run separately | E7, E8 | **Joint run shares one scale** (E9) |
-| Model focal ≠ EXIF focal | MapAnything outputs a focal 1.118× the EXIF focal, which compresses vertical extents. Ceilings come out 6–8% low | E6–E10 | EXIF rays fix ceilings (E10) but break pose consistency. Needs a consistent fix |
+| Model focal ≠ EXIF focal | MapAnything outputs a focal ~1.12× EXIF, and vanishing points prove EXIF right (E12). Compresses vertical extents, so ceilings come out 6–10% low | E6–E13 | Parked as the fix-loop candidate (D20). Planned fix: EXIF rays + ICP pose re-fit |
+| Input resolution to backbone | 1024 px ingest copies instead of full-resolution photos: bedroom short side 2.450 → 2.390 m (+2.5% → 0.0%) | E11 vs step 1.2 | Keep 1024 px |
 | Sparse far walls | Heuristic misses walls seen only from far away, or picks things outside the room (hall long side 1.47 / 6.69 m) | E9, E10 | Layout must use per-room polygons, not global percentile peaks |
 | File handling | AirDrop renamed a duplicate `IMG_4876 2.HEIC` into the wrong folder. Capture folders vanished from disk (13:3x) | E4 | Hash-check on ingest. Keep originals on the phone |
 | Determinism | Re-running E4 gave identical numbers | E4 | ✓ |
@@ -367,6 +378,54 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
   - The backbone meets the offline requirement (NFR-21).
   - E7's numbers stay valid for the new env.
 
+### E12. Which focal is right? Vanishing points as an independent referee
+
+- **Question:** MapAnything outputs a focal ~1.12× the EXIF focal we give it (E6–E11). Which one matches the real camera?
+- **Setup:**
+  1. Check our input path: run `preprocess_inputs` on a 1024 px ingest frame and print its intrinsics.
+  2. `scripts/experiments/vanishing_focal.py <photos_dir> <E9 ma_raw.npz> <out>`:
+     - LSD line segments (OpenCV).
+     - Drop near-vertical lines.
+     - Two RANSAC passes find the two horizontal vanishing points v1, v2 (length-weighted support, 1.5° tolerance, least-squares refine).
+     - Focal from perpendicular directions: **f² = −(v1 − c)·(v2 − c)**.
+     - Compared per photo with EXIF and with MapAnything's output (E9).
+  - Outputs: `captures/home01_photo_a/experiments/E12_vanishing_focal/<room>/*_vp.jpg`, showing the lines assigned to v1 (red) and v2 (blue).
+- **Results:**
+  - **Preprocessing is correct.** 769.1 px at 768×1024 becomes 392.6 px at 392×518, matching EXIF (390.3 px from the formula).
+  - Vanishing points (focal ratio to EXIF), on views with two clear wall directions:
+
+    | Photo | VP / EXIF | Model / EXIF |
+    |---|---|---|
+    | hall 4890 | 1.029 | 1.147 |
+    | hall 4891 | 1.017 | 1.158 |
+    | hall 4892 | 0.937 | 1.088 |
+    | hall 4897 | 1.080 | 1.134 |
+    | bedroom 4882 | 1.014 | 1.160 |
+    | bedroom 4884 | 0.947 | 1.148 |
+
+    Hall median 1.03 over 7 photos.
+  - **Method failures:** bedroom 4881 / 4888 / 4889 gave 1.7–3.2 and 4883 / 4885 gave no answer. These are head-on views of a wall: one vanishing point is near infinity, so the f² product is ill-conditioned, and the "second VP" was clutter (bedsheets, bag).
+- **What affected it:** only oblique views (two-point perspective) carry focal information. Clutter lines create false vanishing points.
+- **Impact:**
+  - **The EXIF focal is right to about ±5%. MapAnything's output focal is biased about 12% long.**
+  - That bias compresses vertical extents in each camera, so ceilings come out 6–10% low.
+  - Rebuilding with EXIF rays is physically correct (as E10's ceilings showed), but needs the poses re-fitted.
+
+### E13. Pre-compensate the model's focal bias
+
+- **Question:** if MapAnything's output focal tracks its input, does feeding f_EXIF × 0.893 (1 / 1.12) make it output the right focal with consistent depth and poses?
+- **Setup:**
+  - `scripts/experiments/mapanything_run.py <bedroom1>,<hall> <out> k IMG_4887.HEIC --f-scale 0.8929` (new `--f-scale` option).
+  - Measured with `joint_rooms.py`.
+  - Outputs: `captures/home01_photo_a/experiments/E13_joint_fscale0.89/`.
+- **Results:**
+  - Fed 348.5 px; output focal median 379.3 px (329–427). Gain about 1.09 (was 1.12 at 390 in).
+  - Ceilings: bedroom 2.830 (+1.3%), hall 2.890 (+3.1%), joint 2.830 (were −6% / −8% in E9).
+  - Walls: bedroom short 1.910 (−20%, wardrobe front picked), long 2.810 (−3.6%). Hall short 2.230 (−3.0%); long side is a heuristic failure.
+  - **Top-down: room interiors filled with ceiling points inside the upper wall band.** Ceiling heights disagree by more than 10 cm between views.
+- **What affected it:** the output focal follows the input only on average. The per-view focal spread (329–427) gives each view a different vertical scale.
+- **Impact:** not adopted. It fixes the average ceiling but not consistency. The planned fix is EXIF rays + ICP pose re-fit (fix B), parked for the fix loop (D20).
+
 ## Open questions / next experiments
 
 - **Repeatability:** bedroom1 again (`home01_photo_b`). Walls must agree within 1 cm (G3). The 8 cm doubled walls from E7 are the main risk.
@@ -375,7 +434,7 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 - **MapAnything load time:** 33–44 s. Investigate caching or keeping the model loaded across rooms.
 - **Hall:** not a rectangle (W1 361 vs W3 230). This tests layout beyond 4 walls.
 - **Stitching via joint reconstruction (after E9):** does it hold with more rooms, and with rooms whose doorway views are weak? Compare against door matching + least squares on G5.
-- **Pose/ray consistency (after E10):** why does MapAnything not honour the input intrinsics? Options: check the `preprocess_inputs` intrinsics handling, or a small pose refinement with EXIF intrinsics fixed.
+- **Ceiling fix (fix-loop candidate, D20):** EXIF rays + ICP pose re-fit (Open3D multiway registration starting from MapAnything poses). Predicted: ceiling error from −3 to −10% down to about ±1.5%. Declare it in `docs/FIX_DECLARATION.md` before any code (PLAN Phase 5).
 - **Ceiling G2 (≤ 1.5 cm):** current error 8–25 cm. Probably the hardest gate for the photo tier. Report honestly with intervals if it can't be met.
 - **Mixed orientation within a room:** `IMG_4887` was excluded in E7; the pipeline must handle it.
 - **E7 OWLv2 detections:** review, then start tuning O4.

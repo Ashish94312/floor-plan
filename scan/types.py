@@ -58,8 +58,10 @@ class Scale:
 @dataclass
 class RoomCloud:
     room_id: str
-    points: np.ndarray  # N x 3, metres, gravity-aligned (z up), Manhattan-aligned (x, y)
-    colors: np.ndarray  # N x 3
+    points: np.ndarray  # N x 3, metres. Backbone frame after step 1.2; gravity/Manhattan-aligned after 1.3
+    colors: np.ndarray  # N x 3, 0-1
     frames: list[Frame]
     scale: Scale
     T_room_world: np.ndarray  # 4x4 room-local -> property frame (identity until stitched)
+    frame_id: str = ""  # which reconstruction the points live in: the room id, or "joint" for a joint run
+    views: dict[str, np.ndarray] | None = None  # this room's per-view backbone outputs (depth, pose, K, rgb)

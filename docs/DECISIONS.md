@@ -106,3 +106,21 @@ Every decision here must be defensible live at the defense, without tools. Each 
 - **Same photo in two room folders → error, not a guess.** AirDrop's " 2" copies put `IMG_4876` in both bedroom and hall (E4). The code can't know which room is right, and a wrong guess silently corrupts layout and stitching. The message lists the pairs so the user can fix it in seconds. A duplicate within one room is harmless and is just dropped.
 - **Mixed portrait/landscape in one room → keep the majority, drop the rest with a warning.** One batch needs one image shape. Rotating the odd one out would change its gravity direction. This is the same choice made by hand in E7 (`IMG_4887`).
 - **More than 8 photos → keep the 8 sharpest**, in filename order.
+
+## D20. Geometry defaults: MapAnything's own rays; the ceiling-bias fix is parked for the fix loop
+- **Context:**
+  - MapAnything's output focal is about 12% longer than the true (EXIF) focal (E12, vanishing points), so ceilings come out 6–10% low.
+  - Swapping in EXIF rays fixes ceilings but misaligns walls, because the poses were fitted to the model's rays (E10).
+  - Feeding a pre-compensated focal is inconsistent across views (E13).
+- **Decision:** default `geometry.rays: model`, which is self-consistent: walls within 0–5%, ceilings biased low. The ray source (`model` / `exif`) and the input focal scale (`f_scale`) are config switches.
+- **Why park the fix:**
+  - The G2 ceiling gate is the likely worst gate. The fix loop (25% of the score) asks for exactly this: a failing number, a root cause with evidence, a planned fix and a predicted result, declared and committed before the fix.
+  - Here we have all four: −3 to −10%; focal bias proven by an independent method; EXIF rays + ICP pose re-fit; predicted about ±1.5%.
+  - Doing it now would also take time Tier 1 needs.
+- **Cost:** ceiling heights stay biased low until Phase 5. The intervals must cover it, and calibration will widen them.
+
+## D21. Model outputs are cached by content
+- **Why:**
+  - A live run costs about 35 s to load plus about 32 s per room. Development and the benchmark re-run the same captures many times.
+  - The cache key covers everything that changes the output: image SHA256s, intrinsics, working size, weights revision, MapAnything commit, DINOv2 commit, `f_scale`, AMP dtype and memory mode. A stale hit is impossible without a key collision.
+- **Check:** a cached re-run (7 s) wrote `.ply` files byte-identical to the live run. `--no-cache` forces the live path (FR-RUN-05).

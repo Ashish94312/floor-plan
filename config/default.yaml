@@ -10,3 +10,18 @@ ingest:
     film_diagonal_mm: 43.27       # 35 mm-equivalent focal is defined on the film DIAGONAL (D18)
     default_f35_mm: 26.0          # iPhone main (1x) camera; used only if EXIF has no focal, with a warning
     main_lens_f35_range_mm: [22, 30]  # outside this -> not the 1x lens (0.5x / 2x / 3x / digital zoom), warn
+
+geometry:
+  backbone: mapanything
+  amp_dtype: fp16                # MPS-friendly; bf16/fp32 also accepted by MapAnything
+  memory_efficient: true
+  joint: false                   # true: all rooms in one run (shared scale + room placement, E9)
+  rays: model                    # model: MapAnything's own rays (consistent; focal ~12% long -> ceilings ~6-8% low, E12)
+                                 # exif: rebuild points with EXIF rays (ceilings right, walls misaligned, E10)
+  f_scale: 1.0                   # multiplies the EXIF focal fed to the model (E13). Ceiling fix parked for the fix loop.
+  conf_percentile: 30            # drop the least confident 30% of masked pixels per run (as in E7-E11)
+  voxel_m: 0.02                  # thin the merged cloud to a 2 cm grid
+  sigma_log_floor_photo: 0.04    # minimum scale uncertainty (log space) until calibrated
+
+cache:
+  dir: .cache                    # model outputs, keyed by input hashes + settings (gitignored)

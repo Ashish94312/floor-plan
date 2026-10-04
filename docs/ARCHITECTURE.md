@@ -365,7 +365,7 @@ Each stage lists its input, output, algorithm, key parameters and failure behavi
    - **Open (E10):** the model's output focal is about 1.12× the EXIF focal, which compresses vertical extents (ceilings 6–8% low). EXIF rays fix ceilings but conflict with the predicted poses. A pose-consistent fix is needed.
 2. **Metric scale uncertainty:** `s = 1` (already metric). Separate runs show per-room offsets of −9% to +2.5% (E7, E8). `σ_log` comes from leave-one-room-out calibration residuals (C9), with floor `σ_floor_photo = 0.04`.
 3. **Door-height anchor (optional):** if a door is detected with both its top and bottom visible, its height `h` gives `log s_door ~ N(log(2.03 / h), 0.05²)`. Fuse by inverse-variance weighting in log space.
-4. **Point cloud:** keep points with confidence ≥ the 40th percentile. Voxel-downsample to 2 cm.
+4. **Point cloud** (`geometry/cloud.py`): world points from MapAnything's own rays (`geometry.rays: model`, D20) or rebuilt from depth with EXIF rays (`exif`). Keep pixels in the model's validity mask with confidence above the room's 30th percentile. Merge views and voxel-downsample to 2 cm (Open3D, averaged points and colours). Outputs are cached by content (D21). Each room's per-view depth, pose and intrinsics stay attached for later stages (openings, damage).
 
 ### 10.3 C2 Geometry — video tier
 

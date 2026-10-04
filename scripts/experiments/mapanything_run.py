@@ -3,7 +3,8 @@
 E6-E10 ran this in a separate .venv-mapanything (same mapanything commit). Since the switch (D17)
 it runs in the main env, fully offline (DINOv2 code from weights/dinov2-code):
   PYTORCH_ENABLE_MPS_FALLBACK=1 uv run python scripts/experiments/mapanything_run.py \
-      <photos_dir>[,<photos_dir2>,...] <out_dir> k|nok [EXCLUDED.HEIC,...]
+      <photos_dir>[,<photos_dir2>,...] <out_dir> k|nok [EXCLUDED.HEIC,...] [--f-scale X]
+--f-scale multiplies the EXIF focal fed to the model (E13: pre-compensate the model's focal bias).
 Several comma-separated room folders run as ONE joint reconstruction; each image's room
 (folder name) is saved in `rooms`.
 """
@@ -21,6 +22,11 @@ from scan.geometry.mapanything_backend import load_model  # noqa: E402
 go_offline()
 register_heif_opener()
 
+f_scale = 1.0
+if "--f-scale" in sys.argv:
+    i = sys.argv.index("--f-scale")
+    f_scale = float(sys.argv[i + 1])
+    del sys.argv[i : i + 2]
 photo_dirs, out, use_k = [Path(d) for d in sys.argv[1].split(",")], Path(sys.argv[2]), sys.argv[3] == "k"
 out.mkdir(parents=True, exist_ok=True)
 dev = torch.device("mps")
@@ -34,7 +40,7 @@ for p in paths:
     W, H = im.size
     v = {"img": im}
     if use_k:
-        f = 26 / 43.27 * np.hypot(W, H)   # EXIF 35mm-equivalent focal -> pixels
+        f = 26 / 43.27 * np.hypot(W, H) * f_scale   # EXIF 35mm-equivalent focal -> pixels
         v["intrinsics"] = torch.tensor([[f, 0, W / 2], [0, f, H / 2], [0, 0, 1]], dtype=torch.float32)
     views.append(v)
 views = preprocess_inputs(views)
@@ -62,6 +68,6 @@ w2c = np.linalg.inv(c2w)[:, :3, :]
 cols = np.stack([p["img_no_norm"][0].float().cpu().numpy() for p in preds])
 np.savez_compressed(out / "ma_raw.npz", pts=pts, mask=mask, conf=conf, extrinsic=w2c, intrinsic=K, cols=cols,
                     names=np.array([p.name for p in paths]), rooms=np.array([p.parent.name for p in paths]))
-print(json.dumps({"n_images": len(paths), "intrinsics_in": use_k, "hw": list(pts.shape[1:3]), "load_s": round(t_load, 1), "infer_s": round(t_inf, 1),
+print(json.dumps({"n_images": len(paths), "intrinsics_in": use_k, "f_scale": f_scale, "hw": list(pts.shape[1:3]), "load_s": round(t_load, 1), "infer_s": round(t_inf, 1),
                   "peak_mps_gb": round(peak[0] / 2**30, 2), "fx_out": K[:, 0, 0].round(1).tolist(), "fy_out": K[:, 1, 1].round(1).tolist(),
                   "keys": sorted(preds[0].keys())}))

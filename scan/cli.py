@@ -20,22 +20,30 @@ def scan(
     out: Path | None = typer.Option(None, help="Output dir (default: <capture_dir>/out)"),
     no_drift_correction: bool = typer.Option(False, "--no-drift-correction", help="Ablation: stitch with poses as-is"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Force the live model path"),
+    joint: bool = typer.Option(False, "--joint", help="Photo tier: reconstruct all rooms in one run (E9)"),
     device: str | None = typer.Option(None, help="cpu | mps | cuda"),
 ) -> None:
     """Turn a capture folder into plans, damage, scope, intervals, JSON and renders."""
     from scan.config import load_config
-    from scan.io.ingest import ingest
+    from scan.pipeline import run
 
-    cfg = load_config()
+    cfg = load_config(overrides={"geometry": {"joint": True}} if joint else None)
     try:
-        cap = ingest(capture_dir, tier, cfg)
+        cap, _clouds, summary = run(capture_dir, cfg, tier, out, use_cache=not no_cache, device=device, log=typer.echo)
     except ScanError as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=e.exit_code) from None
+    except NotImplementedError as e:
+        _not_yet(f"{e} (see PLAN.md)")
     _print_capture(cap)
-    if cap.tier != "photo":
-        _not_yet(f"{cap.tier} tier (PLAN Tier {'2' if cap.tier == 'video' else '3'})")
-    typer.secho("Ingest OK. Geometry is Tier 1 step 1.2 (next).", fg=typer.colors.YELLOW)
+    g = summary["geometry"]
+    typer.echo(f"Geometry: {g['backbone']}, joint={g['joint']}, rays={g['rays']}, runs: "
+               + ", ".join(f"{k}={v['cache']}" for k, v in g["runs"].items()))
+    for r, info in summary["rooms"].items():
+        typer.echo(f"  {r:12s} {info['points']:>7d} points, extent {info['extent_m']} m -> {info['ply']}")
+    typer.echo(f"Timing: {summary['timing_s']}")
+    typer.secho(f"Wrote {(out or capture_dir / 'out') / 'geometry.json'}. Alignment is Tier 1 step 1.3 (next).",
+                fg=typer.colors.YELLOW)
 
 
 def _print_capture(cap) -> None:
