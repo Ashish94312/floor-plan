@@ -1,11 +1,8 @@
 """MapAnything (Apache) on one room's photos, with/without EXIF intrinsics. Saves metric points.
 
-Runs in its own env until the main project switches backbone (its opencv pin clashes with vggt):
-  uv venv .venv-mapanything --python 3.11
-  uv pip install --python .venv-mapanything/bin/python torch torchvision \
-      "mapanything @ git+https://github.com/facebookresearch/map-anything@3d10cf7a3016fc0f9bb13a071ee66c47b10be0d9"
-Usage:
-  PYTORCH_ENABLE_MPS_FALLBACK=1 .venv-mapanything/bin/python scripts/experiments/mapanything_run.py \
+E6-E10 ran this in a separate .venv-mapanything (same mapanything commit). Since the switch (D17)
+it runs in the main env, fully offline (DINOv2 code from weights/dinov2-code):
+  PYTORCH_ENABLE_MPS_FALLBACK=1 uv run python scripts/experiments/mapanything_run.py \
       <photos_dir>[,<photos_dir2>,...] <out_dir> k|nok [EXCLUDED.HEIC,...]
 Several comma-separated room folders run as ONE joint reconstruction; each image's room
 (folder name) is saved in `rooms`.
@@ -15,8 +12,13 @@ from pathlib import Path
 import numpy as np, torch
 from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
-from mapanything.models import MapAnything
 from mapanything.utils.image import preprocess_inputs
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scan.device import go_offline  # noqa: E402
+from scan.geometry.mapanything_backend import load_model  # noqa: E402
+
+go_offline()
 register_heif_opener()
 
 photo_dirs, out, use_k = [Path(d) for d in sys.argv[1].split(",")], Path(sys.argv[2]), sys.argv[3] == "k"
@@ -42,7 +44,7 @@ def mon():
     while not stop.is_set():
         peak[0] = max(peak[0], torch.mps.driver_allocated_memory()); time.sleep(0.05)
 t0 = time.perf_counter()
-model = MapAnything.from_pretrained(str(Path(__file__).resolve().parents[2] / "weights" / "mapanything-apache")).to(dev).eval()
+model = load_model(dev)
 t_load = time.perf_counter() - t0
 threading.Thread(target=mon, daemon=True).start()
 t0 = time.perf_counter()

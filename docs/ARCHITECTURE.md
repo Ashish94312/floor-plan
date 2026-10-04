@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **System** | `scan`: iPhone capture → measured whole-property floor plan + damage assessment |
-| **Status** | v1 design, before implementation. Items marked **(spike)** are decided in Phase 0 of [PLAN.md](PLAN.md). |
+| **Status** | v1 design. Phase 0 spike done: **O1–O3 decided** (backbone = MapAnything + EXIF intrinsics, D17; precision/memory D13; Open3D D14). Evidence in [WORKLOG.md](WORKLOG.md) E1–E10. |
 | **Related** | [REQUIREMENTS.md](../REQUIREMENTS.md) · [PLAN.md](PLAN.md) · [DECISIONS.md](DECISIONS.md) · [CAPTURE_PROTOCOL.md](CAPTURE_PROTOCOL.md) |
 
 ---
@@ -46,7 +46,7 @@
 | Constraint | Effect on design |
 |---|---|
 | 48-hour build, single developer | Reuse pretrained models. Simple, explainable geometry. No custom training. |
-| Dev hardware: MacBook M4, 16 GB RAM, about 18 GB free disk | Models must fit in memory on Apple MPS or CPU. Total weights under about 8 GB. |
+| Dev hardware: MacBook M4, 16 GB RAM, about 43 GB free disk after weights | Models must fit in memory on Apple MPS or CPU. Required weights about 5.5 GB (MapAnything 4.9 GB + OWLv2 0.6 GB + DINOv2 code). |
 | Dev phone: iPhone 13 (no LiDAR) | Photo and video developed on real data. LiDAR developed on synthetic data only. |
 | Walk-in uses reviewers' iPhone 15+ | Read camera parameters from each file. Never hardcode a phone model. |
 | Must run without our servers | Everything runs locally. Weights fetched by script. |
@@ -141,8 +141,8 @@ TIER 3 LIDAR                                           │
 |---|---|---|---|
 | Language / env | Python 3.11, `uv` + lockfile | — | Fast reproducible installs on a clean machine |
 | Deep learning | PyTorch (MPS / CUDA / CPU) | BSD | Runs on Apple Silicon and Linux |
-| Multi-view geometry **(spike)** | Primary: **VGGT-1B**. Alternative: **MapAnything** (metric output). | Check and disclose | Feed-forward pose and depth from 2–N unposed images. Classical SfM fails on few, textureless indoor photos. |
-| Metric depth (scale) **(spike)** | **Depth Anything V2 Metric Indoor (Small)** | Apache-2.0 | Small, fast, indoor-trained. Used to estimate scale and its spread. |
+| Multi-view geometry | **MapAnything** (`facebook/map-anything-apache`), given the EXIF focal length as intrinsics. Its DINOv2 encoder code is vendored at a pinned commit (`weights/dinov2-code`) so loading is offline | Apache-2.0 | Feed-forward metric pose + depth from 2–N unposed images, and it accepts known intrinsics. Classical SfM fails on few, textureless indoor photos. VGGT-1B + DAv2 was rejected: scale off by +53 to +57% on the measured bedroom, and the licence is non-commercial (D15, D17, E7) |
+| Metric scale | From MapAnything directly (metric output). Spread calibrated from benchmark residuals, plus a door-height anchor | — | Depth Anything V2 Metric was dropped as the scale source: biased 1.4–1.55× in this home (E4–E7) |
 | Open-vocabulary detector | **OWLv2** (`google/owlv2-base-patch16-ensemble`) via `transformers` | Apache-2.0 | One model for doors, windows, mirrors and both damage classes. No training. |
 | Geometry ops | NumPy, SciPy, Open3D (planes, ICP, pose graph) | MIT / BSD | Standard, well documented |
 | 2D polygons | Shapely | BSD | Area, union, overlap checks |
@@ -184,10 +184,8 @@ scan/
     stray.py              # Stray Scanner reader
   geometry/
     backend.py            # GeometryBackend protocol
-    vggt_backend.py       # (spike) primary
-    mapanything_backend.py# (spike) alternative
-    metric_depth.py       # Depth Anything V2 metric wrapper
-    scale.py              # scale fusion → (s, σ_log s)
+    mapanything_backend.py# backbone (D17): offline load, EXIF intrinsics, metric pose + depth
+    scale.py              # scale uncertainty (s, σ_log s): calibration residuals + door-height anchor
     lidar.py              # depth back-projection + fusion
     chunks.py             # video chunk alignment (Sim3 / Umeyama)
     align.py              # gravity + Manhattan axes
@@ -362,18 +360,18 @@ Each stage lists its input, output, algorithm, key parameters and failure behavi
 
 ### 10.2 C2 Geometry — photo tier (`geometry/`)
 
-1. **Backbone (spike):** run the multi-view model on all images of **one room folder**. Get per-frame depth `D_i`, confidence `C_i` and camera poses `T_i` in backbone units.
-2. **Metric scale:** run Depth Anything V2 Metric on each image to get `M_i` in metres. For each image, take pixels with high confidence and depth between 0.5 and 8 m: `r_i = median(M_i / D_i)`. Then:
-   - `s = median(r_i)`
-   - `σ_log = max(MAD(log r_i) × 1.4826, σ_floor_photo)` with `σ_floor_photo = 0.04`
-3. **Door-height prior (optional, light):** if a door is detected with both its top and bottom visible, its height in backbone units `h_b` gives `log s_door ~ N(log(2.03 / h_b), 0.05²)`. Fuse by inverse-variance weighting in log space.
-4. **Point cloud:** back-project `D_i × s` through `T_i` (translation scaled by `s`). Keep points with confidence ≥ the 40th percentile. Voxel-downsample to 2 cm.
+1. **Backbone (MapAnything, D17):** run on the room's photos with **EXIF intrinsics** (focal from `FocalLengthIn35mmFilm`, principal point at the centre). Output: metric depth `D_i`, confidence `C_i`, camera poses `T_i` in metres. Portrait and landscape both work, but don't mix them within one room.
+   - **Open (E9):** run **all rooms jointly** instead of one room at a time. In E9 this shared one scale and registered bedroom and hall through the doorway (photo-tier stitching for free). To be confirmed on more rooms before replacing door-matching stitching (C5).
+   - **Open (E10):** the model's output focal is about 1.12× the EXIF focal, which compresses vertical extents (ceilings 6–8% low). EXIF rays fix ceilings but conflict with the predicted poses. A pose-consistent fix is needed.
+2. **Metric scale uncertainty:** `s = 1` (already metric). Separate runs show per-room offsets of −9% to +2.5% (E7, E8). `σ_log` comes from leave-one-room-out calibration residuals (C9), with floor `σ_floor_photo = 0.04`.
+3. **Door-height anchor (optional):** if a door is detected with both its top and bottom visible, its height `h` gives `log s_door ~ N(log(2.03 / h), 0.05²)`. Fuse by inverse-variance weighting in log space.
+4. **Point cloud:** keep points with confidence ≥ the 40th percentile. Voxel-downsample to 2 cm.
 
 ### 10.3 C2 Geometry — video tier
 
 1. Keyframes from 10.1 are split into **chunks of 24 frames with 4 frames of overlap** (fits in 16 GB; tuned in the spike).
 2. Run the backbone per chunk. Align chunk *k* to chunk *k−1* with a Sim(3) Umeyama fit on the overlapping frames' camera centres and depth points.
-3. Metric scale exactly as in photo step 2, pooled over all keyframes. Floor `σ_floor_video = 0.02`.
+3. Metric scale from the backbone, reconciled across chunks by the Sim(3) alignment. Uncertainty as in photo step 2, floor `σ_floor_video = 0.02`.
 4. **Loop closure (C7, drift correction):** the protocol ends the walk at the start view. Match the last chunk against the first chunk (backbone run on 4 start + 4 end frames), giving a loop constraint. Optimise the chunk Sim(3) pose graph (Open3D) so the error is spread along the loop instead of piling up at the end.
 5. Fuse into one global cloud, then pass to C3 and C4.
 
@@ -638,7 +636,7 @@ This table seeds the compliance matrix (deliverable 1).
 
 | # | Risk / failure mode | Likelihood | Impact | Mitigation |
 |---|---|---|---|---|
-| R1 | Backbone too slow or too big for 16 GB on MPS | Medium | High | Spike first. Smaller resolution or chunks. MapAnything or MASt3R as fallback. |
+| R1 | Backbone too slow or too big for 16 GB on MPS | ~~Medium~~ Resolved | High | MapAnything: 14 photos in 60 s at 8.1 GB peak (E9). Load takes about 40 s |
 | R2 | Photo-tier scale error > 8% | High | High | Metric-depth median plus door prior. σ_log sized honestly so intervals cover. |
 | R3 | Photo stitching mis-pairs doors | Medium | High | Doorway photo in the protocol. Width + visual score. Overlap check with retry. |
 | R4 | Openings: 2 cm gate unreachable from photos | High | Medium | Jamb-edge refinement. Report honestly. Likely fix-loop target. |
@@ -647,7 +645,7 @@ This table seeds the compliance matrix (deliverable 1).
 | R7 | Non-Manhattan rooms (angled or curved walls) | Low (dev home) | Medium | Documented failure mode. Fallback rectangle + wide interval. |
 | R8 | Video room segmentation fails without detected doors | Medium | High | Watershed fallback. Trajectory-based split. |
 | R9 | LiDAR path untested on real data | Certain | Medium | Synthetic tests. Disclosed. Stray format verified from documentation only. |
-| R10 | Disk full (18 GB free) | High | High | User frees space. Small models. Frames deleted after the run. |
+| R10 | Disk full | ~~High~~ Low | High | 43 GB free after weights |
 | R11 | Run out of time before the fix loop | Medium | Very high | Feature freeze at H31 ([PLAN.md](PLAN.md)). |
 | R12 | Developer can't defend the code live | Medium | High | DECISIONS.md. Simple algorithms. Review each module on completion. |
 
@@ -655,8 +653,8 @@ This table seeds the compliance matrix (deliverable 1).
 
 | # | Decision | Options | Decided by |
 |---|---|---|---|
-| O1 | Geometry backbone | VGGT-1B + metric depth / MapAnything | Phase 0 spike: accuracy on one measured room, time, memory |
-| O2 | Working resolution and video chunk size | 518 px, 24 frames (start) | Spike memory test |
-| O3 | Open3D vs pure NumPy/SciPy | Open3D if it installs cleanly on arm64 | Spike |
+| O1 | Geometry backbone | **Decided: MapAnything + EXIF intrinsics** | D17 (E4–E7) |
+| O2 | Working resolution and video chunk size | 518 px long side. Chunk size to re-measure for MapAnything (14 frames = 8.1 GB) | D13, E9. Finalised in Tier 2 |
+| O3 | Open3D vs pure NumPy/SciPy | **Decided: Open3D** | D14 |
 | O4 | Detector thresholds | 0.15 (start) | Tuned on the benchmark (disclosed) |
 | O5 | Wall thickness for stitching | 0.12 m fixed / estimated | Fixed for v1. Fix-loop candidate. |

@@ -39,11 +39,11 @@ def bench(suite: Optional[Path] = typer.Option(None, help="bench.yaml")) -> None
 
 
 def fetch_weights(
-    optional: bool = typer.Option(False, "--optional", help="Also fetch optional models (MapAnything)"),
+    optional: bool = typer.Option(False, "--optional", help="Also fetch legacy spike models (VGGT, DAv2)"),
     only: Optional[list[str]] = typer.Option(None, help="Fetch only these model names"),
 ) -> None:
     """Download all model weights into weights/ and verify SHA256."""
-    from scan.weights import MODELS, WEIGHTS_DIR, fetch
+    from scan.weights import CODE, MODELS, WEIGHTS_DIR, fetch, fetch_code
 
     specs = [m for m in MODELS.values() if (optional or not m.optional)]
     if only:
@@ -52,6 +52,10 @@ def fetch_weights(
     for spec in specs:
         typer.echo(f"{spec.name}  ({spec.repo_id}@{spec.revision[:8]}, {spec.licence})")
         fetch(spec, log=typer.echo)
+    if not only:
+        for code in CODE.values():
+            typer.echo(f"{code.name}  ({code.repo}@{code.commit[:8]}, {code.licence})")
+            fetch_code(code, log=typer.echo)
     typer.secho("All weights present and verified.", fg=typer.colors.GREEN)
 
 

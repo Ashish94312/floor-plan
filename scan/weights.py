@@ -7,7 +7,9 @@ so a fresh clone fetches exactly the bytes we benchmarked with.
 from __future__ import annotations
 
 import hashlib
+import io
 import os
+import tarfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -41,6 +43,7 @@ MODELS: dict[str, ModelSpec] = {
             sha256={
                 "model.safetensors": "f164acf60724910d8fe1578bb499d800850c7bb0948db7555c413f9fbe60467e"
             },
+            optional=True,  # legacy: Phase 0 spike only (E1-E7), replaced by MapAnything (D17)
         ),
         ModelSpec(
             name="dav2-metric-indoor-small",
@@ -51,6 +54,7 @@ MODELS: dict[str, ModelSpec] = {
             sha256={
                 "model.safetensors": "e990eb82fbf11b05b7813261196a2b841bdcf5a05f64396724a8987fa90504a3"
             },
+            optional=True,  # legacy: Phase 0 spike scale source, biased 1.4-1.55x (E4-E7)
         ),
         ModelSpec(
             name="owlv2-base-ensemble",
@@ -80,10 +84,72 @@ MODELS: dict[str, ModelSpec] = {
             sha256={
                 "model.safetensors": "fa06c0fdccefc5048e072c85935d5789b1e36b307f3859033c17f9dcb9fd5201"
             },
-            optional=True,  # O1 alternative backbone; only needed for the spike comparison
         ),
     ]
 }
+
+
+@dataclass(frozen=True)
+class CodeSpec:
+    """Source code that a model pulls through torch.hub at load time. Vendored into weights/
+    at a pinned commit so runs are offline and load exactly the code we benchmarked."""
+
+    name: str  # local folder under weights/
+    repo: str  # GitHub owner/name
+    commit: str
+    licence: str
+    check_file: str  # file whose SHA256 proves we got the right tree
+    check_sha256: str
+
+    @property
+    def path(self) -> Path:
+        return WEIGHTS_DIR / self.name
+
+
+CODE: dict[str, CodeSpec] = {
+    c.name: c
+    for c in [
+        CodeSpec(
+            name="dinov2-code",  # MapAnything's encoder calls torch.hub.load("facebookresearch/dinov2", ...)
+            repo="facebookresearch/dinov2",
+            commit="7764ea0f912e53c92e82eb78a2a1631e92725fc8",
+            licence="Apache-2.0",
+            check_file="hubconf.py",
+            check_sha256="c1f5090e78ff940b72c076d2bf9c0310d1707c946b3d10e2d6f2b0bdf56a6f64",
+        ),
+    ]
+}
+
+
+def fetch_code(spec: CodeSpec, log=print) -> Path:
+    import urllib.request
+
+    target = spec.path / spec.check_file
+    if target.exists() and sha256_file(target) == spec.check_sha256:
+        log(f"  [skip] {spec.name} @ {spec.commit[:8]}")
+        return spec.path
+    url = f"https://codeload.github.com/{spec.repo}/tar.gz/{spec.commit}"
+    log(f"  [get ] {spec.name} @ {spec.commit[:8]}")
+    with urllib.request.urlopen(url, timeout=60) as r:
+        data = r.read()
+    spec.path.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+        for m in tar.getmembers():
+            parts = Path(m.name).parts[1:]  # strip the "<repo>-<sha>/" top folder
+            if not parts:
+                continue
+            m.name = str(Path(*parts))
+            tar.extract(m, spec.path, filter="data")
+    if sha256_file(target) != spec.check_sha256:
+        raise RuntimeError(f"{spec.name}: {spec.check_file} SHA256 mismatch after download from {url}")
+    return spec.path
+
+
+def code_path(name: str) -> Path:
+    spec = CODE[name]
+    if not (spec.path / spec.check_file).exists():
+        raise FileNotFoundError(f"Code for '{name}' missing in {spec.path}. Run: uv run scan-fetch-weights")
+    return spec.path
 
 
 def sha256_file(path: Path, chunk: int = 16 * 1024 * 1024) -> str:

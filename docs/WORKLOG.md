@@ -37,6 +37,11 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~14:25 | **Joint bedroom + hall run (14 photos): the rooms register through the doorway.** Shared wall 10–15 cm apart (a believable wall thickness), and both rooms on one scale | E9 |
 | ~14:30 | User: the hall is **L-shaped**. The kitchen opening near W4 takes up the 361 → 230 difference. Confirmed by the E9 cloud (about 1.3 m extra width at the W1 end) | Hall ground truth needs restructuring |
 | ~14:35 | Ceilings 6–8% low in every run. Cause found: MapAnything's output focal is 1.118× the EXIF focal. Rebuilding points with EXIF rays brings the joint ceilings to +0.6% / +1.7%, but doubles walls more | E10 |
+| ~14:45 | **Switched the main env to MapAnything.** Removed `vggt` and `opencv-python`; added `mapanything@3d10cf7` (brings `opencv-python-headless==4.10.0.84`, numpy 2.4.6). VGGT + DAv2 marked legacy (`--optional`) in the weights registry | D17 |
+| ~14:45 | Gotcha: uninstalling `opencv-python` in place deleted `cv2` files shared with the headless build (`cv2.__version__` missing). Fixed with `uv sync --reinstall-package opencv-python-headless`. A fresh clone won't hit this | — |
+| ~14:50 | **Offline:** DINOv2 encoder code vendored at `facebookresearch/dinov2@7764ea0` into `weights/dinov2-code` by `scan-fetch-weights` (verified by `hubconf.py` SHA256). `scan/geometry/mapanything_backend.py` routes `torch.hub.load("facebookresearch/dinov2")` to it, so no network call at load. It's the same code E6–E10 used (only `__pycache__` differs) | — |
+| ~14:55 | Offline run with network blocked and an empty torch cache: works, and is **bit-identical to E7** | E11 |
+| ~14:55 | ARCHITECTURE updated (stack, layout, §10.2 photo geometry, risks, O1–O3 decided). Spike script marked legacy (re-run E1–E7 at commit `31dbc88`). Temp `.venv-mapanything` removed | — |
 
 ### Open data issues
 
@@ -64,6 +69,10 @@ Running record of **everything** done on this project: setup, data, captures, me
 | Code state | uncommitted (before the first commit) |
 | Phone | iPhone 13, 1× lens (5.1 mm, 26 mm equivalent), HEIC 4032×3024 |
 
+### Environment (E11 onward)
+
+Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-python-headless` 4.10.0.84, open3d 0.20.0, transformers 5.18.0, `mapanything@3d10cf7`. DINOv2 code `facebookresearch/dinov2@7764ea0` vendored in `weights/dinov2-code`. No `vggt`.
+
 ### Ground truth used
 
 `data/ground_truth/home01.yaml`, laser measurements.
@@ -85,6 +94,7 @@ Running record of **everything** done on this project: setup, data, captures, me
 | E8 | MapAnything on a second room (hall) | Walls −4.9% / −5.7% (pass ±8%), ceiling −9.0%. Scale differs per room | Joint multi-room run and scale anchors are next (E9) |
 | E9 | One joint run over bedroom + hall | Rooms register through the doorway, shared scale. Bedroom −0.8% / +0.5%. Hall about +1 to +4% (read from the plot; the heuristic failed). Ceilings −6.2% / −8.3% | Photo-tier stitching may come from the joint run (G5) |
 | E10 | Rebuild points with the EXIF focal instead of the model's rays | Joint ceilings **+0.6% / +1.7%** (from −6 / −8%). Walls more doubled (up to about 15 cm). Per-room runs mixed | Ceiling fix found. Pose/ray consistency still needed |
+| E11 | MapAnything in the main env, fully offline | Runs with network blocked and an empty torch cache. **Bit-identical to E7** (max point difference 0.0 m) | Switch verified. Offline requirement met for the backbone |
 
 ### What affects the results (so far)
 
@@ -334,12 +344,29 @@ Running record of **everything** done on this project: setup, data, captures, me
   - The right fix keeps rays and poses consistent: for example, refine the poses with EXIF intrinsics fixed, or work out why MapAnything doesn't honour the input intrinsics (E6 open question).
   - G2 (≤ 1.5 cm) is now within reach in the bedroom (+1.75 cm) but not yet in the hall (+4.75 cm).
 
+### E11. MapAnything switch: offline run in the main env
+
+- **Question:**
+  - Does the main env run MapAnything with no network access?
+  - Does it reproduce the separate-env results (E7)?
+- **Setup:**
+  - Command: `HTTP(S)_PROXY=http://127.0.0.1:9 ALL_PROXY=… TORCH_HOME=<empty dir> uv run --offline python scripts/experiments/mapanything_run.py captures/home01_photo_a/photos/bedroom1 captures/home01_photo_a/experiments/E11_offline_main_env k IMG_4887.HEIC`.
+  - Then `measure_cloud.py` at 0.08, and a point-by-point comparison with E7's `ma_raw.npz`.
+- **Results:**
+  - Ran fine: load 42.2 s, infer 25.8 s, peak 7.13 GB. The torch cache dir stayed empty.
+  - 2.450 / 2.950 / 2.710 m, the same as E7.
+  - **Max point difference vs E7: 0.0 m; masks 100% equal.**
+- **What affected it:** nothing. Same mapanything commit, same DINOv2 code, same weights, same inputs, deterministic on MPS.
+- **Impact:**
+  - Switch verified.
+  - The backbone meets the offline requirement (NFR-21).
+  - E7's numbers stay valid for the new env.
+
 ## Open questions / next experiments
 
 - **Repeatability:** bedroom1 again (`home01_photo_b`). Walls must agree within 1 cm (G3). The 8 cm doubled walls from E7 are the main risk.
 - **4 vs 8 photos per room:** what is the minimum that still passes?
 - **Output focal vs input focal** in MapAnything (E6): is the input being used as a soft hint only?
-- **Offline:** cache DINOv2 code in `scan-fetch-weights`, then verify a run with the network off.
 - **MapAnything load time:** 33–44 s. Investigate caching or keeping the model loaded across rooms.
 - **Hall:** not a rectangle (W1 361 vs W3 230). This tests layout beyond 4 walls.
 - **Stitching via joint reconstruction (after E9):** does it hold with more rooms, and with rooms whose doorway views are weak? Compare against door matching + least squares on G5.
