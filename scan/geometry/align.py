@@ -215,13 +215,16 @@ def use_shared_floor(planes: RoomPlanes, tol_m: float) -> RoomPlanes:
 
 
 def ceiling_consistency(rooms: dict, tol_m: float) -> None:
-    """Warn when a room's ceiling height differs from its frame-mates' median by more than tol_m.
+    """Warn when a room's ceiling height differs from the median of ALL rooms in the frame by more than
+    tol_m (the median of the *other* rooms is pulled by the outlier itself when there are only 2-3).
     Not corrected: kitchens and bathrooms can genuinely have lower ceilings."""
     hs = {r: c.planes.ceiling_height_m for r, c in rooms.items() if c.planes.ceiling_height_m is not None}
+    if len(hs) < 2:
+        return
+    med = float(np.median(list(hs.values())))
     for r, h in hs.items():
-        others = [v for k, v in hs.items() if k != r]
-        if len(others) >= 1 and abs(h - float(np.median(others))) > tol_m:
+        if abs(h - med) > tol_m:
             rooms[r].planes.warnings.append(
-                f"ceiling {h:.2f} m differs from the other rooms ({float(np.median(others)):.2f} m): "
+                f"ceiling {h:.2f} m differs from the flat's median ({med:.2f} m): "
                 "real lowered ceiling, or cabinets / a beam taken as ceiling? Check."
             )
