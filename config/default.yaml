@@ -6,6 +6,7 @@ ingest:
   max_images_per_room: 8          # more -> keep the sharpest N, warn
   working_max_side: 1024          # long side of the in-memory copy (backbone 518, detector 960)
   mixed_orientation: drop_minority  # one orientation per room (E7); minority shots dropped with a warning
+  reject_non_main_lens: true       # photos not on the 1x lens are excluded (E20: 2 zoomed ultra-wide shots shrank the flat ~4.6%)
   intrinsics:
     film_diagonal_mm: 43.27       # 35 mm-equivalent focal is defined on the film DIAGONAL (D18)
     default_f35_mm: 26.0          # iPhone main (1x) camera; used only if EXIF has no focal, with a warning

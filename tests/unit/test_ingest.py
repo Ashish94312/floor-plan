@@ -208,3 +208,10 @@ def test_home01_photo_a():
     assert {r: len(f) for r, f in cap.rooms.items()} == {"bedroom1": 7, "hall": 7, "kitchen": 3}
     assert all(f.meta.orientation == "portrait" and f.meta.f35_mm == 26 for fs in cap.rooms.values() for f in fs)
     assert any("dropped IMG_4887.HEIC" in w for w in cap.warnings)
+
+
+def test_non_main_lens_photos_excluded(tmp_path):
+    room(tmp_path, "hall", 3)
+    jpeg(tmp_path / "photos" / "hall" / "IMG_9000.jpg", f35=16, seed=9)  # 0.5x ultra-wide + zoom (E20)
+    cap = ingest(tmp_path, None, CFG)
+    assert len(cap.rooms["hall"]) == 3 and any("IMG_9000.jpg: excluded" in w for w in cap.warnings)

@@ -112,6 +112,8 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~22:40 | **Step 1.11 determinism.** Cached run twice → `result.json` identical (except timing) but `plan.svg` differed: matplotlib writes the date + random element ids → fixed (no date, fixed hash salt, no PNG software tag) → all output files byte-identical | — |
 | ~22:45 | **Live (`--no-cache`) vs cached: bit-identical**, max \|diff\| 0.0 over 210 numbers, same structure. Live 198 s, cached 9–12 s. `scripts/check_determinism.py` + `tests/test_determinism.py` (two cached runs, identical result and files). Outline helper tests added (staircase snap, notch fill vs real L). 65 tests pass | E19 |
 | ~22:50 | **TIER 1 COMPLETE** (tag `tier1`). home01_photo_a: walls 7/7 within ±8% (mean 0.89%, max 1.63%), hall ceiling +0.1 cm ✅ / bedroom −2.4 cm ❌ G2, G5 pass (adjacency = tape, 0 overlaps), calibration 100% at ±5.0%, G1 0/5 (door widths −18 cm: tape definition to check; window/closed door from the detector with box extents), damage 0/1 (stain in no photo), G3 n/a (no repeat capture yet) | `tier1` |
+| ~23:00 | User added stain photos (`photos/stain/`, 2 shots) and 3 **per-room video clips** (`home01_video_a/video/{bedroom,hall,kitchen}/`, 1080p HEVC portrait, 39.6 / 36.5 / 18.6 s) instead of one walkthrough. Stain photos moved into `bedroom1/` (a `stain` folder would be read as a room). The stain is a real damp patch on the wall behind the bed head | — |
+| ~23:05 | **E20:** both stain photos were on the 0.5× ultra-wide lens with digital zoom (16 / 20 mm eq.). Joint run with them: **everything shrank ~4.6%** (walls −3.5 to −5.5%, ceilings −13 / −14 cm, coverage 100% → 30%), plus new phantom openings and 2 marble false-positive stains (2 photos each); stain still not detected. → **Photos not on the 1× lens are excluded** (`ingest.reject_non_main_lens`). Rerun = cache hit, numbers restored exactly | E20 |
 
 ### Open data issues
 
@@ -120,7 +122,7 @@ Running record of **everything** done on this project: setup, data, captures, me
 - **Kitchen measurements:** its 4 walls, ceiling (2 spots) and the opening from the hall.
 - **Kitchen photos (retake):** only 3 taken; `IMG_4900` (a plain wall) was placed 19° off the house axes and dropped automatically (E16), so the kitchen rests on 2 photos, and its floor wasn't seen (ceiling now measured from the shared floor, D27: 2.741 m). Retake 4–8: corners with the floor in frame + one shot through the opening into the hall + one from the hall into the kitchen.
 - **Bedroom:** W2 (289) and W4 (294) differ by 5 cm. Re-measure, or confirm it's real.
-- **Stain D1:** converted from raw notes, assuming 50 cm is the horizontal width and 85 cm runs to the stain's near edge. **Not visible in any photo yet**, so `scan-eval` reports it missed. Photograph it from 2+ corners (the detector needs ≥ 2 photos).
+- **Stain D1:** a real damp patch on the wall behind the bed head (user photos 18:04, but taken on the 0.5× lens with zoom → excluded, E20). Re-photograph it **on the 1× lens from 2+ corners**, ideally as part of the bedroom round 2 (`home01_photo_b`).
 - **Sticker door (hall W3):** the detector finds it (0.93 × 1.93). Add it to the ground truth with a measured size.
 - **Captures still needed:** bedroom round 2 (`home01_photo_b`, repeatability G2/G3).
 
@@ -185,6 +187,7 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 | E17 | Openings: wall face / see-through maps → visibility voting | Bedroom door from both rooms, hall second door, open side; synthetic door/window exact | D28 |
 | E18 | OWLv2 on 17 photos, lifted to surfaces | Window (4 photos) + closed sticker door (3) found; marble floor/splashback → many stain/crack false positives; wardrobe as a "door" (1 photo) | D29: ≥ 2 photos, walls/ceilings only |
 | E19 | Determinism: cached twice + live vs cached | All files byte-identical (after the SVG date fix); live vs cached max \|diff\| 0.0 over 210 numbers | FR-RUN-05 / NFR-07 met |
+| E20 | 2 zoomed ultra-wide photos added to the joint run | Uniform −4.6% scale shift, coverage 30% | Non-1× photos excluded at ingest |
 
 ### What affects the results (so far)
 

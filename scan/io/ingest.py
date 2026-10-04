@@ -118,6 +118,10 @@ def _ingest_photos(cap: Capture, cfg: dict[str, Any]) -> None:
                 continue
             frame, w = res
             cap.warnings.extend(f"{room}/{msg}" for msg in w)
+            lo, hi = icfg["intrinsics"]["main_lens_f35_range_mm"]
+            if icfg["reject_non_main_lens"] and not lo <= frame.meta.f35_mm <= hi:
+                cap.warnings.append(f"{f}: excluded (not the 1x lens: mixed lenses skewed the joint scale ~4.6%, E20)")
+                continue
             first = seen.get(frame.meta.sha256)
             if first is not None:
                 if first.parent == d:
