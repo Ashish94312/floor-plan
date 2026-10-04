@@ -21,7 +21,7 @@ from scan.io.photos import UnreadableImage, load_photo
 from scan.types import Capture, Frame, Tier
 
 ROOM_NAME = re.compile(r"^[a-z0-9_]+$")
-VIDEO_EXT = {".mov", ".mp4"}
+VIDEO_EXT = {".mov", ".mp4", ".m4v"}
 
 
 def _subdirs(p: Path) -> list[Path]:
@@ -34,7 +34,8 @@ def detect_tiers(root: Path) -> list[Tier]:
     if photos.is_dir() and (_subdirs(photos) or any(photos.iterdir())):
         found.append("photo")
     video = root / "video"
-    if video.is_dir() and any(f.suffix.lower() in VIDEO_EXT for f in video.iterdir()):
+    if video.is_dir() and (any(f.suffix.lower() in VIDEO_EXT for f in video.iterdir())
+                           or any(f.suffix.lower() in VIDEO_EXT for d in _subdirs(video) for f in d.iterdir())):
         found.append("video")
     lidar = root / "lidar"
     if (root / "odometry.csv").is_file() or (lidar / "odometry.csv").is_file() or (
@@ -67,6 +68,10 @@ def ingest(root: Path, tier: Tier | None, cfg: dict[str, Any]) -> Capture:
     cap = Capture(capture_id=root.name, root=root, tier=t)
     if t == "photo":
         _ingest_photos(cap, cfg)
+    elif t == "video":
+        from scan.io.video import ingest_video
+
+        ingest_video(cap, cfg)
     return cap
 
 

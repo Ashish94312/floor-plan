@@ -49,8 +49,8 @@ def run(
     t = time.perf_counter()
     cap = ingest(capture_dir, tier, cfg)
     timing["ingest_s"] = round(time.perf_counter() - t, 2)
-    if cap.tier != "photo":
-        raise NotImplementedError(f"{cap.tier} tier")
+    if cap.tier == "lidar":
+        raise NotImplementedError("lidar tier")
 
     go_offline()
     seed_everything()

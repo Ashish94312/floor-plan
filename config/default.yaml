@@ -131,3 +131,12 @@ damage:
 calibration_fit:                   # scan-calibrate (D30)
   k_min: 0.5                       # never narrower than this, whatever few residuals say
   small_n_inflate: 2.0             # too few residuals for the conformal quantile: max ratio x this
+
+video:
+  decode_fps: 4                    # candidate frames per second
+  min_keyframes: 4                 # per room
+  max_keyframes: 8                 # per room (joint budget geometry.max_joint_views is shared by all rooms)
+  min_sharpness: 30                # Laplacian variance; blurrier slices give no keyframe
+  default_f35_mm: 32.0             # fallback only: iPhone 13 1x video measured ~31.9 mm by vanishing points (16:9 + stabilisation crop)
+  vp_frames_per_clip: 20           # sharpest frames per clip used to estimate the focal
+  min_vp_frames: 3                 # keyframes with a valid vanishing-point focal needed to trust it
