@@ -42,9 +42,12 @@ def scan(
     typer.echo(f"Geometry: {g['backbone']}, joint={g['joint']}, rays={g['rays']}, runs: "
                + ", ".join(f"{k}={v['cache']}" for k, v in g["runs"].items()))
     for r, info in summary["rooms"].items():
-        typer.echo(f"  {r:12s} {info['points']:>7d} points, extent {info['extent_m']} m -> {info['ply']}")
+        pl = info["planes"]
+        ceil = f"ceiling {pl['ceiling_height_m']:.3f} m" if pl["ceiling_height_m"] is not None else "ceiling NOT FOUND"
+        typer.echo(f"  {r:12s} {info['points']:>7d} points, {ceil}, floor rms {100 * pl['floor_rms_m']:.1f} cm,"
+                   f" status {pl['status']} -> {info['ply']}")
     typer.echo(f"Timing: {summary['timing_s']}")
-    typer.secho(f"Wrote {(out or capture_dir / 'out') / 'geometry.json'}. Alignment is Tier 1 step 1.3 (next).",
+    typer.secho(f"Wrote {(out or capture_dir / 'out') / 'geometry.json'}. Room layout is Tier 1 step 1.4 (next).",
                 fg=typer.colors.YELLOW)
 
 

@@ -393,9 +393,20 @@ Stray Scanner export format (verify against a real export when a Pro device is a
 
 ### 10.5 C3 Alignment (`geometry/align.py`)
 
-1. **Gravity:** estimate normals (Open3D, 10 cm radius). Find the largest RANSAC plane whose normal is within 25° of the mean camera up-vector (photo/video) or ARKit gravity (LiDAR). That plane is the floor and its normal is `z`. Rotate so the floor is `z = 0`.
-2. **Manhattan axes:** for points with a near-horizontal normal (|n_z| < 0.2), build a histogram of normal azimuth modulo 90° (1° bins, smoothed). The peak gives θ. Rotate about `z` by −θ so walls align with the x/y axes.
-3. **Ceiling:** the largest RANSAC plane with normal ≈ ±z, at least 1.8 m above the floor. If none is found, `status = partial` and a warning (ceiling not visible).
+1. **Normals:** Open3D, 10 cm neighbourhood.
+2. **Rough up:** minus the mean of the cameras' image-down axes (photo/video), or ARKit gravity (LiDAR).
+3. **Floor and ceiling (consensus planes, D22):**
+   - On points whose normal is within 25° of up, build a height histogram (1 cm bins).
+   - **Floor** = the lowest peak holding ≥ 15% of the biggest. This skips the bed and table tops.
+   - **Ceiling** = the highest such peak ≥ 1.8 m above the floor.
+   - Each plane: direction from the ±3 cm core around the peak; height = median of the whole layer (floor −5..+12 cm, ceiling mirrored), so views that disagree by a few cm are averaged, not cherry-picked.
+   - **Up** = floor normal, averaged with the ceiling normal if they agree within 3°. Flipped if the cameras would end up below the floor.
+4. **Manhattan axes:**
+   - For points with |n·up| < 0.2, take each normal's azimuth folded mod 90° and build a 0.5° histogram (circularly smoothed).
+   - Refine the peak with a circular mean of 4φ over normals within ±5°.
+   - Rotate so walls lie along x / y. Report the support: the share of wall normals within 5° of an axis.
+5. **One transform per reconstruction frame.** A joint run's rooms share it, so their placement is kept. Points and camera poses move into the aligned frame (floor z = 0).
+6. **Per room** (`room_planes`): floor and ceiling layers re-found in the aligned frame. Ceiling height = median ceiling z − median floor z. No ceiling found → `status = partial` + warning (ceiling not visible).
 
 ### 10.6 C4 Room segmentation — video/LiDAR (`layout/segment.py`)
 

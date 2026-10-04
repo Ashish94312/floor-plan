@@ -136,3 +136,15 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - A live run costs about 35 s to load plus about 32 s per room. Development and the benchmark re-run the same captures many times.
   - The cache key covers everything that changes the output: image SHA256s, intrinsics, working size, weights revision, MapAnything commit, DINOv2 commit, `f_scale`, AMP dtype and memory mode. A stale hit is impossible without a key collision.
 - **Check:** a cached re-run (7 s) wrote `.ply` files byte-identical to the live run. `--no-cache` forces the live path (FR-RUN-05).
+
+## D22. Floor and ceiling are consensus planes, not the lowest/highest copy
+- **Why:**
+  - Views disagree by 5–8 cm on a surface's height (per-view floor z in the bedroom ranged 0.024–0.075; the histogram shows two floor copies 9 cm apart).
+  - Taking the lowest floor peak (to skip the bed) also picked the *bottom copy*, which biased the bedroom ceiling +6.9 cm.
+- **How:**
+  - Find the lowest/highest strong horizontal peak as before; the bed, 50 cm up, stays excluded.
+  - Take the whole layer (floor −5..+12 cm, ceiling mirrored), so every view's copy is in.
+  - Height = **median** z of the layer.
+  - Direction = least-squares normal of the dominant copy only (±3 cm). The synthetic test showed a partial second copy tilts a whole-layer fit.
+- **Chosen on principle:** the median of all observations is the consensus estimate. The variant that matched the bedroom tape best (+0.1 cm) was **not** picked for that reason. The final numbers are bedroom −3.3 cm and hall +0.97 cm.
+- **Cost:** with real doubling, the answer can only be as good as the copies agree. Bedroom uncertainty is about ±3–4 cm. The fix for the doubling itself is open (fix-loop candidate).

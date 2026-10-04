@@ -28,3 +28,15 @@ geometry:
 
 cache:
   dir: .cache                    # model outputs, keyed by input hashes + settings (gitignored)
+
+alignment:
+  normal_radius_m: 0.10            # neighbourhood for point normals
+  horizontal_normal_deg: 25        # floor/ceiling candidates: normal within 25 deg of up
+  wall_normal_max_z: 0.2           # wall candidates: |n_z| < 0.2
+  height_bin_m: 0.01               # height histogram bin
+  peak_rel: 0.15                   # a floor/ceiling peak holds >= 15% of the biggest horizontal peak
+  plane_core_m: 0.03               # plane direction from the dominant copy only: |h - peak| < 3 cm
+  plane_band_m: 0.05               # layer margin on the open side of a floor (below) / ceiling (above)
+  plane_layer_m: 0.12              # layer depth into the room: holds every view's copy of a slightly doubled surface
+  min_ceiling_m: 1.8               # ceiling at least this far above the floor
+  max_floor_ceiling_angle_deg: 3   # average floor + ceiling normals only if they agree this well

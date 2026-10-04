@@ -65,3 +65,5 @@ class RoomCloud:
     T_room_world: np.ndarray  # 4x4 room-local -> property frame (identity until stitched)
     frame_id: str = ""  # which reconstruction the points live in: the room id, or "joint" for a joint run
     views: dict[str, np.ndarray] | None = None  # this room's per-view backbone outputs (depth, pose, K, rgb)
+    alignment: object | None = None  # geometry.align.Alignment of this room's frame (step 1.3)
+    planes: object | None = None  # geometry.align.RoomPlanes: floor/ceiling in the aligned frame

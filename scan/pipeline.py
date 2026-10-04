@@ -13,8 +13,10 @@ from typing import Any
 import numpy as np
 
 from scan.device import go_offline, seed_everything, select_device
+from scan.geometry.align import Alignment, apply, estimate_alignment, room_planes
 from scan.geometry.cloud import build_cloud, save_ply
 from scan.io.ingest import ingest
+from scan.render.debug import alignment_plot
 from scan.types import Capture, RoomCloud, Scale, Tier
 
 
@@ -39,17 +41,23 @@ def run(
     dev = select_device(device)
     out = out or capture_dir / "out"
     clouds, info = geometry_photo(cap, cfg, dev, use_cache, timing, log)
+    t = time.perf_counter()
+    alignments = align_rooms(clouds, cfg, log)
+    timing["alignment_s"] = round(time.perf_counter() - t, 2)
 
     summary = {
         "capture_id": cap.capture_id,
         "tier": cap.tier,
         "device": str(dev),
         "geometry": info,
+        "alignment": {fid: {k: v for k, v in vars(a).items() if k != "T"} | {"T": np.round(a.T, 6).tolist()}
+                      for fid, a in alignments.items()},
         "rooms": {
             r: {
                 "points": len(c.points),
                 "frame_id": c.frame_id,
                 "extent_m": np.round(c.points.max(0) - c.points.min(0), 3).tolist(),
+                "planes": vars(c.planes),
                 "ply": str(Path("rooms") / r / "cloud.ply"),
             }
             for r, c in clouds.items()
@@ -60,6 +68,7 @@ def run(
     t = time.perf_counter()
     for r, c in clouds.items():
         save_ply(out / "rooms" / r / "cloud.ply", c.points, c.colors)
+        alignment_plot(r, c.points, c.planes, out / "rooms" / r / "align.png")
     timing["write_s"] = round(time.perf_counter() - t, 2)
     out.mkdir(parents=True, exist_ok=True)
     (out / "geometry.json").write_text(json.dumps(summary, indent=2))
@@ -122,3 +131,24 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
     timing["geometry_s"] = round(time.perf_counter() - t_all, 2)
     info = {"backbone": g["backbone"], "joint": bool(joint), "rays": g["rays"], "f_scale": g["f_scale"], "runs": runs}
     return clouds, info
+
+
+def align_rooms(clouds: dict[str, RoomCloud], cfg, log) -> dict[str, Alignment]:
+    """C3: one alignment per reconstruction frame (all rooms in a joint run share it), then each
+    room's own floor/ceiling planes. Points and camera poses move into the aligned frame."""
+    alignments: dict[str, Alignment] = {}
+    for fid in dict.fromkeys(c.frame_id for c in clouds.values()):
+        rooms = [c for c in clouds.values() if c.frame_id == fid]
+        a = estimate_alignment(
+            np.concatenate([c.points for c in rooms]), np.concatenate([c.views["T_wc"] for c in rooms]), cfg
+        )
+        alignments[fid] = a
+        log(f"  alignment {fid}: tilt corrected {a.tilt_correction_deg} deg, floor-ceiling angle "
+            f"{a.floor_ceiling_angle_deg} deg, walls rotated {a.manhattan_deg} deg "
+            f"(support {a.manhattan_support:.0%}), floor rms {100 * a.floor_rms_m:.1f} cm")
+        for c in rooms:
+            c.points = apply(a.T, c.points)
+            c.views["T_wc"] = np.einsum("ij,sjk->sik", a.T, c.views["T_wc"])  # poses now in the aligned frame
+            c.alignment = a
+            c.planes = room_planes(c.points, cfg)
+    return alignments
