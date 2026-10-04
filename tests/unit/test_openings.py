@@ -92,3 +92,13 @@ def test_door_and_window_found_with_sizes():
 def test_no_holes_no_openings():
     c = room_with_holes([])
     assert detect_openings({"r": c.layout}, {"r": c}, CFG)["r"] == []
+
+
+def test_no_openings_on_an_unseen_wall():
+    """A wall with almost no points (never filmed, placed behind the cameras) gives no openings: it would
+    otherwise read as one wide doorway (video_d bedroom, E22j)."""
+    c = room_with_holes([DOOR, WINDOW])
+    door_wall = next(o.wall_id for o in detect_openings({"r": c.layout}, {"r": c}, CFG)["r"] if o.type == "door")
+    next(w for w in c.layout.walls if w.wall_id == door_wall).support = CFG["layout"]["min_wall_support"] - 1
+    ops = detect_openings({"r": c.layout}, {"r": c}, CFG)["r"]
+    assert [o.type for o in ops] == ["window"]

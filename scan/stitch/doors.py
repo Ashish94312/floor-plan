@@ -40,16 +40,16 @@ def _candidate(geo_a, geo_b, t: float):
     return None
 
 
-def _through_points(cloud, geo, max_per_view: int = 4000) -> np.ndarray:
+def _through_points(cloud, geo, rays: str = "exif", max_per_view: int = 4000) -> np.ndarray:
     """Raw-depth 3D points (2D x,y) seen THROUGH a door from this room's photos (beyond the wall)."""
-    from scan.geometry.cloud import unproject
+    from scan.geometry.cloud import ray_K, unproject
 
     c, n_out, p0, p1 = geo
     v = cloud.views
     rng = np.random.default_rng(0)
     out = []
     for i in range(len(v["depth"])):
-        P = unproject(v["depth"][i], v["K_exif"][i], v["T_wc"][i])[v["mask"][i]][:, :2]
+        P = unproject(v["depth"][i], ray_K(v, i, rays), v["T_wc"][i])[v["mask"][i]][:, :2]
         cam = v["T_wc"][i][:2, 3]
         beyond = (P - c) @ n_out > 0.25
         if not beyond.any():
@@ -85,7 +85,7 @@ def place_rooms(clouds: dict, layouts: dict, openings: dict, cfg: dict) -> dict:
     polys = {r: Polygon(layouts[r].polygon) for r in names}
     doors = {r: [o for o in openings[r] if o.type in ("door", "opening")] for r in names}
     geo = {(r, o.opening_id): _door_geom(layouts[r], o) for r in names for o in doors[r]}
-    through = {k: _through_points(clouds[k[0]], g) for k, g in geo.items()}
+    through = {k: _through_points(clouds[k[0]], g, cfg["geometry"]["rays"]) for k, g in geo.items()}
     edges = []
     for i, ra in enumerate(names):
         for rb in names[i + 1 :]:

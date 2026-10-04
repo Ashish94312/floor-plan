@@ -14,6 +14,12 @@ def unproject(depth: np.ndarray, K: np.ndarray, T_wc: np.ndarray) -> np.ndarray:
     return cam @ T_wc[:3, :3].T + T_wc[:3, 3]
 
 
+def ray_K(views: dict[str, np.ndarray], i: int, rays: str) -> np.ndarray:
+    """Intrinsics consistent with view_points(views, i, rays): the model's for rays='model' (video,
+    E22c), EXIF for rays='exif'. Anything that projects into a view or back out of it must use these."""
+    return views["K_model"][i] if rays == "model" else views["K_exif"][i]
+
+
 def view_points(pred: dict[str, np.ndarray], i: int, rays: str) -> np.ndarray:
     """World points of view i. rays='model': MapAnything's own (consistent with its poses, focal ~12%
     long, E12). rays='exif': depth re-projected with EXIF intrinsics (right focal, poses not

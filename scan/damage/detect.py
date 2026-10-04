@@ -107,9 +107,11 @@ def _ray(K, T, px, py):
     return T[:3, 3], d / np.linalg.norm(d)
 
 
-def lift(det, frame_hw, i, views, layout, planes, dcfg) -> SurfaceBox | None:
+def lift(det, frame_hw, i, views, layout, planes, dcfg, rays: str = "exif") -> SurfaceBox | None:
     """Box -> surface + metric extent on it."""
-    K, T, depth = views["K_exif"][i], views["T_wc"][i], views["depth"][i]
+    from scan.geometry.cloud import ray_K
+
+    K, T, depth = ray_K(views, i, rays), views["T_wc"][i], views["depth"][i]
     s, ox, oy = _frame_to_view(frame_hw, depth.shape)
     x0, y0, x1, y1 = det["box"]
     cx, cy = (x0 + x1) / 2 * s - ox, (y0 + y1) / 2 * s - oy
@@ -212,7 +214,7 @@ def surface_boxes(cap, clouds, cfg, device, use_cache=True) -> dict[str, list[Su
                 continue
             i = names.index(f.image_path.name)
             for d in dets.get(f.image_path.name, []):
-                sb = lift(d, f.rgb.shape[:2], i, c.views, c.layout, c.planes, cfg["damage"])
+                sb = lift(d, f.rgb.shape[:2], i, c.views, c.layout, c.planes, cfg["damage"], cfg["geometry"]["rays"])
                 if sb is not None:
                     sb.photo = f.image_path.name
                     boxes.append(sb)

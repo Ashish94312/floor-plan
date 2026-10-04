@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy import ndimage
 
+from scan.geometry.cloud import ray_K
+
 
 @dataclass
 class OpeningSeg:
@@ -48,7 +50,7 @@ def wall_votes(wall, views, ceiling_z, cfg) -> tuple[np.ndarray, np.ndarray, flo
         R, t = T[:3, :3], T[:3, 3]
         cam = (P - t) @ R  # world -> camera
         zc = cam[:, 2]
-        K = views["K_exif"][i]
+        K = ray_K(views, i, cfg["geometry"]["rays"])
         H, W = views["depth"][i].shape
         with np.errstate(divide="ignore", invalid="ignore"):
             px = K[0, 0] * cam[:, 0] / zc + K[0, 2]
@@ -122,8 +124,8 @@ def detect_openings(layouts: dict, clouds: dict, cfg: dict) -> dict[str, list[Op
         ceil = c.planes.ceiling_z or float(np.percentile(c.points[:, 2], 98))
         ops = []
         for w in lay.walls:
-            if w.kind != "wall":
-                continue
+            if w.kind != "wall" or w.support < cfg["layout"]["min_wall_support"]:
+                continue  # an unseen wall (no points, e.g. behind every camera) would read as one wide opening
             o, wv, L = wall_votes(w, c.views, ceil, cfg)
             partners = [(pr, pw) for pr, pw in faces if pr != r and frame[pr] == frame[r] and _facing(w, pw, t + 0.15)]
             a, b = np.array(w.start), np.array(w.end)
