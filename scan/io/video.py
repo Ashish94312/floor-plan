@@ -74,7 +74,7 @@ def ingest_video(cap, cfg: dict) -> None:
     clips = {r: c for r, c in clips.items() if c}
     if not clips:
         raise InputError(f"{vdir}: no clips. Expected video/<room>/*.mov")
-    per_room = max(vc["min_keyframes"], min(vc["max_keyframes"], cfg["geometry"]["max_joint_views"] // len(clips)))
+    per_room = vc["keyframes_per_room"]
     from scan.geometry.vanishing import focal_px
 
     raw, fs = {}, []
@@ -97,7 +97,9 @@ def ingest_video(cap, cfg: dict) -> None:
     diag_mm = cfg["ingest"]["intrinsics"]["film_diagonal_mm"]
     nominal = vc["default_f35_mm"] / diag_mm
     plausible = [x for x in fs if 0.6 * nominal <= x <= 1.6 * nominal]
-    if len(plausible) >= vc["min_vp_frames"]:
+    if vc.get("force_f35_mm"):
+        f_rel, source = vc["force_f35_mm"] / diag_mm, "default"
+    elif len(plausible) >= vc["min_vp_frames"]:
         f_rel, source = float(np.median(plausible)), "vanishing_points"
     else:
         f_rel, source = nominal, "default"

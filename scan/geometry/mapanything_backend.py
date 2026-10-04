@@ -87,6 +87,9 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
 
     key = _cache_key(frames, cfg)
     if use_cache and (hit := cache.load(cfg, "mapanything", key)) is not None:
+        # labels are not in the key (content is): take them from the frames, so a renamed room folder still matches
+        hit["names"] = np.array([f.image_path.name for f in frames])
+        hit["rooms"] = np.array([f.room_hint for f in frames])
         return hit, {"cache": "hit", "key": key, "infer_s": 0.0}
 
     import time

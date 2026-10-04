@@ -96,6 +96,22 @@ def test_cache_roundtrip_and_key(tmp_path):
     assert not list(tmp_path.rglob("*.tmp.npz"))
 
 
+def test_cache_hit_takes_labels_from_frames(tmp_path):
+    from scan.geometry.mapanything_backend import _cache_key, predict
+    from scan.types import Frame, PhotoMeta
+
+    cfg = load_config(overrides={"cache": {"dir": str(tmp_path)}})
+    meta = PhotoMeta("h", (40, 30), "landscape", None, None, 26.0, "exif_f35", None, 100.0)
+    frames = [Frame(Path(f"bedroom1/v{i}.jpg"), K(), room_hint="bedroom1", meta=meta) for i in range(2)]
+    cache.save(cfg, "mapanything", _cache_key(frames, cfg), fake_pred())  # cached under the old room name "r"
+
+    def no_model():
+        raise AssertionError("cache hit expected")
+
+    pred, info = predict(frames, cfg, None, no_model)
+    assert info["cache"] == "hit" and list(pred["rooms"]) == ["bedroom1"] * 2  # renamed folder still matches
+
+
 def test_plan_groups_auto_joint_and_fallback():
     from scan.pipeline import plan_groups
     from scan.types import Capture

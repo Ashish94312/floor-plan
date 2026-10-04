@@ -5,6 +5,7 @@ Tier 1 so far: ingest (1.1) -> geometry (1.2). Later steps plug in after geometr
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import time
@@ -49,6 +50,9 @@ def run(
     t = time.perf_counter()
     cap = ingest(capture_dir, tier, cfg)
     timing["ingest_s"] = round(time.perf_counter() - t, 2)
+    if cap.tier == "video" and cfg["video"].get("rays"):
+        cfg = copy.deepcopy(cfg)
+        cfg["geometry"]["rays"] = cfg["video"]["rays"]
     if cap.tier == "lidar":
         raise NotImplementedError("lidar tier")
 
