@@ -44,10 +44,12 @@ def scan(
     for r, info in summary["rooms"].items():
         pl = info["planes"]
         ceil = f"ceiling {pl['ceiling_height_m']:.3f} m" if pl["ceiling_height_m"] is not None else "ceiling NOT FOUND"
-        typer.echo(f"  {r:12s} {info['points']:>7d} points, {ceil}, floor rms {100 * pl['floor_rms_m']:.1f} cm,"
-                   f" status {pl['status']} -> {info['ply']}")
+        lay = info["layout"]
+        walls = ", ".join(f"{w['wall_id'].split('-')[-1]} {w['length_m']:.3f}" for w in lay["walls"])
+        typer.echo(f"  {r:12s} {ceil}, area {lay['floor_area_m2']:.2f} m2, {lay['status']} ({lay['method']})"
+                   f"\n               walls: {walls}")
     typer.echo(f"Timing: {summary['timing_s']}")
-    typer.secho(f"Wrote {(out or capture_dir / 'out') / 'geometry.json'}. Room layout is Tier 1 step 1.4 (next).",
+    typer.secho(f"Wrote {(out or capture_dir / 'out') / 'geometry.json'}. Schema + JSON + render is Tier 1 step 1.5 (next).",
                 fg=typer.colors.YELLOW)
 
 

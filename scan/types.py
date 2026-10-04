@@ -67,3 +67,4 @@ class RoomCloud:
     views: dict[str, np.ndarray] | None = None  # this room's per-view backbone outputs (depth, pose, K, rgb)
     alignment: object | None = None  # geometry.align.Alignment of this room's frame (step 1.3)
     planes: object | None = None  # geometry.align.RoomPlanes: floor/ceiling in the aligned frame
+    layout: object | None = None  # layout.room.Layout: polygon, walls, area (step 1.4)

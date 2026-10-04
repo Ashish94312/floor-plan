@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,8 @@ from scan.device import go_offline, seed_everything, select_device
 from scan.geometry.align import Alignment, apply, estimate_alignment, room_planes
 from scan.geometry.cloud import build_cloud, save_ply
 from scan.io.ingest import ingest
-from scan.render.debug import alignment_plot
+from scan.layout.room import layout_rooms
+from scan.render.debug import alignment_plot, layout_plot
 from scan.types import Capture, RoomCloud, Scale, Tier
 
 
@@ -44,6 +46,12 @@ def run(
     t = time.perf_counter()
     alignments = align_rooms(clouds, cfg, log)
     timing["alignment_s"] = round(time.perf_counter() - t, 2)
+    t = time.perf_counter()
+    layouts = layout_rooms(clouds, cfg)
+    for r, lay in layouts.items():
+        clouds[r].layout = lay
+        log(f"  layout {r}: {len(lay.walls)} walls, area {lay.floor_area_m2:.2f} m2, {lay.status} ({lay.method})")
+    timing["layout_s"] = round(time.perf_counter() - t, 2)
 
     summary = {
         "capture_id": cap.capture_id,
@@ -58,6 +66,7 @@ def run(
                 "frame_id": c.frame_id,
                 "extent_m": np.round(c.points.max(0) - c.points.min(0), 3).tolist(),
                 "planes": vars(c.planes),
+                "layout": {k: v for k, v in asdict(c.layout).items()},
                 "ply": str(Path("rooms") / r / "cloud.ply"),
             }
             for r, c in clouds.items()
@@ -69,6 +78,7 @@ def run(
     for r, c in clouds.items():
         save_ply(out / "rooms" / r / "cloud.ply", c.points, c.colors)
         alignment_plot(r, c.points, c.planes, out / "rooms" / r / "align.png")
+        layout_plot(r, c.layout, out / "rooms" / r / "layout.png")
     timing["write_s"] = round(time.perf_counter() - t, 2)
     out.mkdir(parents=True, exist_ok=True)
     (out / "geometry.json").write_text(json.dumps(summary, indent=2))

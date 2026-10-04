@@ -40,3 +40,23 @@ alignment:
   plane_layer_m: 0.12              # layer depth into the room: holds every view's copy of a slightly doubled surface
   min_ceiling_m: 1.8               # ceiling at least this far above the floor
   max_floor_ceiling_angle_deg: 3   # average floor + ceiling normals only if they agree this well
+
+layout:
+  wall_min_z_m: 0.30               # wall points: vertical surfaces from 0.3 m ...
+  wall_below_ceiling_m: 0.15       # ... up to 15 cm under the ceiling
+  wall_normal_max_z: 0.5           # vertical surface: |n_z| < 0.5
+  floor_max_z_m: 0.10              # floor points (pick the room's free-space component)
+  cell_m: 0.02                     # 2D grid
+  max_rays_per_view: 25000         # lines of sight carved per photo
+  ray_stop_short_m: 0.06           # stop each ray this short of its surface
+  min_views_free: 1                # a cell is free if at least this many photos saw through it
+  free_gap_fill_m: 0.10            # merge neighbouring lines of sight (they fan out near far walls)
+  neck_cut_m: 0.70                 # cut doorway necks narrower than this (per-room runs; joint runs use ownership)
+  regularise_open_m: 0.60          # remove thin protrusions (doorway stubs) narrower than this
+  regularise_close_m: 1.00         # fill concave gaps narrower than this between opposite edges
+  notch_max_area_m2: 0.60          # inward corner steps smaller than this are filled (corner furniture / unseen corner)
+  notch_max_len_m: 1.00            # ... if both step edges are shorter than this
+  min_wall_points: 500             # fewer -> bounding-rectangle fallback
+  min_room_area_m2: 1.5
+  min_edge_m: 0.15                 # outline jogs shorter than this are removed
+  refine_window_m: [0.10, 0.35]    # wall = median of wall points from 10 cm inside to 35 cm outside the outline

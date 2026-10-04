@@ -33,7 +33,7 @@ def build_cloud(
 
     mask = pred["mask"][views]
     conf = pred["conf"][views]
-    keep = mask & (conf > np.percentile(conf[mask], conf_percentile))
+    keep = mask & (conf >= np.percentile(conf[mask], conf_percentile))
     pts = np.concatenate([view_points(pred, i, rays)[k] for i, k in zip(views, keep)])
     cols = np.concatenate([pred["rgb"][i][k] for i, k in zip(views, keep)]).astype(np.float64) / 255.0
     pc = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(pts.astype(np.float64)))

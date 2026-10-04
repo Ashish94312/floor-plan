@@ -148,3 +148,24 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - Direction = least-squares normal of the dominant copy only (±3 cm). The synthetic test showed a partial second copy tilts a whole-layer fit.
 - **Chosen on principle:** the median of all observations is the consensus estimate. The variant that matched the bedroom tape best (+0.1 cm) was **not** picked for that reason. The final numbers are bedroom −3.3 cm and hall +0.97 cm.
 - **Cost:** with real doubling, the answer can only be as good as the copies agree. Bedroom uncertainty is about ±3–4 cm. The fix for the doubling itself is open (fix-loop candidate).
+
+## D23. Room layout by free-space carving, not a wall-height band
+- **Why:**
+  - The planned layout (ARCHITECTURE v1: a high band of wall points → grid → enclosed region) assumes the high band shows the real walls. In home01 it shows a **ceiling beam** 0.57 m in front of the bedroom wall, and it misses the wall around the door the camera stood in. The bedroom fell back to a bounding box.
+  - Lines of sight are better evidence. Every observed pixel proves the line from its camera to that surface was empty. Furniture, beams and door gaps can't hide the room, because rays pass over the bed, under the beam, and the doorway camera carves the room itself.
+- **How (`layout/room.py`):**
+  1. Per photo, up to 25k lines of sight drawn from above onto a 2 cm grid, stopping 6 cm short of each surface.
+  2. 10 cm gap-fill, because rays fan out near far walls.
+  3. **Joint frame: ownership.** A free cell belongs to the room whose own photos saw through it most, which removes lines of sight through doorways into the next room. Per-room frames instead cut necks narrower than 70 cm.
+  4. Component with the most floor points (plus cameras).
+  5. Rectangular open 0.6 m (removes doorway stubs) and close 1.0 m.
+  6. Rectilinear outline (snap to x/y, merge runs, drop jogs < 15 cm).
+  7. **Fill inward corner notches < 0.6 m² with both edges < 1 m** (corner furniture or unseen corners; floor plans and the tape treat them as room). Warned.
+  8. Each wall = median of wall points (vertical surfaces, 0.3 m up to the ceiling) from **10 cm inside to 35 cm outside** the outline. Carved space stops at or before a wall, so the wall is outside. The median gives consensus over doubled copies.
+- **Evidence:**
+  - home01: bedroom 4 walls within −0.5..+1.2% / +1.1%; hall L-shape, 6 walls, measured walls within +0.7..+3.5%.
+  - Synthetic ray-cast rooms (rectangle and L-shape) exact to 3 cm.
+- **Costs and limits:**
+  - Corner-notch filling can't tell a built-in wardrobe from a real wall jog under 0.6 m². A real small jog would be squared off (warned).
+  - W1 is provisional (south-most wall) until doors are found in step 1.7.
+  - Thresholds were set on one home plus synthetic rooms; the benchmark must confirm them.

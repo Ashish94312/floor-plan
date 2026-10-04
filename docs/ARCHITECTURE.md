@@ -418,16 +418,21 @@ Stray Scanner export format (verify against a real export when a Pro device is a
 4. **Fallback:** if no doors are detected, run a watershed on the distance transform of free space.
 5. Each room's points are cropped by its region (dilated 30 cm) to form a `RoomCloud`.
 
-### 10.7 C5 Room layout (`layout/room.py`)
+### 10.7 C5 Room layout (`layout/room.py`, D23: free-space carving)
 
-1. **Wall points:** z between `max(1.2 m, 0.45 × ceiling)` and ceiling − 0.15 m. Using the upper band avoids furniture.
-2. Project to 2D and rasterise into a 2 cm grid.
-3. **Rectilinear polygon:** threshold the grid, close small gaps, take the outer boundary of the largest component, then simplify to axis-aligned segments (snap each edge to x or y, merge collinear runs, drop edges shorter than 15 cm).
-4. **Refine:** fit a 1D robust line to the points supporting each edge. Wall position = median of the inlier coordinate.
-5. **Walls:** polygon edges. Wall IDs start at the wall containing the widest detected door and run clockwise viewed from above.
-6. **Ceiling height:** ceiling plane offset minus floor plane offset.
+1. **Lines of sight:** per photo, up to 25k pixels (mask + confidence filtered), each a ray from its camera to a surface. Rays are drawn from above onto a 2 cm grid, stopping 6 cm short of the surface. Cell value = number of photos that saw through it.
+2. **Room free space:**
+   - 10 cm gap-fill (rays fan out near far walls).
+   - **Ownership in a joint frame:** a cell belongs to the room whose photos saw through it most, so lines of sight through doorways don't leak into the neighbour.
+   - Per-room frames: cut necks narrower than 70 cm.
+   - Keep the component with the most floor points (plus cameras).
+   - Rectangular open 0.6 m (removes doorway stubs) and close 1.0 m.
+3. **Rectilinear outline:** contour → snap edges to x or y → merge collinear runs → drop jogs shorter than 15 cm → **fill inward corner notches < 0.6 m²** (both edges < 1 m: corner furniture or unseen corners), with a warning.
+4. **Refine:** each wall's position = median of wall points (vertical surfaces from 0.3 m to 15 cm under the ceiling) found from 10 cm inside to 35 cm outside the outline edge. Carved space stops at or before a wall, so the true wall is outside. The median gives consensus over views that disagree by a few cm. Corners come from the refined lines. Per wall, the support (point count) and spread (robust std, which feeds σ_fit) are recorded.
+5. **Walls:** polygon edges, clockwise seen from above. W1 is **provisional** (the south-most edge, west end first) until step 1.7 re-indexes it by the main door (D11). Eval takes the best cyclic shift meanwhile (disclosed).
+6. **Ceiling height:** from C3 (median ceiling z − median floor z of the room).
 7. **Floor area:** shoelace area of the polygon.
-8. **Fallback:** if fewer than 3 edges have support, use the minimum-area bounding rectangle of the wall points, mark the room `partial` and inflate σ.
+8. **Fallback:** too few wall points, no free region, or fewer than 4 edges → axis-aligned 2–98% bounding rectangle of the points above 1 m, `status = partial`, warning.
 
 ### 10.8 C6 Openings (`layout/openings.py`)
 
