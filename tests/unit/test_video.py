@@ -31,7 +31,7 @@ def test_keyframes_one_sharpest_per_slice_and_skip_blur():
     sharp = rng.integers(0, 256, (40, 40, 3), dtype=np.uint8)
     blur = np.full((40, 40, 3), 128, np.uint8)
     frames = np.stack([sharp if i in (2, 13, 27) else blur for i in range(30)])
-    picks, s = keyframes(frames, 3, min_sharpness=30)
+    picks, _s = keyframes(frames, 3, min_sharpness=30)
     assert picks == [2, 13, 27]
     picks, _ = keyframes(np.stack([blur] * 10), 3, min_sharpness=30)
     assert picks == []  # all slices blurry -> no keyframes
