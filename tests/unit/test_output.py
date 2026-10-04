@@ -41,6 +41,7 @@ def _two_rooms_joint():
              "hall": synthetic_room("hall", hall, corner_cams(hall))}
     for c in rooms.values():
         c.frame_id = "joint"
+        c.placed_by = "joint_reconstruction"
     for r, lay in layout_rooms(rooms, CFG).items():
         rooms[r].layout = lay
     return rooms
@@ -90,10 +91,12 @@ def test_separate_frames_are_unplaced_with_warning(tmp_path):
     rooms = _two_rooms_joint()
     rooms["hall"].frame_id = "hall"
     rooms["bedroom1"].frame_id = "bedroom1"
+    for c in rooms.values():
+        c.placed_by = None  # no door match
     res = assemble(Capture("s", tmp_path, "photo"), rooms, CFG, {})
     assert res.stitched_plan.placement_method == "unplaced"
     assert not any(p.placed for p in res.stitched_plan.room_poses)
-    assert any("step 1.8" in w for w in res.warnings)
+    assert any("not placed" in w for w in res.warnings)
 
 
 @pytest.mark.skipif(not (REPO / "captures/home01_photo_a/out/result.json").exists(), reason="run the pipeline first")

@@ -50,8 +50,9 @@ def cast(cam, yaw):
     return t, T
 
 
-def room(rid, cams, box, M=np.eye(4)):
+def room(rid, cams, box, M=None):
     """Render a room's views, then express everything in a frame moved by M (its own reconstruction frame)."""
+    M = np.eye(4) if M is None else M
     K = np.array([[F, 0, IW / 2], [0, F, IH / 2], [0, 0, 1.0]])
     depth, T = zip(*(cast(np.array(c[:3], float), c[3]) for c in cams))
     depth = np.stack(depth).astype(np.float32)
