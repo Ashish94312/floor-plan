@@ -1,0 +1,63 @@
+[project]
+name = "scan"
+version = "0.1.0"
+description = "iPhone capture -> measured whole-property floor plan + damage assessment"
+readme = "REQUIREMENTS.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    # Deep learning
+    "torch>=2.5",
+    "torchvision>=0.20",
+    "transformers>=4.45",
+    "huggingface_hub>=0.25",
+    "safetensors",
+    "einops",
+    # Geometry backbone (VGGT-1B), pinned to a commit for reproducibility
+    "vggt @ git+https://github.com/facebookresearch/vggt@a288dd0f14786c93483e45524328726ab7b1b4ce",
+    # Numerics + geometry
+    "numpy>=1.26,<2",          # vggt requires numpy<2
+    "scipy>=1.11",
+    "open3d>=0.18",            # O3: kept only if it installs cleanly on arm64
+    "shapely>=2.0",
+    "scikit-image>=0.22",
+    # Image / video I/O
+    "pillow>=10",
+    "pillow-heif>=0.18",
+    "opencv-python>=4.9",
+    # Schema, config, CLI, render
+    "pydantic>=2.6",
+    "pyyaml>=6",
+    "typer>=0.12",
+    "matplotlib>=3.8",
+    "psutil>=5.9",
+]
+
+[project.scripts]
+scan = "scan.cli:scan_main"
+scan-eval = "scan.cli:eval_main"
+scan-bench = "scan.cli:bench_main"
+scan-fetch-weights = "scan.cli:fetch_weights_main"
+scan-schema = "scan.cli:schema_main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scan"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
