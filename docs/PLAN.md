@@ -71,6 +71,15 @@ H0 ──H2 ────────────── H15 ── H21 ───�
 
 **Tier 1 exit:** full output contract from photo folders, stitched plan, all gates computed. **Commit and tag `tier1`.**
 
+> **Status (2026-10-04 ~22:50): done, tagged `tier1`.** Deviations from the table above, all in DECISIONS/WORKLOG:
+> - backbone MapAnything (D17), not VGGT
+> - layout by free-space carving (D23)
+> - joint run + structural wall snapping as photo drift correction (D20, D25); door-matching stitching for separate runs (D31)
+> - openings by visibility voting + OWLv2 for closed doors and windows (D28, D29)
+> - calibration split-conformal (D30)
+>
+> Open: G1 tape-definition check, G2 bedroom, G3 needs `home01_photo_b`, carving leak in per-room runs, loop closure.
+
 ---
 
 ## Tier 2 — Video (H21–H27)

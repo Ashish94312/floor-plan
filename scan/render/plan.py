@@ -135,7 +135,7 @@ def render_room(room, path: Path, damage=()) -> None:
     ax.set_title(f"{room.room_id} ({room.layout_method})", fontsize=10)
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=150)
+    fig.savefig(path, dpi=150, metadata={"Software": None})
     plt.close(fig)
 
 
@@ -178,6 +178,7 @@ def render_stitched(result, path_png: Path, path_svg: Path) -> None:
     )
     fig.tight_layout()
     path_png.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path_png, dpi=150)
-    fig.savefig(path_svg)
+    fig.savefig(path_png, dpi=150, metadata={"Software": None})
+    with plt.rc_context({"svg.hashsalt": "scan"}):  # deterministic element ids
+        fig.savefig(path_svg, metadata={"Date": None, "Creator": None})  # no timestamp: same input -> same bytes
     plt.close(fig)

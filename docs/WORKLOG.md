@@ -109,6 +109,9 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~22:10 | **Step 1.8 per-room stitching** (D31): door pairs (width ±15 cm) → 90°-multiple rotation + shift → **visibility score** (through-door depth must land in the other room) → spanning tree → snapping/openings on the rooms sharing the main frame. Config keys first landed under the wrong YAML section (fixed) | D31 |
 | ~22:20 | home01 `--per-room`: bedroom ↔ hall matched via the bedroom door (score 0.88, front door rejected), hall rotated 180°; kitchen unplaced (open side, no door); 0 overlaps; walls 7/7 within ±8% but bedroom +5.5–5.7% (per-room scale; joint is +0.2–1.6%) | — |
 | ~22:30 | Synthetic stitching test exposed a **carving leak through doorways in per-room runs** (protocol door shot looks straight through; confident through-door depth extends the outline). Test isolated with true outlines: real door beats a same-width decoy, rotation exact, shift within 8 cm. Leak logged as an open risk with a fix direction. 62 tests pass | Step 1.8 ✅ (tree; loop closure + open-side matching not done) |
+| ~22:40 | **Step 1.11 determinism.** Cached run twice → `result.json` identical (except timing) but `plan.svg` differed: matplotlib writes the date + random element ids → fixed (no date, fixed hash salt, no PNG software tag) → all output files byte-identical | — |
+| ~22:45 | **Live (`--no-cache`) vs cached: bit-identical**, max \|diff\| 0.0 over 210 numbers, same structure. Live 198 s, cached 9–12 s. `scripts/check_determinism.py` + `tests/test_determinism.py` (two cached runs, identical result and files). Outline helper tests added (staircase snap, notch fill vs real L). 65 tests pass | E19 |
+| ~22:50 | **TIER 1 COMPLETE** (tag `tier1`). home01_photo_a: walls 7/7 within ±8% (mean 0.89%, max 1.63%), hall ceiling +0.1 cm ✅ / bedroom −2.4 cm ❌ G2, G5 pass (adjacency = tape, 0 overlaps), calibration 100% at ±5.0%, G1 0/5 (door widths −18 cm: tape definition to check; window/closed door from the detector with box extents), damage 0/1 (stain in no photo), G3 n/a (no repeat capture yet) | `tier1` |
 
 ### Open data issues
 
@@ -179,6 +182,9 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 | E14 | EXIF rays + pairwise ICP pose re-fit | **Failed:** low overlap, ICP slides along walls, graph disconnected; poses unchanged. Per-room EXIF rays: ceilings +4.2 / −4.0%, walls +12.6 / +5.7 / −3.0 / −4.9% | ICP dropped. Per-room scale ±5% is the real limit |
 | E15 | Ray source × per-room vs joint | **Joint + EXIF: ceilings −0.1% / +0.6%, walls 5 of 6 within 1.5%, mean abs 1.75%** (joint + model 3.55%, per-room EXIF 5.7%, per-room model 4.8%) | **D20: joint + EXIF is the default** |
 | E16 | 3-room joint run + photo consistency | 17 photos = 9.14 GB (fits). One kitchen photo misplaced 19° → auto-dropped. Kitchen weak (2 photos) | `max_joint_views` 20; `check_views` in the pipeline |
+| E17 | Openings: wall face / see-through maps → visibility voting | Bedroom door from both rooms, hall second door, open side; synthetic door/window exact | D28 |
+| E18 | OWLv2 on 17 photos, lifted to surfaces | Window (4 photos) + closed sticker door (3) found; marble floor/splashback → many stain/crack false positives; wardrobe as a "door" (1 photo) | D29: ≥ 2 photos, walls/ceilings only |
+| E19 | Determinism: cached twice + live vs cached | All files byte-identical (after the SVG date fix); live vs cached max \|diff\| 0.0 over 210 numbers | FR-RUN-05 / NFR-07 met |
 
 ### What affects the results (so far)
 

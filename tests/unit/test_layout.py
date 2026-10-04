@@ -133,3 +133,26 @@ def test_home01_layout_against_tape(tmp_path):
     assert lengths(bed) == pytest.approx([2.39, 2.39, 2.915, 2.915], rel=0.05)
     hall_long = sorted(lengths(hall))[-2:]  # the two long walls (W2/W4 370 and W1 361 incl. notch)
     assert hall_long == pytest.approx([3.61, 3.70], rel=0.05)
+
+
+def test_rectilinear_snaps_staircase_and_drops_jogs():
+    from scan.layout.room import _rectilinear, _vertices
+
+    # a 3 x 2 rectangle traced with a 5 cm jog on the top edge and slightly noisy corners
+    c = np.array([(0, 0), (3.0, 0.01), (3.0, 2.0), (1.6, 2.0), (1.6, 2.05), (0.0, 2.05)], float)
+    segs = _rectilinear(c, min_edge=0.15)
+    V = _vertices(segs)
+    assert len(V) == 4  # the 5 cm jog is merged away
+    xs, ys = sorted({round(x, 2) for x, _ in V}), sorted({round(y, 2) for _, y in V})
+    assert xs == [0.0, 3.0] and len(ys) == 2 and ys[0] == pytest.approx(0.0, abs=0.01) and 2.0 <= ys[1] <= 2.05
+
+
+def test_small_corner_notch_filled_big_l_kept():
+    from scan.layout.room import _fill_small_notches, _rectilinear, _signed_area, _vertices
+
+    notch = np.array([(0, 0), (3, 0), (3, 2.5), (0.8, 2.5), (0.8, 2.0), (0, 2.0)], float)  # 0.8 x 0.5 corner block
+    segs, filled = _fill_small_notches(_rectilinear(notch, 0.15), 0.6, 1.0)
+    assert len(segs) == 4 and filled == pytest.approx(0.4, abs=0.01)
+    ell = np.array([(0, 0), (4, 0), (4, 2), (2.5, 2), (2.5, 3.5), (0, 3.5)], float)  # real L (2.25 m2 concavity)
+    segs, filled = _fill_small_notches(_rectilinear(ell, 0.15), 0.6, 1.0)
+    assert len(segs) == 6 and filled == 0 and abs(_signed_area(_vertices(segs))) == pytest.approx(4 * 2 + 2.5 * 1.5)
