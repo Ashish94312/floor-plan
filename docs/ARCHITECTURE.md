@@ -352,11 +352,11 @@ Each stage lists its input, output, algorithm, key parameters and failure behavi
 | | |
 |---|---|
 | **Input** | `captures/<name>/` |
-| **Tier detection** | `lidar/` with `odometry.csv` → LiDAR. `video/*.mov|mp4` → video. `photos/<room>/` → photo. Override with `--tier`. If several are present, error unless `--tier` is given. |
-| **Photo** | Load HEIC/JPEG with EXIF orientation applied. Intrinsics: `f_px = FocalLengthIn35mmFilm / 36 × image_long_side` (fallback: `FocalLength` + sensor width table, then a 26 mm-equivalent default with a warning and wider σ). Resize to the backbone's working size and scale K to match. |
+| **Tier detection** | `lidar/[<rec>/]odometry.csv`, or a bare Stray Scanner export (`odometry.csv` at the capture root, as in the assignment samples) → LiDAR. `video/*.mov|mp4` → video. `photos/<room>/` → photo. Override with `--tier`. If several are present, error unless `--tier` is given. |
+| **Photo** | Load HEIC/JPEG with EXIF orientation applied. HEIC decode runs in threads (it dominates, about 280 ms per 12 MP photo). Intrinsics: `f_px = FocalLengthIn35mmFilm × image_diagonal_px / 43.27`. The 35 mm equivalent is defined on the film **diagonal**; a width-based formula would be 4% short on 4:3 (D18). No `FocalLengthIn35mmFilm` → 26 mm-equivalent default with a warning and wider σ. Focal outside 22–30 mm, or digital zoom → warning (not the 1× lens). Keep an in-memory copy at long side 1024 px with K scaled to match. |
 | **Video** | `ffmpeg` decode at 4 fps. Score sharpness by Laplacian variance. Keep the sharpest frame in each 0.5 s window, giving about 2 fps of keyframes. Intrinsics from metadata if present, else the 26 mm-equivalent default plus a backbone estimate. |
 | **LiDAR** | See 10.4. |
-| **Validation** | Room folder with fewer than 2 valid images → error naming the folder. More than 8 → keep the 8 sharpest and warn. Unreadable file → skip and warn. Video under 5 s → error. |
+| **Validation** | Room folder with fewer than 2 valid images → error naming the folder. More than 8 → keep the 8 sharpest (Laplacian variance) and warn. Unreadable file → skip and warn. Non-image file → ignore and warn. Same photo twice in one room → drop and warn. **Same photo in two rooms → error** (room ambiguous, D19). Mixed portrait/landscape in a room → keep the majority, warn (D19). Room names other than `[a-z0-9_]` → warn. Video under 5 s → error. |
 
 ### 10.2 C2 Geometry — photo tier (`geometry/`)
 

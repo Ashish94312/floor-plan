@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
+
+from scan.errors import ScanError
 
 
 def _not_yet(step: str) -> None:
@@ -15,14 +16,36 @@ def _not_yet(step: str) -> None:
 
 def scan(
     capture_dir: Path = typer.Argument(..., exists=True, file_okay=False, help="Capture folder"),
-    tier: Optional[str] = typer.Option(None, help="photo | video | lidar (auto-detected if omitted)"),
-    out: Optional[Path] = typer.Option(None, help="Output dir (default: <capture_dir>/out)"),
+    tier: str | None = typer.Option(None, help="photo | video | lidar (auto-detected if omitted)"),
+    out: Path | None = typer.Option(None, help="Output dir (default: <capture_dir>/out)"),
     no_drift_correction: bool = typer.Option(False, "--no-drift-correction", help="Ablation: stitch with poses as-is"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Force the live model path"),
-    device: Optional[str] = typer.Option(None, help="cpu | mps | cuda"),
+    device: str | None = typer.Option(None, help="cpu | mps | cuda"),
 ) -> None:
     """Turn a capture folder into plans, damage, scope, intervals, JSON and renders."""
-    _not_yet("Tier 1 step 1.5")
+    from scan.config import load_config
+    from scan.io.ingest import ingest
+
+    cfg = load_config()
+    try:
+        cap = ingest(capture_dir, tier, cfg)
+    except ScanError as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=e.exit_code) from None
+    _print_capture(cap)
+    if cap.tier != "photo":
+        _not_yet(f"{cap.tier} tier (PLAN Tier {'2' if cap.tier == 'video' else '3'})")
+    typer.secho("Ingest OK. Geometry is Tier 1 step 1.2 (next).", fg=typer.colors.YELLOW)
+
+
+def _print_capture(cap) -> None:
+    typer.echo(f"Capture {cap.capture_id}: tier={cap.tier}, devices={', '.join(cap.devices) or 'unknown'}")
+    for room, frames in cap.rooms.items():
+        o = frames[0].meta.orientation
+        f35 = sorted({fr.meta.f35_mm for fr in frames})
+        typer.echo(f"  {room:12s} {len(frames)} photos, {o}, f35={'/'.join(f'{x:g}' for x in f35)} mm")
+    for w in cap.warnings:
+        typer.secho(f"  warning: {w}", fg=typer.colors.YELLOW)
 
 
 def evaluate(
@@ -33,14 +56,14 @@ def evaluate(
     _not_yet("Tier 1 step 1.6")
 
 
-def bench(suite: Optional[Path] = typer.Option(None, help="bench.yaml")) -> None:
+def bench(suite: Path | None = typer.Option(None, help="bench.yaml")) -> None:
     """Run every capture + eval and write reports/."""
     _not_yet("Phase 4")
 
 
 def fetch_weights(
     optional: bool = typer.Option(False, "--optional", help="Also fetch legacy spike models (VGGT, DAv2)"),
-    only: Optional[list[str]] = typer.Option(None, help="Fetch only these model names"),
+    only: list[str] | None = typer.Option(None, help="Fetch only these model names"),
 ) -> None:
     """Download all model weights into weights/ and verify SHA256."""
     from scan.weights import CODE, MODELS, WEIGHTS_DIR, fetch, fetch_code

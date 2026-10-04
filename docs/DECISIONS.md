@@ -97,3 +97,12 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - Load takes about 40 s.
   - Its `opencv-python-headless` pin clashes with VGGT's `opencv-python`. Dropping VGGT removes the clash.
 - **Spike lessons for the layout stage:** built-in wardrobes create a false wall in front of the real one. A bed covering the floor creates a false floor peak. Pick the outermost plane with real support, not the strongest peak.
+
+## D18. Intrinsics from EXIF use the film diagonal: `f_px = f35 × diagonal_px / 43.27`
+- **Why:** The "35 mm-equivalent focal length" is defined by matching field of view on the 36 × 24 mm film **diagonal** (43.27 mm). On iPhone 13 this gives 3028 px for 4032×3024, which matches the physical lens (5.1 mm × crop factor 5.1). The width-based formula first written in ARCHITECTURE (`f35 / 36 × long_side`) gives 2912 px, **4% short**. That error lands directly in lengths and ceiling height. E6–E11 already used the diagonal formula.
+- **Cost:** EXIF stores f35 as a whole number (26), so f is only known to about ±2%. If calibration shows a bias, the fix is a per-device correction learned from the benchmark.
+
+## D19. Ingest policy for ambiguous photo sets
+- **Same photo in two room folders → error, not a guess.** AirDrop's " 2" copies put `IMG_4876` in both bedroom and hall (E4). The code can't know which room is right, and a wrong guess silently corrupts layout and stitching. The message lists the pairs so the user can fix it in seconds. A duplicate within one room is harmless and is just dropped.
+- **Mixed portrait/landscape in one room → keep the majority, drop the rest with a warning.** One batch needs one image shape. Rotating the odd one out would change its gravity direction. This is the same choice made by hand in E7 (`IMG_4887`).
+- **More than 8 photos → keep the 8 sharpest**, in filename order.

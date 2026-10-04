@@ -42,6 +42,11 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~14:50 | **Offline:** DINOv2 encoder code vendored at `facebookresearch/dinov2@7764ea0` into `weights/dinov2-code` by `scan-fetch-weights` (verified by `hubconf.py` SHA256). `scan/geometry/mapanything_backend.py` routes `torch.hub.load("facebookresearch/dinov2")` to it, so no network call at load. It's the same code E6–E10 used (only `__pycache__` differs) | — |
 | ~14:55 | Offline run with network blocked and an empty torch cache: works, and is **bit-identical to E7** | E11 |
 | ~14:55 | ARCHITECTURE updated (stack, layout, §10.2 photo geometry, risks, O1–O3 decided). Spike script marked legacy (re-run E1–E7 at commit `31dbc88`). Temp `.venv-mapanything` removed | — |
+| ~15:05 | **Tier 1 started.** Step 1.1 ingest: `scan/io/ingest.py` (tier detection incl. bare Stray Scanner exports, validation), `scan/io/photos.py` (EXIF-upright decode, diagonal-based intrinsics, sharpness), `scan/types.py`, `scan/config.py` + `config/default.yaml`, `scan/errors.py` (exit codes 2/3). `uv run scan` prints the capture summary | D18, D19 |
+| ~15:10 | Found while writing ingest: ARCHITECTURE's f35 → pixels formula used the film width (4% short on 4:3). Switched to the diagonal, which E6–E11 already used | D18 |
+| ~15:15 | Ingest on `home01_photo_a`: bedroom1 7 + hall 7 photos, portrait, f35 = 26. `IMG_4887` (landscape) dropped automatically, as done by hand in E7. Bad folders give clear errors with exit code 2 (empty `photo_b`, the old portrait folder, a LiDAR sample detected as LiDAR) | — |
+| ~15:20 | Speed: HEIC decode is 283 of 355 ms per photo. Threaded decode → 185 ms per photo (15 photos in 2.78 s, about 5.6 s for 30 against the guessed 5 s budget). 19 unit tests pass. Lint clean in `scan/` and `tests/` | Step 1.1 exit check ✅ |
+| ~15:20 | Moved the portrait-capture thumbnails out of `photos/` to `captures/home01_photo_portrait/thumbnails_640px/`, so the folder isn't read as a room | — |
 
 ### Open data issues
 
@@ -195,7 +200,7 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
 - **Other findings:**
   - `IMG_4876` arrived in both folders (AirDrop's " 2" suffix); identical SHA256. The wrong copy was removed.
   - Re-running gave identical numbers, so the pipeline is deterministic.
-- **Raw outputs:** lost; the capture folder disappeared from disk around 13:3x. The numbers above come from the run logs. Originals are on the phone as `IMG_4873`–`4880`. Thumbnails are in `captures/home01_photo_portrait/photos/thumbnails_640px/`.
+- **Raw outputs:** lost; the capture folder disappeared from disk around 13:3x. The numbers above come from the run logs. Originals are on the phone as `IMG_4873`–`4880`. Thumbnails are in `captures/home01_photo_portrait/thumbnails_640px/`.
 
 ### E5. Rotating portrait photos to landscape for VGGT
 

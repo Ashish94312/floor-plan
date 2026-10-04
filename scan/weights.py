@@ -13,6 +13,8 @@ import tarfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from scan.errors import WeightsMissingError
+
 WEIGHTS_DIR = Path(os.environ.get("SCAN_WEIGHTS_DIR", "weights"))
 
 
@@ -148,7 +150,7 @@ def fetch_code(spec: CodeSpec, log=print) -> Path:
 def code_path(name: str) -> Path:
     spec = CODE[name]
     if not (spec.path / spec.check_file).exists():
-        raise FileNotFoundError(f"Code for '{name}' missing in {spec.path}. Run: uv run scan-fetch-weights")
+        raise WeightsMissingError(f"Code for '{name}' missing in {spec.path}. Run: uv run scan-fetch-weights")
     return spec.path
 
 
@@ -214,7 +216,7 @@ def model_path(name: str) -> Path:
     spec = MODELS[name]
     missing = [f for f in spec.files if not (spec.path / f).exists()]
     if missing:
-        raise FileNotFoundError(
+        raise WeightsMissingError(
             f"Weights for '{name}' missing in {spec.path} ({', '.join(missing)}). "
             f"Run: uv run scan-fetch-weights"
         )

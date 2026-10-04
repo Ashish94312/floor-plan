@@ -1,0 +1,12 @@
+# Every threshold the pipeline uses lives here (ARCHITECTURE §12). CLI flags override.
+
+ingest:
+  image_extensions: [.heic, .heif, .jpg, .jpeg, .png]
+  min_images_per_room: 2
+  max_images_per_room: 8          # more -> keep the sharpest N, warn
+  working_max_side: 1024          # long side of the in-memory copy (backbone 518, detector 960)
+  mixed_orientation: drop_minority  # one orientation per room (E7); minority shots dropped with a warning
+  intrinsics:
+    film_diagonal_mm: 43.27       # 35 mm-equivalent focal is defined on the film DIAGONAL (D18)
+    default_f35_mm: 26.0          # iPhone main (1x) camera; used only if EXIF has no focal, with a warning
+    main_lens_f35_range_mm: [22, 30]  # outside this -> not the 1x lens (0.5x / 2x / 3x / digital zoom), warn
