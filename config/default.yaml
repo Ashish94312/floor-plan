@@ -105,3 +105,21 @@ openings:
   sigma_width_m: 0.03              # opening edge uncertainty (cell size + jamb definition)
   floor_gap_m: 0.25                # an opening starting this close to the floor reaches the floor (door / doorway)
   lintel_min_m: 0.25               # door top further than this below the ceiling = lintel (door); else an opening
+
+detector:                          # OWLv2 open-vocabulary detector (one pass per photo, cached)
+  image_side: 960                  # OWLv2 works at 960 px
+  classes:                         # class -> text queries; class threshold (tuned on the benchmark, O4)
+    water_stain: {queries: [water stain on a wall, brown stain on a wall, damp patch on a wall], threshold: 0.20}
+    crack:       {queries: [crack in a wall, hairline crack], threshold: 0.20}
+    door:        {queries: [a door, a closed door], threshold: 0.25}
+    window:      {queries: [a window], threshold: 0.25}
+    mirror:      {queries: [a mirror], threshold: 0.30}
+  nms_iou: 0.3
+
+damage:
+  max_surface_dist_m: 0.25         # a detection's centre must lie this close to a wall / floor / ceiling
+  merge_iou: 0.3                   # same damage seen in several photos: same surface, overlap above this
+  fill: {water_stain: 0.6, crack: 0.1}   # area = width x height x fill (box extent overestimates, ARCHITECTURE §10.10)
+  sigma_extent_m: 0.05             # box-edge uncertainty of a damage extent
+  min_photos: 2                    # keep only things seen in >= 2 different photos at the same place
+  surfaces: [wall, ceiling]        # marble / patterned floors produce stain & crack false positives (E18)

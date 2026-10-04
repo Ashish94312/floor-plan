@@ -28,6 +28,14 @@ def markdown(ev: dict) -> str:
                 L.append(f"- opening {o['gt']} ({o['type']}, {o['gt_width']:.2f} m): **missed**")
             else:
                 L.append(f"- opening {o['plan']} ({o['type']}, {o['width']:.2f} m): not in the tape file (phantom, or not measured yet)")
+        for d in r.get("damage", []):
+            if d["kind"] == "matched":
+                L.append(f"- damage {d['gt']} ↔ {d['plan']} ({d['class']}): width {d['width_err_cm']:+} cm, height {d['height_err_cm']:+} cm, "
+                         f"position {d['from_left_err_cm']:+} cm")
+            elif d["kind"] == "missed":
+                L.append(f"- damage {d['gt']} ({d['class']}): **missed**")
+            else:
+                L.append(f"- damage {d['plan']} ({d['class']}): phantom (not in the tape file)")
         if "ceiling" in r:
             c = r["ceiling"]
             L.append(f"- ceiling: plan {c['pred']:.3f} [{c['lo']:.2f}, {c['hi']:.2f}] m, tape {c['gt']:.4f} m → "

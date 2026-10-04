@@ -43,7 +43,9 @@ def evaluate(result, gt: dict[str, GTRoom], cfg: dict) -> dict:
                 walls.append(row)
             ro["walls"] = walls
             by_gt = {gw.wall_id: pw for pw, gw in m["pairs"]}
-            ro["openings"] = _match_openings(p, g, {gw.wall_id: pw.wall_id for pw, gw in m["pairs"]}, e)
+            wall_map = {gw.wall_id: pw.wall_id for pw, gw in m["pairs"]}
+            ro["openings"] = _match_openings(p, g, wall_map, e)
+            ro["damage"] = _match_damage(result, rid, g, wall_map)
             ro["checks"] = []
             for ids, total in g.checks:
                 v = sum(by_gt[i].length.value for i in ids)
@@ -84,6 +86,7 @@ def evaluate(result, gt: dict[str, GTRoom], cfg: dict) -> dict:
         "G5 stitch": ("pass" if (pred_adj == true_adj and not sp.overlaps
                                   and (footprint is None or abs(footprint["err_pct"]) <= 100 * e["g5_footprint_rel"]))
                       else "fail") + ("" if footprint else " (footprint n/a: not all walls measured)"),
+        "damage": _damage_gate(rooms_out),
         f"walls within ±{100 * tol:.0f}%": (f"{sum(w['within_tol'] for w in wall_rows)}/{len(wall_rows)}" if wall_rows else "n/a"),
         f"calibration (target {result.interval_level:.0%})": (f"{coverage:.0%} of {len(scored)} intervals contain the truth"
                                                               if coverage is not None else "n/a"),
@@ -131,3 +134,29 @@ def _match_openings(p, g, wall_map: dict, e: dict) -> list[dict]:
         if o.opening_id not in used and o.wall_id in gt_walls:
             rows.append({"kind": "phantom", "plan": o.opening_id, "type": o.type, "width": o.width.value})
     return rows
+
+
+def _match_damage(result, rid: str, g, wall_map: dict) -> list[dict]:
+    pred = [d for d in result.damage if d.surface_id.startswith(rid + "-")]
+    used, rows = set(), []
+    for gd in g.damage:
+        cands = [d for d in pred if d.surface_id == wall_map.get(gd.wall_id) and d.cls == gd.cls and d.damage_id not in used]
+        if not cands:
+            rows.append({"kind": "missed", "gt": gd.damage_id, "class": gd.cls})
+            continue
+        d = min(cands, key=lambda d: abs(d.position_on_surface[0] - (gd.from_left_m or 0)))
+        used.add(d.damage_id)
+        rows.append({"kind": "matched", "gt": gd.damage_id, "plan": d.damage_id, "class": d.cls,
+                     "width_err_cm": None if gd.width_m is None else round(100 * (d.width.value - gd.width_m), 1),
+                     "height_err_cm": None if gd.height_m is None else round(100 * (d.height.value - gd.height_m), 1),
+                     "from_left_err_cm": None if gd.from_left_m is None else round(100 * (d.position_on_surface[0] - gd.from_left_m), 1)})
+    rows += [{"kind": "phantom", "plan": d.damage_id, "class": d.cls} for d in pred if d.damage_id not in used]
+    return rows
+
+
+def _damage_gate(rooms_out: dict) -> str:
+    rows = [d for r in rooms_out.values() for d in r.get("damage", [])]
+    if not rows:
+        return "n/a (no damage in the ground truth or the result)"
+    n = {k: sum(1 for d in rows if d["kind"] == k) for k in ("matched", "missed", "phantom")}
+    return f"found {n['matched']}/{n['matched'] + n['missed']}, phantom {n['phantom']}"

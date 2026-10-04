@@ -101,6 +101,9 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~21:00 | Noise filter for windows (≥ 0.5 × 0.5 m, ≥ 2 photos), `connects_to` by the opening's position on the shared wall, **W1 = main-door wall** (D11) → plan numbering = ground-truth numbering in all rooms. Plan draws door gaps + swing arcs (shared door once), windows as double lines. Output: openings with intervals; adjacency `via_opening` | D28 |
 | ~21:05 | G1 in `scan-eval`: 0/5 (doors −18 cm, window missed, front door scored as a phantom on W1 while the ground truth says W3). Synthetic ray-cast room with holes: **door 0.90 exact, window 0.90 × 1.20 sill 0.90 exact**. The synthetic room revealed a leak risk (high-confidence through-door rays carve outside) → test uses realistic distance-falling confidence; risk logged. 53 tests pass | Step 1.7 (geometric part) ✅ |
 | ~21:10 | User: the front door is on the same wall as the bedroom door → ground truth O4 moved W3 → W1 (matches the pipeline's hall-O2) | `home01.yaml` |
+| ~21:20 | **Step 1.9 damage + detector.** E18: OWLv2 (8 queries, per-class thresholds, NMS) on 17 photos in 35 s (cached after). Frame → depth mapping verified (scale + centre crop, 1 px). Lifted boxes: window on bedroom W3 in 4 photos ✓, closed sticker door on hall W3 in 3 ✓, wardrobe as a "door" (1 photo), dozens of stain/crack false positives on marble floors and the kitchen splashback | E18 |
+| ~21:35 | Rules: ≥ 2 distinct photos per object, damage on walls/ceilings only, detector doors/windows only where voting found none (after W1), mirrors cancel see-through openings; rules engine + `config/rules.yaml`; damage/flags/scope in the output with intervals; damage drawn on plans; damage scoring in `scan-eval` | D29 |
+| ~21:40 | home01: window added (0.69 × 1.06; tape 0.90 × 1.21 → −21 cm), sticker door added (hall W3, 0.93 × 1.93; not yet in the tape file → counted as a phantom), **0 damage** (stain D1 missed: in no photo). G1 0/5. 56 tests pass | Step 1.9 ✅ |
 
 ### Open data issues
 
@@ -109,7 +112,8 @@ Running record of **everything** done on this project: setup, data, captures, me
 - **Kitchen measurements:** its 4 walls, ceiling (2 spots) and the opening from the hall.
 - **Kitchen photos (retake):** only 3 taken; `IMG_4900` (a plain wall) was placed 19° off the house axes and dropped automatically (E16), so the kitchen rests on 2 photos, and its floor wasn't seen (ceiling now measured from the shared floor, D27: 2.741 m). Retake 4–8: corners with the floor in frame + one shot through the opening into the hall + one from the hall into the kitchen.
 - **Bedroom:** W2 (289) and W4 (294) differ by 5 cm. Re-measure, or confirm it's real.
-- **Stain D1:** converted from raw notes, assuming 50 cm is the horizontal width and 85 cm runs to the stain's near edge. **Not visible in any photo yet.**
+- **Stain D1:** converted from raw notes, assuming 50 cm is the horizontal width and 85 cm runs to the stain's near edge. **Not visible in any photo yet**, so `scan-eval` reports it missed. Photograph it from 2+ corners (the detector needs ≥ 2 photos).
+- **Sticker door (hall W3):** the detector finds it (0.93 × 1.93). Add it to the ground truth with a measured size.
 - **Captures still needed:** bedroom round 2 (`home01_photo_b`, repeatability G2/G3).
 
 ### Resolved data issues

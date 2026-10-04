@@ -1,0 +1,24 @@
+# Concealed-damage and scope rules (ARCHITECTURE §10.11). Data, not code: each fired rule is reported by id.
+concealed_damage_rules:
+  - id: STAIN_NEAR_CEILING
+    when: {class: water_stain, top_within_m_of_ceiling: 0.30}
+    text: "Water stain within 30 cm of ceiling: possible leak above ceiling or inside wall cavity"
+  - id: STAIN_NEAR_FLOOR
+    when: {class: water_stain, bottom_within_m_of_floor: 0.20}
+    text: "Water stain within 20 cm of floor: possible plumbing leak or rising damp behind finish"
+  - id: STAIN_ON_CEILING
+    when: {class: water_stain, surface: ceiling}
+    text: "Ceiling stain: possible leak from floor above or roof"
+  - id: LONG_CRACK
+    when: {class: crack, length_gt_m: 0.40}
+    text: "Crack longer than 40 cm: possible structural movement behind finish"
+
+scope_rules:
+  - when: {class: water_stain}
+    items:
+      - {action: "Moisture-meter check behind surface", quantity: 1, unit: count}
+      - {action: "Stain-block prime and repaint full surface", quantity: surface_area, unit: m2}
+  - when: {class: crack}
+    items:
+      - {action: "Rake out, fill and sand crack", quantity: damage_length, unit: m}
+      - {action: "Repaint full surface", quantity: surface_area, unit: m2}

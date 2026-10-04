@@ -104,7 +104,25 @@ def _frame(ax, polys, margin=0.9):
     _scale_bar(ax, lo[0] + 0.15, lo[1] + 0.35)
 
 
-def render_room(room, path: Path) -> None:
+def _draw_damage(ax, rooms, damage) -> None:
+    """Damage drawn as a red bar on the inside of its wall, labelled with its id and class."""
+    walls = {w.wall_id: w for r in rooms for w in r.walls}
+    for d in damage:
+        w = walls.get(d.surface_id)
+        if w is None:
+            continue
+        a, b = np.array(w.start), np.array(w.end)
+        u = (b - a) / (np.linalg.norm(b - a) + 1e-12)
+        inward = -np.array([-u[1], u[0]])
+        p0 = a + u * d.position_on_surface[0] + inward * 0.06
+        p1 = p0 + u * d.width.value
+        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#c0392b", lw=4, solid_capstyle="butt", zorder=5)
+        mid = (p0 + p1) / 2 + inward * 0.18
+        ax.text(*mid, f"{d.damage_id.rsplit('-', 1)[1]} {d.cls.replace('_', ' ')}", color="#c0392b", fontsize=7,
+                ha="center", va="center", zorder=5)
+
+
+def render_room(room, path: Path, damage=()) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -112,6 +130,7 @@ def render_room(room, path: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(7, 7))
     _draw_room(ax, room, FILLS[0])
+    _draw_damage(ax, [room], [d for d in damage if d.surface_id.startswith(room.room_id + "-")])
     _frame(ax, [np.array(room.polygon)])
     ax.set_title(f"{room.room_id} ({room.layout_method})", fontsize=10)
     fig.tight_layout()
@@ -136,6 +155,7 @@ def render_stitched(result, path_png: Path, path_svg: Path) -> None:
         shared = all_shared_walls({r.room_id: r for r in rooms}, 0.35, 0.5)
         for i, r in enumerate(rooms):
             _draw_room(ax, r, FILLS[i % len(FILLS)], show_dims=True, inside=shared)
+        _draw_damage(ax, rooms, result.damage)
         by_id = {r.room_id: r for r in rooms}
         for o in sp.overlaps:
             inter = Polygon(by_id[o.room_a].polygon).intersection(Polygon(by_id[o.room_b].polygon))

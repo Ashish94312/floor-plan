@@ -9,7 +9,17 @@ from pathlib import Path
 
 from scan.config import config_hash
 from scan.render.plan import render_room, render_stitched
-from scan.schema import Measurement, Opening, Room, ScanResult, StitchedPlan, Wall
+from scan.schema import (
+    ConcealedFlag,
+    DamageRegion,
+    Measurement,
+    Opening,
+    Room,
+    ScanResult,
+    ScopeItem,
+    StitchedPlan,
+    Wall,
+)
 from scan.stitch.plan import stitch
 from scan.uncertainty.intervals import area_sigma_parts, ceiling_sigma, measurement, wall_sigmas
 
@@ -83,9 +93,45 @@ def assemble(cap, clouds: dict, cfg: dict, timing: dict) -> ScanResult:
     footprint = measurement(sum(c.layout.floor_area_m2 for c in clouds.values()), math.hypot(scale, edge), "m2", u, tier)
     plan = StitchedPlan(placement_method=method, room_poses=poses, adjacency=adjacency, footprint_area=footprint,
                         overlaps=overlaps, drift_correction=drift)
+    damage, flags, scope = _damage(clouds, cfg, tier)
     return ScanResult(capture_id=cap.capture_id, tier=tier, devices=cap.devices, interval_level=u["interval_level"],
-                      rooms=rooms, stitched_plan=plan, damage=[], concealed_damage_flags=[], scope_items=[],
+                      rooms=rooms, stitched_plan=plan, damage=damage, concealed_damage_flags=flags, scope_items=scope,
                       timing_s=timing, warnings=warnings, software=software_info(cfg))
+
+
+def _damage(clouds: dict, cfg: dict, tier: str):
+    """Damage regions, concealed flags and scope items with intervals. Box extents overestimate, so the
+    extent sigma is generous (ARCHITECTURE §10.10)."""
+    from scan.damage.rules import apply_rules
+
+    u = cfg["uncertainty"]
+    box = cfg["damage"].get("sigma_extent_m", 0.05)
+    damage, flags, scope = [], [], []
+    for r, c in clouds.items():
+        s_log = c.scale.sigma_log
+        for d in c.damage:
+            def m(v, unit="m", s_log=s_log):
+                return measurement(v, math.hypot(v * s_log, box), unit, u, tier)
+
+            damage.append(DamageRegion(damage_id=d.damage_id, surface_id=d.surface_id, cls=d.cls, width=m(d.width_m),
+                                       height=m(d.height_m), area=measurement(d.area_m2, 0.5 * d.area_m2 + 0.01, "m2", u, tier),
+                                       position_on_surface=(d.from_left_m, d.from_floor_m), detection_score=d.score))
+        if not c.damage:
+            continue
+        h = c.planes.ceiling_height_m or 2.5
+        areas = {}
+        for w in c.layout.walls:
+            holes = sum(o.width_m * o.height_m for o in c.openings if o.wall_id == w.wall_id)
+            areas[w.wall_id] = max(0.0, w.length_m * h - holes)
+        areas[f"{r}-C"] = areas[f"{r}-F"] = c.layout.floor_area_m2
+        f_, s_ = apply_rules(c.damage, areas, c.planes.ceiling_z, prefix=f"{r}-")
+        flags += [ConcealedFlag(**f) for f in f_]
+        for it in s_:
+            q = it.pop("quantity")
+            unit = it.pop("unit")
+            sig = 0.0 if unit == "count" else 0.1 * q + 0.02
+            scope.append(ScopeItem(**it, quantity=measurement(q, sig, unit if unit != "count" else "count", u, tier)))
+    return damage, flags, scope
 
 
 def write(result: ScanResult, out: Path) -> dict[str, Path]:
@@ -95,7 +141,7 @@ def write(result: ScanResult, out: Path) -> dict[str, Path]:
     ScanResult.model_validate_json(files["result"].read_text())  # round-trip check against the schema
     for room in result.rooms:
         files[f"room_{room.room_id}"] = out / "rooms" / f"{room.room_id}.png"
-        render_room(room, files[f"room_{room.room_id}"])
+        render_room(room, files[f"room_{room.room_id}"], result.damage)
     render_stitched(result, files["plan_png"], files["plan_svg"])
     return files
 

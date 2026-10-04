@@ -14,6 +14,7 @@ from typing import Any
 
 import numpy as np
 
+from scan.damage.detect import damage_regions, detector_openings, surface_boxes
 from scan.device import go_offline, seed_everything, select_device
 from scan.geometry.align import (
     Alignment,
@@ -84,6 +85,17 @@ def run(
             log(f"  {o.opening_id}: {o.type} on {o.wall_id}, {o.width_m:.2f} x {o.height_m:.2f} m"
                 + (f", sill {o.sill_m:.2f}" if o.sill_m is not None else "") + (f" -> {o.connects_to}" if o.connects_to else ""))
     timing["openings_s"] = round(time.perf_counter() - t, 2)
+
+    # detector: closed doors / covered windows / mirrors + damage (after W1 is fixed: no renumbering)
+    t = time.perf_counter()
+    boxes = surface_boxes(cap, clouds, cfg, dev, use_cache)
+    for line in detector_openings(boxes, {r: c.openings for r, c in clouds.items()}, cfg):
+        log(f"  {line}")
+    for r, regs in damage_regions(boxes, cfg).items():
+        clouds[r].damage = regs
+        for d in regs:
+            log(f"  {d.damage_id}: {d.cls} on {d.surface_id}, {d.width_m:.2f} x {d.height_m:.2f} m ({d.photos} photos)")
+    timing["detector_damage_s"] = round(time.perf_counter() - t, 2)
 
     t = time.perf_counter()
     result = assemble(cap, clouds, cfg, timing)

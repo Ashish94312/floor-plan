@@ -243,3 +243,23 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - Closed doors and curtained or glass windows vote wall: the bedroom window was missed. They need a detector (OWLv2), still to do.
   - Mirrors would vote "through" (phantom).
   - A high-confidence view through an exterior opening can leak the free-space carving outside (seen in the synthetic room with uniform confidence). Mitigated on real data by the confidence filter. Planned fix: re-carve clipped at the first layout's walls.
+
+## D29. Damage, closed doors and windows from OWLv2, kept only when seen in 2+ photos
+- **Why (E18):** at threshold 0.2, OWLv2 on 17 photos fires dozens of water stains and cracks, mostly on **marble floors** and the marble kitchen splashback (veins look like stains and cracks), and once calls the wardrobe a "door". Real objects (the bedroom window in 4 photos, the closed sticker door in 3) are consistent across photos; false positives mostly appear once.
+- **Rule:**
+  - One OWLv2 pass per photo (1024 px, cached). Each box is lifted onto its surface: centre depth → nearest wall within 25 cm, or floor/ceiling; corners → rays onto that plane → metric extent.
+  - The 1024 px → depth-map mapping (scale max(Wd/W, Hd/H) + centre crop) was verified to 1 px against MapAnything's own image.
+  - Boxes on the same surface overlapping > 30% are merged. **Keep only groups seen in ≥ 2 different photos.**
+  - **Damage on walls and ceilings only** for now (floors excluded: marble).
+  - Detector doors/windows are added only where the depth voting found no opening, and only after W1 is fixed (a closed bathroom door must not become the "main door"). Doors must reach the floor and be door-sized.
+  - Mirrors remove see-through openings they cover.
+  - Rules (`config/rules.yaml`) → concealed flags + scope items, each naming its rule.
+- **home01:**
+  - Window added on bedroom W3 (0.69 × 1.06, 4 photos; tape 0.90 × 1.21, sill 0.93: the box hugs the glass).
+  - Sticker door added on hall W3 (0.93 × 1.93, 3 photos).
+  - **0 damage** (no wall/ceiling damage in 2+ photos; the staged stain is in no photo).
+- **Limits:**
+  - Box extents are loose (intervals widened).
+  - Single-photo damage is dropped (could miss damage seen once).
+  - Floor damage is not supported on patterned floors.
+  - Thresholds were tuned on one home (O4).
