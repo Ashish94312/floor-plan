@@ -66,7 +66,7 @@ rooms:
 
   - id: kitchen
     label: Kitchen
-    captured: false                  # no photos yet -> not scored. Add photos/kitchen/ to include it in the plan.
+    captured: true                   # photos/kitchen/ (3 photos, 2026-10-04 16:05); values still null -> not scored until measured
     # North-west corner of the flat, beyond the hall (user, 2026-10-04): its south wall is the hall's W4, its east
     # wall is the hall's W5 (kitchen opening), and it runs west to the line of the hall's west wall (W3).
     # Plan values in comments are ONLY a guide for measuring. Never copy them in: ground truth must be tape/laser,

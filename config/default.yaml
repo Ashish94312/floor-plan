@@ -17,7 +17,7 @@ geometry:
   memory_efficient: true
   joint: auto                    # auto: one joint run over all rooms if <= max_joint_views photos, else per room
                                  # joint shares one metric scale across rooms and ties rooms together (E9, E15)
-  max_joint_views: 16            # 14 views = 8.1 GB peak on a 16 GB M4; more risks running out of memory
+  max_joint_views: 20            # measured peak: 14 views 8.1 GB, 17 views 9.14 GB (~0.35 GB/view) -> 20 ~ 10.2 GB < 12 GB ceiling
   rays: exif                     # exif: points = model depth x EXIF rays (focal verified by vanishing points, E12)
                                  # model: MapAnything's own rays (focal ~12% long -> ceilings 6-12% low)
                                  # joint + exif: ceilings -0.1% / +0.6%, walls 5 of 6 within 1.5% (E15, D20)
@@ -40,6 +40,7 @@ alignment:
   plane_layer_m: 0.12              # layer depth into the room: holds every view's copy of a slightly doubled surface
   min_ceiling_m: 1.8               # ceiling at least this far above the floor
   max_floor_ceiling_angle_deg: 3   # average floor + ceiling normals only if they agree this well
+  max_view_off_axis_deg: 8         # a photo whose walls sit further off the house axes is misplaced (good: 2-5 deg, E16)
 
 layout:
   wall_min_z_m: 0.30               # wall points: vertical surfaces from 0.3 m ...

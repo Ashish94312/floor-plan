@@ -134,9 +134,10 @@ def test_pipeline_replays_cache_deterministically(tmp_path):
     cfg = load_config()
     _, c1, s1 = run(REPO / "captures/home01_photo_a", cfg, out=tmp_path / "a", log=lambda *_: None)
     _, c2, _ = run(REPO / "captures/home01_photo_a", cfg, out=tmp_path / "b", log=lambda *_: None)
-    assert set(c1) == {"bedroom1", "hall"}
+    assert set(c1) == {"bedroom1", "hall", "kitchen"}
     assert all(v["cache"] == "hit" for v in s1["geometry"]["runs"].values())
     for r in c1:
         assert np.array_equal(c1[r].points, c2[r].points)
+    for r in ("bedroom1", "hall"):
         assert 100_000 < len(c1[r].points) < 300_000
         assert c1[r].views["depth"].shape[0] == 7

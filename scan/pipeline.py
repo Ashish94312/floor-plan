@@ -6,6 +6,7 @@ Tier 1 so far: ingest (1.1) -> geometry (1.2). Later steps plug in after geometr
 from __future__ import annotations
 
 import json
+import math
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -14,7 +15,7 @@ from typing import Any
 import numpy as np
 
 from scan.device import go_offline, seed_everything, select_device
-from scan.geometry.align import Alignment, apply, estimate_alignment, room_planes
+from scan.geometry.align import Alignment, apply, estimate_alignment, room_planes, view_off_axis_deg
 from scan.geometry.cloud import build_cloud, save_ply
 from scan.io.ingest import ingest
 from scan.layout.room import layout_rooms
@@ -74,6 +75,7 @@ def run(
                 "frame_id": c.frame_id,
                 "extent_m": np.round(c.points.max(0) - c.points.min(0), 3).tolist(),
                 "planes": vars(c.planes),
+                "view_off_axis_deg": c.view_off_axis_deg,
                 "layout": dict(asdict(c.layout).items()),
                 "ply": str(Path("debug") / r / "cloud.ply"),
             }
@@ -168,6 +170,36 @@ def align_rooms(clouds: dict[str, RoomCloud], cfg, log) -> dict[str, Alignment]:
         for c in rooms:
             c.points = apply(a.T, c.points)
             c.views["T_wc"] = np.einsum("ij,sjk->sik", a.T, c.views["T_wc"])  # poses now in the aligned frame
+            c.views["pts"] = apply(a.T, c.views["pts"].reshape(-1, 3)).reshape(c.views["pts"].shape).astype(np.float32)
             c.alignment = a
             c.planes = room_planes(c.points, cfg)
+            check_views(c, cfg, log)
     return alignments
+
+
+def check_views(c: RoomCloud, cfg, log) -> None:
+    """Drop views whose walls are rotated away from the house axes (misplaced by the backbone, E16),
+    rebuild the room cloud and planes without them. Never below 2 views: then keep all, mark partial."""
+    g = cfg["geometry"]
+    limit = cfg["alignment"]["max_view_off_axis_deg"]
+    dev = [view_off_axis_deg(c.views, i, g["rays"], cfg) for i in range(len(c.views["depth"]))]
+    c.view_off_axis_deg = {str(n): round(d, 1) for n, d in zip(c.views["names"], dev)}
+    bad = [i for i, d in enumerate(dev) if not math.isnan(d) and d > limit]
+    if not bad:
+        return
+    names = [str(c.views["names"][i]) for i in bad]
+    good = [i for i in range(len(dev)) if i not in bad]
+    if len(good) < 2:
+        c.planes.status = "partial"
+        c.planes.warnings.append(
+            f"photos disagree: {', '.join(f'{n} ({dev[i]:.0f} deg off the house axes)' for n, i in zip(names, bad))}; "
+            f"too few consistent photos to drop them. Room shape unreliable: retake {c.room_id} (4-8 corner photos)."
+        )
+        log(f"  views {c.room_id}: {len(bad)} inconsistent of {len(dev)}, kept (too few left), room marked partial")
+        return
+    c.views = {k: v[good] for k, v in c.views.items()}
+    c.frames = [f for f in c.frames if f.image_path.name in set(map(str, c.views["names"]))]
+    c.points, c.colors = build_cloud(c.views, list(range(len(good))), g["rays"], g["conf_percentile"], g["voxel_m"])
+    c.planes = room_planes(c.points, cfg)
+    c.planes.warnings.append(f"dropped misplaced photos (> {limit} deg off the house axes): {', '.join(names)}")
+    log(f"  views {c.room_id}: dropped {', '.join(names)} (misplaced), rebuilt from {len(good)} photos")

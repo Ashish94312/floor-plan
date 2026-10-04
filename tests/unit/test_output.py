@@ -99,5 +99,5 @@ def test_separate_frames_are_unplaced_with_warning(tmp_path):
 @pytest.mark.skipif(not (REPO / "captures/home01_photo_a/out/result.json").exists(), reason="run the pipeline first")
 def test_home01_result_json_validates():
     res = ScanResult.model_validate_json((REPO / "captures/home01_photo_a/out/result.json").read_text())
-    assert {r.room_id for r in res.rooms} == {"bedroom1", "hall"}
+    assert {r.room_id for r in res.rooms} == {"bedroom1", "hall", "kitchen"}
     assert np.all([w.length.lo <= w.length.value <= w.length.hi for r in res.rooms for w in r.walls])

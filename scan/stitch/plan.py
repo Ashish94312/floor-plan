@@ -12,6 +12,32 @@ def _orient(w):
     return "h" if abs(w.end[1] - w.start[1]) < abs(w.end[0] - w.start[0]) else "v"
 
 
+def all_shared_walls(polys_by_room: dict, max_gap: float, min_overlap: float) -> set[str]:
+    """Every wall id that runs parallel to another room's wall within max_gap, overlapping >= min_overlap
+    (for drawing; a room pair can share more than one wall, e.g. around an L)."""
+    out: set[str] = set()
+    rooms = list(polys_by_room.items())
+    for i, (_, la) in enumerate(rooms):
+        for _, lb in rooms[i + 1 :]:
+            for a in la.walls:
+                for b in lb.walls:
+                    if _pair_ok(a, b, max_gap, min_overlap) is not None:
+                        out |= {a.wall_id, b.wall_id}
+    return out
+
+
+def _pair_ok(a, b, max_gap, min_overlap):
+    o = _orient(a)
+    if o != _orient(b):
+        return None
+    k, span = (1, 0) if o == "h" else (0, 1)
+    gap = abs(a.start[k] - b.start[k])
+    a0, a1 = sorted((a.start[span], a.end[span]))
+    b0, b1 = sorted((b.start[span], b.end[span]))
+    overlap = min(a1, b1) - max(a0, b0)
+    return overlap if gap <= max_gap and overlap >= min_overlap else None
+
+
 def shared_walls(lay_a, lay_b, max_gap: float, min_overlap: float) -> tuple[str, str] | None:
     """Best pair of parallel walls (one per room) within max_gap of each other, overlapping >= min_overlap."""
     best = None

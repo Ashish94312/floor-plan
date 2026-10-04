@@ -128,7 +128,7 @@ def test_home01_layout_against_tape(tmp_path):
     from scan.pipeline import run
 
     _, clouds, _ = run(REPO / "captures/home01_photo_a", CFG, out=tmp_path, log=lambda *_: None)
-    bed, hall = clouds["bedroom1"].layout, clouds["hall"].layout
+    bed, hall = clouds["bedroom1"].layout, clouds["hall"].layout  # (kitchen: too few photos to score yet)
     assert len(bed.walls) == 4 and len(hall.walls) == 6
     assert lengths(bed) == pytest.approx([2.39, 2.39, 2.915, 2.915], rel=0.05)
     hall_long = sorted(lengths(hall))[-2:]  # the two long walls (W2/W4 370 and W1 361 incl. notch)

@@ -175,3 +175,20 @@ def room_planes(points_aligned: np.ndarray, cfg: dict) -> RoomPlanes:
 
 def apply(T: np.ndarray, points: np.ndarray) -> np.ndarray:
     return points @ T[:3, :3].T + T[:3, 3]
+
+
+def view_off_axis_deg(views: dict, i: int, rays: str, cfg: dict) -> float:
+    """Median angle (deg) between one view's wall normals and the nearest house axis, in the aligned
+    frame. Correctly placed views sit at ~2-5 deg (home01); a rotated / misplaced view stands out (E16)."""
+    from scan.geometry.cloud import view_points
+
+    thr = np.percentile(views["conf"][views["mask"]], cfg["geometry"]["conf_percentile"])
+    keep = views["mask"][i] & (views["conf"][i] >= thr)
+    P = view_points(views, i, rays)[keep]
+    P = P[:: max(1, len(P) // 30000)]
+    N = normals(P, cfg["alignment"]["normal_radius_m"])
+    wall = np.abs(N[:, 2]) < cfg["alignment"]["wall_normal_max_z"]
+    if wall.sum() < 200:
+        return float("nan")
+    phi = np.degrees(np.arctan2(N[wall, 1], N[wall, 0])) % 90
+    return float(np.median(np.minimum(phi, 90 - phi)))

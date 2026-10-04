@@ -107,10 +107,12 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
     K_exif[:, 0, 0] /= fs
     K_exif[:, 1, 1] /= fs
 
+    from scan.device import PeakMemory
+
     model = get_model()
     torch.manual_seed(0)
     t0 = time.perf_counter()
-    with torch.inference_mode():
+    with PeakMemory(device) as mem, torch.inference_mode():
         preds = model.infer(
             views,
             memory_efficient_inference=g["memory_efficient"],
@@ -141,4 +143,4 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
     }
     if use_cache:
         cache.save(cfg, "mapanything", key, out)
-    return out, {"cache": "miss", "key": key, "infer_s": round(infer_s, 2)}
+    return out, {"cache": "miss", "key": key, "infer_s": round(infer_s, 2), "views": len(frames), "peak_accel_gb": mem.peak_gb}

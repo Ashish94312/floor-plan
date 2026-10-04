@@ -93,7 +93,9 @@ def render_stitched(result, path_png: Path, path_svg: Path) -> None:
     rooms = [r for r in result.rooms if r.room_id in placed]
     fig, ax = plt.subplots(figsize=(10, 8))
     if rooms:
-        shared = {w for a in sp.adjacency for w in a.shared_wall}
+        from scan.stitch.plan import all_shared_walls
+
+        shared = all_shared_walls({r.room_id: r for r in rooms}, 0.35, 0.5)
         for i, r in enumerate(rooms):
             _draw_room(ax, r, FILLS[i % len(FILLS)], show_dims=True, inside=shared)
         by_id = {r.room_id: r for r in rooms}

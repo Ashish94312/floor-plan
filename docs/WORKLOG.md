@@ -81,13 +81,22 @@ Running record of **everything** done on this project: setup, data, captures, me
 
 ### Open data issues
 
-- **Hall:** W1 (361) and W3 (230) can't both be right for a rectangle. Photo 4879 shows a recess. Every straight section of wall needs measuring.
-- **Hall:** missing from the YAML but visible in the photos: sticker door, the window next to it, the open kitchen doorway (`IMG_4894`). The bathroom door is commented out.
-- **Hall (L-shaped, kitchen beyond W4/W5):** ground truth restructured (6 walls). Still to measure: W4 (north segment), W5 (kitchen-side notch wall), W6 (notch top), kitchen opening size, sticker door (wall + size), window beside it, and confirm the carved front door's wall (O4 on W3? photos 4891/4897 show it beside the bedroom door).
-- **Kitchen:** not captured (no photos). Measure its 4 walls, ceiling and the opening from the hall. Optionally photograph it (`photos/kitchen/`) so it joins the plan. 3 rooms ≈ 20 photos exceeds `max_joint_views` = 16: measure the joint-run memory first or the rooms run separately.
+- **Hall measurements:** W4 (north segment), W5 (kitchen-side passage wall), W6 (passage end), kitchen opening size (O2 on W5), sticker door (which wall + size), the window beside it (size + sill), and confirm which wall the carved front door is on (O4 on W3? photos 4891/4897 show it beside the bedroom door).
+- **Kitchen measurements:** its 4 walls, ceiling (2 spots) and the opening from the hall.
+- **Kitchen photos (retake):** only 3 taken; `IMG_4900` (a plain wall) was placed 19° off the house axes and dropped automatically (E16), so the kitchen rests on 2 photos. Its ceiling (2.52 m against 2.77–2.80 elsewhere) is suspicious: a real lowered ceiling, or the underside of the wall cabinets? Retake 4–8: corners + one shot through the opening into the hall + one from the hall into the kitchen.
 - **Bedroom:** W2 (289) and W4 (294) differ by 5 cm. Re-measure, or confirm it's real.
 - **Stain D1:** converted from raw notes, assuming 50 cm is the horizontal width and 85 cm runs to the stain's near edge. **Not visible in any photo yet.**
 - **Captures still needed:** bedroom round 2 (`home01_photo_b`, repeatability G2/G3).
+
+### Resolved data issues
+
+| Issue | Resolution | When |
+|---|---|---|
+| Hall W1 (361) and W3 (230) contradict a rectangle | The hall is **L-shaped**: a passage along the bedroom wall and the kitchen in the north-west corner. The reconstruction showed it (E9, step 1.4) and the user confirmed it. Ground truth rewritten as 6 walls; the old 369.5 kept as the check W4 + W6 | 18:45 |
+| Kitchen doorway missing from the hall's ground truth | Added as O2 (type opening) on hall W5, size to measure. Sticker door and window moved into the open "Hall measurements" item | 18:45 |
+| Kitchen not captured; 3 rooms might exceed the 16-photo joint limit | Kitchen photographed (3 photos). 3-room joint run measured: **17 photos = 9.14 GB peak** (about 0.35 GB per photo) → `max_joint_views` raised to 20 (about 10.2 GB, under the 12 GB ceiling) | 19:10 |
+| Duplicate `IMG_4876` in two room folders (AirDrop) | Wrong copy removed. Ingest now rejects a photo found in two rooms (D19) | 13:00 / 15:10 |
+| Hall wall count unknown (4 or more?) | 6 walls (L-shape), see the first row | 18:45 |
 
 ---
 

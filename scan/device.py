@@ -40,3 +40,40 @@ def go_offline() -> None:
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     # Ops missing on MPS fall back to CPU instead of crashing.
     os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
+
+class PeakMemory:
+    """Samples the accelerator's allocated memory every 50 ms inside a `with` block (MPS / CUDA)."""
+
+    def __init__(self, device):
+        import threading
+
+        self.device = device
+        self.peak_gb = 0.0
+        self._stop = threading.Event()
+        self._t = threading.Thread(target=self._run, daemon=True)
+
+    def _now(self) -> float:
+        import torch
+
+        if self.device.type == "mps":
+            return torch.mps.driver_allocated_memory() / 1024**3
+        if self.device.type == "cuda":
+            return torch.cuda.memory_allocated() / 1024**3
+        return 0.0
+
+    def _run(self):
+        import time
+
+        while not self._stop.is_set():
+            self.peak_gb = max(self.peak_gb, self._now())
+            time.sleep(0.05)
+
+    def __enter__(self):
+        self._t.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        self._t.join()
+        self.peak_gb = round(max(self.peak_gb, self._now()), 2)

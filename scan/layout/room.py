@@ -253,7 +253,6 @@ def _walls_clockwise(V: np.ndarray, support, room_id: str):
 
 def view_rays(cloud, cfg) -> list[tuple[np.ndarray, np.ndarray]]:
     """Per view: (camera xy, its surface points in the aligned frame), subsampled."""
-    from scan.geometry.align import apply
     from scan.geometry.cloud import unproject
 
     v, g, lc = cloud.views, cfg["geometry"], cfg["layout"]
@@ -265,7 +264,7 @@ def view_rays(cloud, cfg) -> list[tuple[np.ndarray, np.ndarray]]:
         if g["rays"] == "exif":
             P = unproject(v["depth"][i], v["K_exif"][i], v["T_wc"][i])[keep]  # T_wc already aligned (1.3)
         else:
-            P = apply(cloud.alignment.T, v["pts"][i][keep])
+            P = v["pts"][i][keep]  # already moved into the aligned frame in step 1.3
         if len(P) > lc["max_rays_per_view"]:
             P = P[rng.choice(len(P), lc["max_rays_per_view"], replace=False)]
         out.append((v["T_wc"][i][:2, 3], P))

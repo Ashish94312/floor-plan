@@ -205,6 +205,6 @@ def test_bad_room_name_warns(tmp_path):
 @pytest.mark.skipif(not (REPO / "captures/home01_photo_a/photos").is_dir(), reason="data bundle not present")
 def test_home01_photo_a():
     cap = ingest(REPO / "captures/home01_photo_a", None, CFG)
-    assert {r: len(f) for r, f in cap.rooms.items()} == {"bedroom1": 7, "hall": 7}
+    assert {r: len(f) for r, f in cap.rooms.items()} == {"bedroom1": 7, "hall": 7, "kitchen": 3}
     assert all(f.meta.orientation == "portrait" and f.meta.f35_mm == 26 for fs in cap.rooms.values() for f in fs)
     assert any("dropped IMG_4887.HEIC" in w for w in cap.warnings)
