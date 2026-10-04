@@ -80,9 +80,12 @@ def stitch(clouds: dict, cfg: dict, warnings: list[str]):
                 if inter > sc["overlap_tolerance_m2"]:
                     overlaps.append(Overlap(room_a=ra, room_b=rb, area_m2=round(inter, 3)))
     method = "joint_reconstruction" if joint else ("single_room" if single else "unplaced")
+    snapped = joint and sc["snap_walls"]
     drift = DriftCorrection(
-        enabled=False,
-        method="photo tier: rooms reconstructed jointly in one shared frame (no sequential pose chaining); "
-               "drift ablation is Tier 1 step 1.8" if joint else "not applicable yet (Tier 1 step 1.8)",
+        enabled=snapped,
+        method=("joint reconstruction in one shared frame + structural wall snapping (shared partitions to one "
+                f"{sc['wall_thickness_m']} m wall, collinear outer walls to one line, support-weighted)")
+        if snapped else ("joint reconstruction in one shared frame, wall snapping OFF (ablation)" if joint
+                         else "not applicable yet (door-based stitching is Tier 1 step 1.8)"),
     )
     return method, poses, adjacency, overlaps, drift

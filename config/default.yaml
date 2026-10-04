@@ -74,3 +74,7 @@ stitch:
   adjacency_max_gap_m: 0.35        # two rooms' walls this close and parallel = shared wall (wall thickness + error)
   adjacency_min_overlap_m: 0.50    # ... overlapping along at least this length
   overlap_tolerance_m2: 0.02       # polygon intersections smaller than this are numerical noise
+  snap_walls: true                 # structural wall snapping in a shared frame (drift correction, D25); off = ablation
+  wall_thickness_m: 0.12           # nominal wall thickness between two rooms' faces (O5)
+  snap_tolerance_m: 0.25           # faces whose wall-centre estimates agree this well are one physical wall
+  snap_max_along_gap_m: 0.50       # collinear outer walls: at most this far apart along the line

@@ -21,6 +21,7 @@ from scan.io.ingest import ingest
 from scan.layout.room import layout_rooms
 from scan.output import assemble, write
 from scan.render.debug import alignment_plot, layout_plot
+from scan.stitch.snap import snap_walls
 from scan.types import Capture, RoomCloud, Scale, Tier
 
 
@@ -54,6 +55,12 @@ def run(
         clouds[r].layout = lay
         log(f"  layout {r}: {len(lay.walls)} walls, area {lay.floor_area_m2:.2f} m2, {lay.status} ({lay.method})")
     timing["layout_s"] = round(time.perf_counter() - t, 2)
+    snaps = []
+    shared_frame = len({c.frame_id for c in clouds.values()}) == 1 and len(clouds) > 1
+    if shared_frame and cfg["stitch"]["snap_walls"]:
+        snaps = snap_walls(layouts, cfg)
+        for m in snaps:
+            log(f"  snap {m['wall_id']}: {100 * m['shift_m']:+.1f} cm")
 
     t = time.perf_counter()
     result = assemble(cap, clouds, cfg, timing)
@@ -83,6 +90,7 @@ def run(
         },
         "timing_s": timing,
         "warnings": cap.warnings,
+        "wall_snaps": snaps,
         "files": {k: str(v.relative_to(out)) for k, v in files.items()},
     }
     t = time.perf_counter()

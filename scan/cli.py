@@ -29,7 +29,12 @@ def scan(
     from scan.config import load_config
     from scan.pipeline import run
 
-    cfg = load_config(overrides=None if joint is None else {"geometry": {"joint": joint}})
+    overrides: dict = {}
+    if joint is not None:
+        overrides["geometry"] = {"joint": joint}
+    if no_drift_correction:
+        overrides["stitch"] = {"snap_walls": False}
+    cfg = load_config(overrides=overrides)
     try:
         cap, _clouds, summary = run(capture_dir, cfg, tier, out, use_cache=not no_cache, device=device, log=typer.echo)
     except ScanError as e:

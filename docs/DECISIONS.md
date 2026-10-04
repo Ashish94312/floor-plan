@@ -182,3 +182,21 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - Adjacency = parallel walls ≤ 35 cm apart (wall thickness + error) overlapping ≥ 50 cm. `via_opening` is filled once doors are detected (step 1.7).
   - Separate runs → `unplaced`, until door-based stitching (step 1.8).
 - **Output layout:** deliverables at `out/` (`result.json`, `plan.png`, `plan.svg`, `rooms/<room>.png`); diagnostics in `out/debug/`.
+
+## D25. Photo-tier drift correction = joint frame + structural wall snapping
+- **Why:**
+  - In a joint run every room is placed, but each room's walls are fitted separately. The same physical wall can show up as two faces with a gap between them (kitchen ↔ hall, 20–24 cm), or two rooms' outer walls a few cm off one line.
+  - The user confirmed what the building really is: one partition between kitchen and hall, one north wall line, one west wall line.
+- **Rule:**
+  - Every wall line is one face of a physical wall whose centre is t/2 behind it (t = 0.12 m, O5).
+  - Faces are linked when their centre estimates agree within 25 cm, and either they face each other with overlapping spans (a shared partition) or they face the same way side by side, within 50 cm along the line (one outer wall).
+  - **The best-seen face (most supporting points) sets each group's line**; the other faces snap to it. Polygons, lengths and areas are rebuilt.
+- **How the anchor rule was chosen (be transparent):**
+  - A support-weighted **mean** dragged the well-seen bedroom north wall +8.4 cm toward short, poorly-seen faces.
+  - A weighted **median** was decided by a hair (bedroom 11,597 of 23,653 points) and picked the hall's 0.98 m passage-end wall, which the tape shows is over-extended. Hall W1 tape 361 means the passage end sits at 2.31; it was at 2.43, while the bedroom wall was at 2.29.
+  - **Max support** keeps the best-seen wall. Result: hall W1 3.615 (tape 361, +0.1%, was +2.9%); bedroom 2.922 / 2.429 (+0.2% / +1.6%); every measured wall within 1.6%.
+  - This choice was informed by **one tape check** and must be validated on the benchmark.
+- **General, but thresholds from one home:**
+  - No flat-specific values are in the code: the same rules apply to any capture.
+  - Risk: a real 10–25 cm step between collinear outer walls would be wrongly flattened.
+  - **Ablation:** `--no-drift-correction` turns snapping off (G4). On home01: footprint 20.30 m² off against 20.06 m² on; 0 overlaps both ways; the kitchen–hall gap is present only with snapping off.
