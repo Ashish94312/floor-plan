@@ -33,7 +33,7 @@ def test_match_finds_rotation_and_uses_open_walls():
 def test_gates_on_synthetic_result():
     room = SimpleNamespace(room_id="r", status="ok", walls=[pw("r-W1", 3.0), pw("r-W2", 2.0), pw("r-W3", 3.0), pw("r-W4", 2.0)],
                            ceiling_height=Measurement(value=2.79, lo=2.6, hi=3.0, unit="m"),
-                           floor_area=Measurement(value=6.0, lo=5.0, hi=7.0, unit="m2"))
+                           floor_area=Measurement(value=6.0, lo=5.0, hi=7.0, unit="m2"), openings=[])
     sp = SimpleNamespace(adjacency=[], overlaps=[], footprint_area=Measurement(value=6.0, lo=5, hi=7, unit="m2"),
                          drift_correction=SimpleNamespace(enabled=False, method="none"))
     res = SimpleNamespace(capture_id="c", tier="photo", rooms=[room], stitched_plan=sp, interval_level=0.9)

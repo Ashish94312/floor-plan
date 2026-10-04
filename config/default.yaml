@@ -88,3 +88,20 @@ eval:
   wall_tolerance: {photo: 0.08, video: 0.03, lidar: 0.03}   # REQUIREMENTS §8: photo ±8%, video ±3%
   g2_ceiling_m: 0.015              # G2: ceiling error <= 1.5 cm
   g5_footprint_rel: 0.08           # G5: footprint within ±8%
+  g1_width_m: 0.02                 # G1: opening width error <= 2 cm ...
+  g1_pass_rate: 0.85               # ... on >= 85% of (measured + phantom) openings
+
+openings:
+  cell_u_m: 0.02                   # vote grid along the wall
+  cell_z_m: 0.05                   # vote grid up the wall
+  depth_margin_m: 0.15             # depth beyond the wall by more than this = seen through
+  min_open_ratio: 0.6              # a cell is open if open votes / (open + wall votes) >= this
+  min_votes: 1                     # ... and at least this many photos saw through it
+  min_width_m: 0.40                # smaller see-through patches are noise
+  min_height_m: 0.40
+  max_width_m: 2.50                # wider = not a single opening
+  min_window_m: 0.50               # windows: at least 0.5 x 0.5 m ...
+  min_window_views: 2              # ... and seen through by 2+ photos (single-photo patches are noise)
+  sigma_width_m: 0.03              # opening edge uncertainty (cell size + jamb definition)
+  floor_gap_m: 0.25                # an opening starting this close to the floor reaches the floor (door / doorway)
+  lintel_min_m: 0.25               # door top further than this below the ceiling = lintel (door); else an opening

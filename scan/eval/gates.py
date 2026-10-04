@@ -43,6 +43,7 @@ def evaluate(result, gt: dict[str, GTRoom], cfg: dict) -> dict:
                 walls.append(row)
             ro["walls"] = walls
             by_gt = {gw.wall_id: pw for pw, gw in m["pairs"]}
+            ro["openings"] = _match_openings(p, g, {gw.wall_id: pw.wall_id for pw, gw in m["pairs"]}, e)
             ro["checks"] = []
             for ids, total in g.checks:
                 v = sum(by_gt[i].length.value for i in ids)
@@ -68,8 +69,15 @@ def evaluate(result, gt: dict[str, GTRoom], cfg: dict) -> dict:
     ceilings = {r: v["ceiling"] for r, v in rooms_out.items() if "ceiling" in v}
     coverage = sum(x["covered"] for x in scored) / len(scored) if scored else None
 
+    op_rows = [o for r in rooms_out.values() for o in r.get("openings", [])]
+    n_gt = sum(1 for o in op_rows if o["kind"] in ("matched", "missed"))
+    n_phantom = sum(1 for o in op_rows if o["kind"] == "phantom")
+    n_ok = sum(1 for o in op_rows if o.get("width_ok"))
+    g1 = n_ok / (n_gt + n_phantom) if (n_gt + n_phantom) else None
     gates = {
-        "G1 openings": "n/a (openings: step 1.7)",
+        "G1 openings (width <= 2 cm, >= 85%)": "n/a (no measured openings)" if g1 is None else
+        f"{'pass' if g1 >= e['g1_pass_rate'] else 'fail'}: {n_ok}/{n_gt + n_phantom} = {g1:.0%} "
+        f"({n_gt} measured, {n_phantom} phantom)",
         "G2 ceiling <= 1.5 cm": ("pass" if all(c["g2_pass"] for c in ceilings.values()) else "fail") if ceilings else "n/a",
         "G3 repeatability": "n/a (needs a repeat capture, e.g. home01_photo_b)",
         "G4 drift handling": f"{'on' if sp.drift_correction.enabled else 'off'}: {sp.drift_correction.method}",
@@ -96,3 +104,30 @@ def evaluate(result, gt: dict[str, GTRoom], cfg: dict) -> dict:
         },
         "gates": gates,
     }
+
+
+def _match_openings(p, g, wall_map: dict, e: dict) -> list[dict]:
+    """GT openings with a measured width vs predicted openings on the matched wall (doors/openings vs
+    windows), nearest by width. Unmatched GT = missed; unmatched prediction = phantom (G1)."""
+    pred = list(p.openings)
+    used, rows = set(), []
+    for go in g.openings:
+        if go.width_m is None:
+            continue
+        cls = "window" if go.type == "window" else "door"
+        cands = [o for o in pred if o.wall_id == wall_map.get(go.wall_id) and o.opening_id not in used
+                 and ("window" if o.type == "window" else "door") == cls]
+        if not cands:
+            rows.append({"kind": "missed", "gt": go.opening_id, "gt_width": go.width_m, "type": go.type})
+            continue
+        o = min(cands, key=lambda o: abs(o.width.value - go.width_m))
+        used.add(o.opening_id)
+        err = o.width.value - go.width_m
+        rows.append({"kind": "matched", "gt": go.opening_id, "plan": o.opening_id, "type": o.type,
+                     "gt_width": go.width_m, "width": o.width.value, "err_cm": round(100 * err, 1),
+                     "width_ok": abs(err) <= e["g1_width_m"], "covered": o.width.lo <= go.width_m <= o.width.hi})
+    gt_walls = set(wall_map.values())
+    for o in pred:
+        if o.opening_id not in used and o.wall_id in gt_walls:
+            rows.append({"kind": "phantom", "plan": o.opening_id, "type": o.type, "width": o.width.value})
+    return rows

@@ -35,12 +35,40 @@ def _draw_room(ax, room, fill: str, show_dims: bool = True, inside: set[str] = f
         cut = Polygon([a - out * 0.01, b - out * 0.01, b + out * (WALL_T + 0.02), a + out * (WALL_T + 0.02)])
         band = band.difference(cut)
         ax.plot([a[0], b[0]], [a[1], b[1]], ls=(0, (4, 3)), color="#777", lw=1.2, zorder=3)
+    walls = {w.wall_id: w for w in room.walls}
+    for o in room.openings:  # doors / openings: gap in the wall band; windows: drawn over the band below
+        if o.type == "window" or o.wall_id not in walls:
+            continue
+        w = walls[o.wall_id]
+        a, b = np.array(w.start), np.array(w.end)
+        d = (b - a) / (np.linalg.norm(b - a) + 1e-12)
+        out = np.array([-d[1], d[0]])
+        p0, p1 = a + d * o.offset_along_wall.value, a + d * (o.offset_along_wall.value + o.width.value)
+        band = band.difference(Polygon([p0 - out * 0.02, p1 - out * 0.02, p1 + out * (WALL_T + 0.02), p0 + out * (WALL_T + 0.02)]))
+        if o.type == "door" and not (o.connects_to and o.connects_to < room.room_id):  # shared door: draw once
+            r_ = o.width.value
+            ang0 = np.degrees(np.arctan2(*(d)[::-1]))
+            ax.plot([p0[0], p0[0] - out[0] * r_], [p0[1], p0[1] - out[1] * r_], color="#555", lw=1, zorder=3)
+            th = np.radians(np.linspace(ang0, ang0 - 90, 30))
+            ax.plot(p0[0] + r_ * np.cos(th), p0[1] + r_ * np.sin(th), color="#999", lw=0.8, ls=":", zorder=3)
     for g in getattr(band, "geoms", [band]):
         x, y = g.exterior.xy
         ax.fill(x, y, color="#2f2f2f", zorder=2)
         for hole in g.interiors:
             hx, hy = hole.xy
             ax.fill(hx, hy, color=fill, zorder=2)
+    for o in room.openings:
+        if o.type != "window" or o.wall_id not in walls:
+            continue
+        w = walls[o.wall_id]
+        a, b = np.array(w.start), np.array(w.end)
+        d = (b - a) / (np.linalg.norm(b - a) + 1e-12)
+        out = np.array([-d[1], d[0]])
+        p0, p1 = a + d * o.offset_along_wall.value, a + d * (o.offset_along_wall.value + o.width.value)
+        ax.fill(*np.array([p0, p1, p1 + out * WALL_T, p0 + out * WALL_T]).T, color="white", zorder=3)
+        for f in (0.3, 0.7):
+            q0, q1 = p0 + out * WALL_T * f, p1 + out * WALL_T * f
+            ax.plot([q0[0], q1[0]], [q0[1], q1[1]], color="#333", lw=0.8, zorder=3)
     if show_dims:
         for w in room.walls:
             a, b = np.array(w.start), np.array(w.end)

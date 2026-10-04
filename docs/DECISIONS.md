@@ -222,3 +222,24 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - Ceilings are **not** copied between rooms, because kitchens and bathrooms can genuinely be lower. A room > 10 cm off its frame-mates' median gets a warning instead.
 - **Result:** kitchen ceiling 2.52 → **2.741 m** (bedroom 2.769, hall 2.803). No mismatch warnings.
 - **Limit:** assumes one floor level per joint run. A step down between rooms of more than 8 cm (e.g. a sunken bathroom) would be flattened. The warning says so.
+
+## D28. Openings by visibility voting on raw depth, not detector boxes
+- **Why:**
+  - G1 asks for widths within 2 cm, and detector boxes are loose.
+  - Point-cloud "see-through" evidence is mostly missing: the confidence filter drops far pixels, and through-door views are far.
+  - A wall hole alone can't be told apart from furniture hiding the wall.
+- **How (`layout/openings.py`):**
+  - Every 2 × 5 cm cell on a wall is projected into every photo, and that photo's **raw** depth votes: wall (depth ≈ wall distance ±15 cm), through (beyond: an opening), or nothing (in front: furniture).
+  - A cell is open if ≥ 60% of its votes say through.
+  - Open regions → width from jamb to jamb: extend outward through columns with no wall evidence, stopping at the first column voting wall.
+  - Type: from the floor with a lintel → door; no lintel → opening; wall below → window (≥ 0.5 × 0.5 m, ≥ 2 photos).
+  - `connects_to` = the room whose wall face spans the opening's centre.
+  - **W1 = main-door wall** (D11): the widest door out of the captured rooms, else the widest door, else an open side. Plan and ground-truth numbering now agree in every home01 room (eval rotation shift 0).
+- **Evidence:**
+  - Synthetic ray-cast room: door 0.90 m exact, window 0.90 × 1.20, sill 0.90 exact.
+  - home01: bedroom door found from both rooms (0.72 × 2.00), plus a second hall door on W1 (probably the front door; the ground truth says W3, to confirm).
+  - **Both doors read 18–19 cm narrower than the tape, consistently.** Evidence on both sides of the edges agrees (votes flip at u = 0.15 / 0.86; wall-face points start at 0.88). So it's likely a definition difference (tape = frame outer edges vs clear opening). The user is to re-measure the inside faces of the frame.
+- **Limits:**
+  - Closed doors and curtained or glass windows vote wall: the bedroom window was missed. They need a detector (OWLv2), still to do.
+  - Mirrors would vote "through" (phantom).
+  - A high-confidence view through an exterior opening can leak the free-space carving outside (seen in the synthetic room with uniform confidence). Mitigated on real data by the confidence filter. Planned fix: re-carve clipped at the first layout's walls.

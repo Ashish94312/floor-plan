@@ -26,6 +26,7 @@ from scan.geometry.align import (
 )
 from scan.geometry.cloud import build_cloud, save_ply
 from scan.io.ingest import ingest
+from scan.layout.openings import detect_openings, reindex_by_main_door
 from scan.layout.room import classify_open_walls, layout_rooms
 from scan.output import assemble, write
 from scan.render.debug import alignment_plot, layout_plot
@@ -74,6 +75,15 @@ def run(
         log(f"  open boundaries (no wall): {', '.join(opened)}")
         if shared_frame:
             snaps += merge_open_boundaries(layouts, open_pairs)  # no wall -> rooms meet at one line
+    t = time.perf_counter()
+    openings = detect_openings(layouts, clouds, cfg)
+    for r, ops in openings.items():
+        reindex_by_main_door(layouts[r], ops)  # D11: W1 = main-door wall
+        clouds[r].openings = ops
+        for o in ops:
+            log(f"  {o.opening_id}: {o.type} on {o.wall_id}, {o.width_m:.2f} x {o.height_m:.2f} m"
+                + (f", sill {o.sill_m:.2f}" if o.sill_m is not None else "") + (f" -> {o.connects_to}" if o.connects_to else ""))
+    timing["openings_s"] = round(time.perf_counter() - t, 2)
 
     t = time.perf_counter()
     result = assemble(cap, clouds, cfg, timing)

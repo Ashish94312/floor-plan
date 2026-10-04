@@ -20,6 +20,14 @@ def markdown(ev: dict) -> str:
                     L.append(f"| {w['plan']} | {w['gt_id']} | {w['kind_plan']} | — | not measured | — | — | — |")
         for c in r.get("checks", []):
             L.append(f"- check {' + '.join(c['sum'])}: plan {c['pred']:.3f} m, tape {c['gt']:.3f} m ({c['err_pct']:+.1f}%)")
+        for o in r.get("openings", []):
+            if o["kind"] == "matched":
+                L.append(f"- opening {o['gt']} ↔ {o['plan']} ({o['type']}): width {o['width']:.2f} m vs tape {o['gt_width']:.2f} m "
+                         f"→ {o['err_cm']:+.1f} cm {'✅' if o['width_ok'] else '❌'} (interval {'covers' if o['covered'] else 'misses'})")
+            elif o["kind"] == "missed":
+                L.append(f"- opening {o['gt']} ({o['type']}, {o['gt_width']:.2f} m): **missed**")
+            else:
+                L.append(f"- opening {o['plan']} ({o['type']}, {o['width']:.2f} m): not in the tape file (phantom, or not measured yet)")
         if "ceiling" in r:
             c = r["ceiling"]
             L.append(f"- ceiling: plan {c['pred']:.3f} [{c['lo']:.2f}, {c['hi']:.2f}] m, tape {c['gt']:.4f} m → "

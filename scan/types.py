@@ -69,3 +69,4 @@ class RoomCloud:
     planes: object | None = None  # geometry.align.RoomPlanes: floor/ceiling in the aligned frame
     layout: object | None = None  # layout.room.Layout: polygon, walls, area (step 1.4)
     view_off_axis_deg: dict[str, float] | None = None  # per photo: median wall angle off the house axes
+    openings: list = field(default_factory=list)  # layout.openings.OpeningSeg (step 1.7)

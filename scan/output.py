@@ -9,7 +9,7 @@ from pathlib import Path
 
 from scan.config import config_hash
 from scan.render.plan import render_room, render_stitched
-from scan.schema import Measurement, Room, ScanResult, StitchedPlan, Wall
+from scan.schema import Measurement, Opening, Room, ScanResult, StitchedPlan, Wall
 from scan.stitch.plan import stitch
 from scan.uncertainty.intervals import area_sigma_parts, ceiling_sigma, measurement, wall_sigmas
 
@@ -49,8 +49,25 @@ def _room(r: str, c, cfg: dict, tier: str) -> Room:
     a_scale, a_edge = area_sigma_parts(lay, s_log, u, tier)
     area = measurement(lay.floor_area_m2, math.hypot(a_scale, a_edge), "m2", u, tier)
     status = "ok" if (lay.status == "ok" and pl.status == "ok") else "partial"
+    ow = cfg["openings"]["sigma_width_m"]
+    g = u["sigma_geom_m"][tier]
+    ops = []
+    for o in c.openings:
+        single = 0.03 if o.views < 2 else 0.0  # one photo only: wider interval (ARCHITECTURE §10.8)
+
+        def sig(v, single=single):
+            return math.sqrt((v * s_log) ** 2 + ow**2 + single**2)
+
+        ops.append(Opening(
+            opening_id=o.opening_id, type=o.type, wall_id=o.wall_id,
+            offset_along_wall=measurement(o.offset_m, math.hypot(g, ow), "m", u, tier),
+            width=measurement(o.width_m, sig(o.width_m), "m", u, tier),
+            height=measurement(o.height_m, sig(o.height_m), "m", u, tier),
+            sill_height=None if o.sill_m is None else measurement(o.sill_m, sig(o.sill_m), "m", u, tier),
+            connects_to=o.connects_to, views=o.views,
+        ))
     return Room(room_id=r, label=None, status=status, polygon=lay.polygon, walls=walls, ceiling_height=ceiling,
-                floor_area=area, openings=[], layout_method=lay.method, warnings=list(pl.warnings) + list(lay.warnings))
+                floor_area=area, openings=ops, layout_method=lay.method, warnings=list(pl.warnings) + list(lay.warnings))
 
 
 def assemble(cap, clouds: dict, cfg: dict, timing: dict) -> ScanResult:

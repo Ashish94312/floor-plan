@@ -75,7 +75,9 @@ def stitch(clouds: dict, cfg: dict, warnings: list[str]):
                 la, lb = clouds[ra].layout, clouds[rb].layout
                 sw = shared_walls(la, lb, sc["adjacency_max_gap_m"], sc["adjacency_min_overlap_m"])
                 if sw:
-                    adjacency.append(Adjacency(room_a=ra, room_b=rb, via_opening=None, shared_wall=sw))
+                    via = next((o.opening_id for o in clouds[ra].openings if o.connects_to == rb), None)
+                    via = via or next((o.opening_id for o in clouds[rb].openings if o.connects_to == ra), None)
+                    adjacency.append(Adjacency(room_a=ra, room_b=rb, via_opening=via, shared_wall=sw))
                 inter = Polygon(la.polygon).intersection(Polygon(lb.polygon)).area
                 if inter > sc["overlap_tolerance_m2"]:
                     overlaps.append(Overlap(room_a=ra, room_b=rb, area_m2=round(inter, 3)))
