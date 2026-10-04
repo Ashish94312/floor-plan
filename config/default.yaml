@@ -140,6 +140,14 @@ video:
   keyframes_per_room: 12           # per room; more rooms x frames than geometry.max_joint_views -> per-room runs + door stitching
   min_sharpness: 30                # Laplacian variance; blurrier slices give no keyframe
   min_keyframe_gap_s: 1.0          # keyframes at least this far apart (video_c picked 69.0 s and 69.2 s)
+  link_frames_per_pair: 2          # per pair of rooms: frame pairs where both clips see the same thing (doorway / the room
+                                   # beyond it), added to both rooms' keyframes; they tie rooms together (E22l). 0 = off
+  link_fps: 1.0                    # link candidates per second of video
+  link_side_px: 480                # SIFT on candidates at this long side
+  link_min_inliers: 30             # RANSAC-verified SIFT matches for a link (real links 46-69, E22l)
+  link_spread_s: 5.0               # links of one room pair at least this far apart in time (in one of the rooms)
+  max_joint_views: 30              # overrides geometry.max_joint_views for video: 16:9 frames carry ~25% fewer model tokens
+                                   # than 4:3 photos; 24 views peaked at 9.15 GB (E22k)
   rays: model                      # overrides geometry.rays for video: MapAnything ignores the given video focal and keeps
                                    # its own (~22 mm vs ~30-33 by VP); EXIF rays then break multi-view consistency.
                                    # model rays: ceilings 2.16/1.94 -> 2.83/2.91 m (tape 2.79/2.80), E22c

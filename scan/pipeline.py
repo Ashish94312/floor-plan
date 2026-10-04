@@ -50,9 +50,11 @@ def run(
     t = time.perf_counter()
     cap = ingest(capture_dir, tier, cfg)
     timing["ingest_s"] = round(time.perf_counter() - t, 2)
-    if cap.tier == "video" and cfg["video"].get("rays"):
+    if cap.tier == "video":  # video-specific geometry settings (E22c, E22k)
         cfg = copy.deepcopy(cfg)
-        cfg["geometry"]["rays"] = cfg["video"]["rays"]
+        for k in ("rays", "max_joint_views"):
+            if cfg["video"].get(k):
+                cfg["geometry"][k] = cfg["video"][k]
     if cap.tier == "lidar":
         raise NotImplementedError("lidar tier")
 
@@ -208,13 +210,14 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
         pred, pinfo = predict(frames, cfg, dev, get_model, use_cache)
         runs[gid] = pinfo
         for room in dict.fromkeys(f.room_hint for f in frames):
-            idx = [i for i, r in enumerate(pred["rooms"]) if r == room]
+            # link frames (video) only tie rooms together in the model run; they look into the other room (E22l)
+            idx = [i for i, r in enumerate(pred["rooms"]) if r == room and not frames[i].link]
             pts, cols = build_cloud(pred, idx, g["rays"], g["conf_percentile"], g["voxel_m"])
             clouds[room] = RoomCloud(
                 room_id=room,
                 points=pts,
                 colors=cols,
-                frames=cap.rooms[room],
+                frames=[f for f in cap.rooms[room] if not f.link],
                 scale=Scale(s=1.0, sigma_log=g["sigma_log_floor_photo"]),
                 T_room_world=np.eye(4),
                 frame_id=gid,

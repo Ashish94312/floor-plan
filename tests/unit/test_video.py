@@ -45,3 +45,27 @@ def test_keyframes_min_gap_avoids_near_duplicates():
                        for i in range(20)])  # sharpest frames 9 and 10 sit on the slice border
     assert keyframes(frames, 2, min_sharpness=30)[0] == [9, 10]
     assert keyframes(frames, 2, min_sharpness=30, min_gap=4)[0] == [9, 15]
+
+
+def test_link_pairs_finds_the_shared_view_and_rejects_unrelated_frames():
+    import cv2
+
+    from scan.io.video import link_features, link_pairs
+
+    def texture(seed):
+        t = np.random.default_rng(seed).integers(0, 256, (60, 40), dtype=np.uint8)
+        t = cv2.resize(t, (400, 600), interpolation=cv2.INTER_CUBIC)
+        return np.dstack([t] * 3)
+
+    scene, other = texture(1), texture(2)
+    H = np.array([[0.9, 0.05, 20], [-0.04, 0.95, 15], [1e-4, 0, 1]])
+    seen_from_b = cv2.warpPerspective(scene, H, (400, 600))  # the same wall seen from the other room
+    blur = np.full_like(scene, 128)
+    a = np.stack([blur, scene, blur])
+    b = np.stack([other, blur, seen_from_b])
+    sharp = lambda x: np.array([0.0 if f.std() < 1 else 100.0 for f in x])
+    fa = link_features(a, sharp(a), range(3), 400, 30)
+    fb = link_features(b, sharp(b), range(3), 400, 30)
+    pairs = link_pairs(fa, fb, min_inliers=30)
+    assert pairs and pairs[0][1:] == (1, 2)  # frame 1 of A <-> frame 2 of B
+    assert not link_pairs(fa, [x for x in fb if x[0] == 0], min_inliers=30)  # unrelated texture: no link

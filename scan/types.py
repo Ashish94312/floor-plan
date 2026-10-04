@@ -35,6 +35,7 @@ class Frame:
     depth_conf: np.ndarray | None = None
     timestamp: float | None = None  # video / LiDAR
     meta: PhotoMeta | None = None
+    link: bool = False  # video: added only to tie rooms together in the model run; not used to measure (E22l)
 
 
 @dataclass
