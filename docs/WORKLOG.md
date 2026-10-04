@@ -33,12 +33,16 @@ Running record of **everything** done on this project: setup, data, captures, me
 | 13:45–13:47 | Hall captured: 7 portrait photos (`IMG_4890`–`4897`, no `4893`), 1× lens, no duplicates. Openings seen: bedroom doorway, carved wooden door, sticker door + window, open kitchen doorway | `home01_photo_a/photos/hall` |
 | ~14:05 | MapAnything + EXIF on the hall. Walls −4.9% / −5.7%, ceiling −9.0% (all low: scale about 5–9% small here, against +1 to +2.5% in the bedroom) | E8 |
 | ~14:10 | Compared against the requirement gates: walls pass photo-tier ±8% in both rooms. **Ceiling G2 (≤ 1.5 cm) is far off** (8 cm bedroom, 25 cm hall) | Next priorities set below |
+| ~14:20 | Agreed order: E9 (joint run) → switch to MapAnything + offline setup → Tier 1 proper | — |
+| ~14:25 | **Joint bedroom + hall run (14 photos): the rooms register through the doorway.** Shared wall 10–15 cm apart (a believable wall thickness), and both rooms on one scale | E9 |
+| ~14:30 | User: the hall is **L-shaped**. The kitchen opening near W4 takes up the 361 → 230 difference. Confirmed by the E9 cloud (about 1.3 m extra width at the W1 end) | Hall ground truth needs restructuring |
+| ~14:35 | Ceilings 6–8% low in every run. Cause found: MapAnything's output focal is 1.118× the EXIF focal. Rebuilding points with EXIF rays brings the joint ceilings to +0.6% / +1.7%, but doubles walls more | E10 |
 
 ### Open data issues
 
 - **Hall:** W1 (361) and W3 (230) can't both be right for a rectangle. Photo 4879 shows a recess. Every straight section of wall needs measuring.
 - **Hall:** missing from the YAML but visible in the photos: sticker door, the window next to it, the open kitchen doorway (`IMG_4894`). The bathroom door is commented out.
-- **Hall shape:** the E8 reconstruction shows a box about 2.17 × 3.52 m with a 15 cm step on one side. W1 = 361 may include the recess or the kitchen passage. Measure every straight wall section.
+- **Hall shape (L-shaped, per user + E9):** W1 (shared with the bedroom) is 361. The far wall W3 is 230. The extra 131 cm at the W1 end is the kitchen opening near W4. As a polygon that is about 6 walls: W1 → a short end wall at the kitchen side (about 0.9 m in E9) → a step wall back (about 1.3 m) → the long wall → W3 → the other long wall. The step segments need measuring, and the YAML walls renumbered clockwise.
 - **Bedroom:** W2 (289) and W4 (294) differ by 5 cm. Re-measure, or confirm it's real.
 - **Stain D1:** converted from raw notes, assuming 50 cm is the horizontal width and 85 cm runs to the stain's near edge. **Not visible in any photo yet.**
 - **Captures still needed:** bedroom round 2 (`home01_photo_b`, repeatability G2/G3).
@@ -79,6 +83,8 @@ Running record of **everything** done on this project: setup, data, captures, me
 | E6 | MapAnything, with and without EXIF focal | With focal: walls −1.5% / −0.4%, ceiling +5.7%. Without: ceiling +11.8% | D17 (tentative) |
 | E7 | O1 decider on a protocol capture | VGGT + DAv2 **+53 to +57%**. MapAnything + focal **+2.5% / +1.2% / −3.0%** | **D17: MapAnything** |
 | E8 | MapAnything on a second room (hall) | Walls −4.9% / −5.7% (pass ±8%), ceiling −9.0%. Scale differs per room | Joint multi-room run and scale anchors are next (E9) |
+| E9 | One joint run over bedroom + hall | Rooms register through the doorway, shared scale. Bedroom −0.8% / +0.5%. Hall about +1 to +4% (read from the plot; the heuristic failed). Ceilings −6.2% / −8.3% | Photo-tier stitching may come from the joint run (G5) |
+| E10 | Rebuild points with the EXIF focal instead of the model's rays | Joint ceilings **+0.6% / +1.7%** (from −6 / −8%). Walls more doubled (up to about 15 cm). Per-room runs mixed | Ceiling fix found. Pose/ray consistency still needed |
 
 ### What affects the results (so far)
 
@@ -95,7 +101,9 @@ Running record of **everything** done on this project: setup, data, captures, me
 | View through a door | Points from the next room land in this room's cloud | E4, E6 | Layout: clip to the room polygon |
 | Peak-picking heuristic | Strongest-peak picking fails. Same result at threshold 0.2 and 0.08 once the photos are good | E4, E7 | Rewrite in `layout/room.py` |
 | View alignment | Walls doubled by about 8 cm | E7 | Fix-loop candidate (G3, 1 cm) |
-| Per-room scale | MapAnything metric scale +1 to +2.5% in the bedroom, −5 to −9% in the hall | E7, E8 | Joint reconstruction across rooms, scale anchors (door heights), calibrated intervals |
+| Per-room scale | MapAnything metric scale +1 to +2.5% in the bedroom, −5 to −9% in the hall when run separately | E7, E8 | **Joint run shares one scale** (E9) |
+| Model focal ≠ EXIF focal | MapAnything outputs a focal 1.118× the EXIF focal, which compresses vertical extents. Ceilings come out 6–8% low | E6–E10 | EXIF rays fix ceilings (E10) but break pose consistency. Needs a consistent fix |
+| Sparse far walls | Heuristic misses walls seen only from far away, or picks things outside the room (hall long side 1.47 / 6.69 m) | E9, E10 | Layout must use per-room polygons, not global percentile peaks |
 | File handling | AirDrop renamed a duplicate `IMG_4876 2.HEIC` into the wrong folder. Capture folders vanished from disk (13:3x) | E4 | Hash-check on ingest. Keep originals on the phone |
 | Determinism | Re-running E4 gave identical numbers | E4 | ✓ |
 
@@ -276,6 +284,56 @@ Running record of **everything** done on this project: setup, data, captures, me
   - Next: run all rooms jointly so they share one scale, and try scale anchors. The doors are measured at 211 cm in both rooms.
   - The 361 vs 230 hall conflict still needs measuring.
 
+### E9. Joint bedroom + hall reconstruction
+
+- **Question:** in one run, do the rooms share one scale, and do the door shots register them to each other (stitching for free)?
+- **Setup:**
+  - `scripts/experiments/mapanything_run.py captures/home01_photo_a/photos/bedroom1,captures/home01_photo_a/photos/hall <out> k IMG_4887.HEIC`. The runner now accepts several room folders and saves each image's room.
+  - Analysis: `scripts/experiments/joint_rooms.py <out>/ma_raw.npz bedroom1=239,291.5,279.25 hall=230,370,280.25`.
+  - 14 photos (7 + 7). Code at commit `8fe2940`, plus the runner and analysis changes.
+  - Outputs: `captures/home01_photo_a/experiments/E9_joint_bedroom_hall/`.
+- **Results:** load 37.1 s, infer 59.6 s, peak MPS 8.14 GB. Focal out 389–458 px (mean 436) against EXIF 390.
+
+  | Room | Short | Long | Ceiling |
+  |---|---|---|---|
+  | bedroom1 (auto) | 2.370 (−0.8%) | 2.930 (+0.5%) | 2.620 (−6.2%) |
+  | hall (auto) | 1.470 (−36.1%) | 2.280 (−38.4%) | 2.570 (−8.3%) |
+  | hall (read from plot) | ~2.30 at W3 (≈ 0%) | ~3.65 (W2/W4 370, −1.4%) | — |
+
+  - The hall's auto numbers are a **heuristic failure**: the far wall (W3) is seen only from far away and didn't clear the peak threshold.
+  - The joint top-down shows a clean bedroom rectangle and the hall attached across the shared wall. The hall wall is 10–15 cm from the bedroom's inner wall face, a believable interior wall thickness.
+  - The L-shape shows: about 1.3 m extra width at the W1 end (the kitchen opening, confirmed by the user).
+  - Hall photos that look through the doorway land on the bedroom's far wall in the right place.
+- **What affected it:** shared doorway views tie the rooms together. Most hall photos were taken from the W1 end, so the cameras sit in a line there.
+- **Impact:**
+  - Joint reconstruction gives **one shared scale** and **the room-to-room placement**. That is a candidate for photo-tier stitching (G5) instead of door matching + least squares (ARCHITECTURE §10). Needs more rooms to trust.
+  - The measuring heuristic has to become per-room polygon fitting.
+
+### E10. Rebuild points with the EXIF focal (ceiling fix)
+
+- **Question:** are the low ceilings (−6 to −8%) caused by MapAnything's output focal being 1.118× the EXIF focal?
+- **Setup:**
+  - `scripts/experiments/reproject_exif.py <ma_raw.npz> <out>`: keeps the predicted depth and poses, swaps the rays for EXIF-intrinsics rays.
+  - Applied to E9 (joint), E7 (bedroom alone) and E8 (hall alone). Re-measured with `joint_rooms.py` / `measure_cloud.py`.
+  - No model re-run.
+- **Results:**
+
+  | Run | Short | Long | Ceiling |
+  |---|---|---|---|
+  | Joint, bedroom1 | 2.420 (+1.3%) | 3.010 (+3.3%) | **2.810 (+0.6%, +1.75 cm)** |
+  | Joint, hall | 2.320 (+0.9%) | 6.685 (heuristic picked points outside the room) | **2.850 (+1.7%, +4.75 cm)** |
+  | Joint, all points | — | — | 2.820 |
+  | Bedroom alone (E7 + EXIF rays) | 2.710 (+13.4%) | 3.090 (+6.0%) | 2.890 (+3.5%) |
+  | Hall alone (E8 + EXIF rays) | 2.220 (−3.5%) | 3.530 (−4.6%) | 2.710 (−3.3%) |
+
+  - Joint top-down: hall walls coherent (about 3.75 × 3.75 including the kitchen opening, W3 about 2.30).
+  - **Bedroom walls doubled or tripled, spread up to about 15 cm.** The predicted poses are consistent with the predicted rays, not with the EXIF rays.
+- **What affected it:** the hypothesis holds. The too-long model focal compresses the vertical extents in each camera. Swapping only the rays creates a pose/ray mismatch.
+- **Impact:**
+  - The ceiling bias is explained and fixable.
+  - The right fix keeps rays and poses consistent: for example, refine the poses with EXIF intrinsics fixed, or work out why MapAnything doesn't honour the input intrinsics (E6 open question).
+  - G2 (≤ 1.5 cm) is now within reach in the bedroom (+1.75 cm) but not yet in the hall (+4.75 cm).
+
 ## Open questions / next experiments
 
 - **Repeatability:** bedroom1 again (`home01_photo_b`). Walls must agree within 1 cm (G3). The 8 cm doubled walls from E7 are the main risk.
@@ -284,7 +342,8 @@ Running record of **everything** done on this project: setup, data, captures, me
 - **Offline:** cache DINOv2 code in `scan-fetch-weights`, then verify a run with the network off.
 - **MapAnything load time:** 33–44 s. Investigate caching or keeping the model loaded across rooms.
 - **Hall:** not a rectangle (W1 361 vs W3 230). This tests layout beyond 4 walls.
-- **E9: joint bedroom + hall reconstruction.** One MapAnything run over all 15 photos. Do the rooms share one consistent scale? Do the door shots (bedroom 4884/4885 ↔ hall 4891/4897) register the rooms to each other? That would give photo-tier stitching (G5) almost for free.
+- **Stitching via joint reconstruction (after E9):** does it hold with more rooms, and with rooms whose doorway views are weak? Compare against door matching + least squares on G5.
+- **Pose/ray consistency (after E10):** why does MapAnything not honour the input intrinsics? Options: check the `preprocess_inputs` intrinsics handling, or a small pose refinement with EXIF intrinsics fixed.
 - **Ceiling G2 (≤ 1.5 cm):** current error 8–25 cm. Probably the hardest gate for the photo tier. Report honestly with intervals if it can't be met.
 - **Mixed orientation within a room:** `IMG_4887` was excluded in E7; the pipeline must handle it.
 - **E7 OWLv2 detections:** review, then start tuning O4.

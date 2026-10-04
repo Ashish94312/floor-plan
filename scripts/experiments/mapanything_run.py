@@ -6,7 +6,9 @@ Runs in its own env until the main project switches backbone (its opencv pin cla
       "mapanything @ git+https://github.com/facebookresearch/map-anything@3d10cf7a3016fc0f9bb13a071ee66c47b10be0d9"
 Usage:
   PYTORCH_ENABLE_MPS_FALLBACK=1 .venv-mapanything/bin/python scripts/experiments/mapanything_run.py \
-      <photos_dir> <out_dir> k|nok [EXCLUDED.HEIC,...]
+      <photos_dir>[,<photos_dir2>,...] <out_dir> k|nok [EXCLUDED.HEIC,...]
+Several comma-separated room folders run as ONE joint reconstruction; each image's room
+(folder name) is saved in `rooms`.
 """
 import sys, time, threading, json
 from pathlib import Path
@@ -17,12 +19,13 @@ from mapanything.models import MapAnything
 from mapanything.utils.image import preprocess_inputs
 register_heif_opener()
 
-photos, out, use_k = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3] == "k"
+photo_dirs, out, use_k = [Path(d) for d in sys.argv[1].split(",")], Path(sys.argv[2]), sys.argv[3] == "k"
 out.mkdir(parents=True, exist_ok=True)
 dev = torch.device("mps")
 torch.manual_seed(0)
 exclude = set(sys.argv[4].split(",")) if len(sys.argv) > 4 else set()
-paths = sorted(p for p in photos.iterdir() if p.suffix.lower() in {".heic", ".jpg", ".jpeg", ".png"} and p.name not in exclude)
+paths = [p for d in photo_dirs for p in sorted(d.iterdir())
+         if p.suffix.lower() in {".heic", ".jpg", ".jpeg", ".png"} and p.name not in exclude]
 views = []
 for p in paths:
     im = ImageOps.exif_transpose(Image.open(p)).convert("RGB")
@@ -55,7 +58,8 @@ c2w = np.stack([p["camera_poses"][0].float().cpu().numpy() for p in preds])   # 
 K = np.stack([p["intrinsics"][0].float().cpu().numpy() for p in preds])
 w2c = np.linalg.inv(c2w)[:, :3, :]
 cols = np.stack([p["img_no_norm"][0].float().cpu().numpy() for p in preds])
-np.savez_compressed(out / "ma_raw.npz", pts=pts, mask=mask, conf=conf, extrinsic=w2c, intrinsic=K, cols=cols)
-print(json.dumps({"intrinsics_in": use_k, "hw": list(pts.shape[1:3]), "load_s": round(t_load, 1), "infer_s": round(t_inf, 1),
+np.savez_compressed(out / "ma_raw.npz", pts=pts, mask=mask, conf=conf, extrinsic=w2c, intrinsic=K, cols=cols,
+                    names=np.array([p.name for p in paths]), rooms=np.array([p.parent.name for p in paths]))
+print(json.dumps({"n_images": len(paths), "intrinsics_in": use_k, "hw": list(pts.shape[1:3]), "load_s": round(t_load, 1), "infer_s": round(t_inf, 1),
                   "peak_mps_gb": round(peak[0] / 2**30, 2), "fx_out": K[:, 0, 0].round(1).tolist(), "fy_out": K[:, 1, 1].round(1).tolist(),
                   "keys": sorted(preds[0].keys())}))
