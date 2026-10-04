@@ -1,0 +1,63 @@
+# Ground truth for one property. Copy to data/ground_truth/<property_id>.yaml and fill in.
+#
+# UNITS: centimetres. Measure to the nearest 0.5 cm.
+#
+# WALL NUMBERING (use the same rule in every room):
+#   W1 = the wall containing the room's main door.
+#   Stand inside the room facing W1. W2 = the wall on your RIGHT.
+#   Keep going in that direction: W3, W4, ... (L-shaped rooms have 6+ walls).
+#
+# HOW TO MEASURE
+#   Wall length   : corner to corner, about 1 m above the floor.
+#   Ceiling height: floor to ceiling, in 2 different spots per room.
+#   Door width    : inside of the frame, jamb to jamb (not the door leaf).
+#   Door height   : floor to underside of the top of the frame.
+#   Window        : width and height of the opening in the wall; sill = floor to bottom of the opening.
+#   Damage        : size of the patch, plus position of its lower-left corner
+#                   (distance from the wall's left corner and from the floor).
+#
+# Also photograph a hand-drawn sketch of the layout and save it as <property_id>_sketch.jpg.
+
+property_id: home01
+measured_by: Ashish Kumar
+date: 2026-10-04
+tool: tape            # tape | laser
+
+rooms:
+  - id: living        # must match the photo folder name
+    label: Living room
+    ceiling_height_cm: [0, 0]
+    walls:
+      - {id: W1, length_cm: 0}
+      - {id: W2, length_cm: 0}
+      - {id: W3, length_cm: 0}
+      - {id: W4, length_cm: 0}
+    openings:
+      - {id: O1, type: door, wall: W1, width_cm: 0, height_cm: 0, connects_to: hall}
+      - {id: O2, type: window, wall: W3, width_cm: 0, height_cm: 0, sill_cm: 0}
+    damage: []        # leave empty if none
+
+  - id: bedroom1
+    label: Bedroom 1
+    ceiling_height_cm: [0, 0]
+    walls:
+      - {id: W1, length_cm: 0}
+      - {id: W2, length_cm: 0}
+      - {id: W3, length_cm: 0}
+      - {id: W4, length_cm: 0}
+    openings:
+      - {id: O1, type: door, wall: W1, width_cm: 0, height_cm: 0, connects_to: hall}
+    damage:
+      - {id: D1, class: water_stain, wall: W2, width_cm: 0, height_cm: 0, from_left_cm: 0, from_floor_cm: 0}
+      - {id: D2, class: crack,       wall: W3, width_cm: 0, height_cm: 0, from_left_cm: 0, from_floor_cm: 0}
+
+  - id: hall          # the connector
+    label: Hallway
+    ceiling_height_cm: [0, 0]
+    walls: []
+    openings: []
+    damage: []
+
+# Which rooms were captured more than once at the same tier (for the repeatability gate)
+repeat_captures:
+  - {room: bedroom1, tier: photo, captures: [home01_photo_a, home01_photo_b]}
