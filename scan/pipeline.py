@@ -31,6 +31,7 @@ from scan.layout.openings import detect_openings, reindex_by_main_door
 from scan.layout.room import classify_open_walls, layout_rooms
 from scan.output import assemble, write
 from scan.render.debug import alignment_plot, layout_plot
+from scan.stitch.doors import apply_placement, place_rooms
 from scan.stitch.snap import merge_open_boundaries, snap_walls
 from scan.types import Capture, RoomCloud, Scale, Tier
 
@@ -66,16 +67,39 @@ def run(
         log(f"  layout {r}: {len(lay.walls)} walls, area {lay.floor_area_m2:.2f} m2, {lay.status} ({lay.method})")
     timing["layout_s"] = round(time.perf_counter() - t, 2)
     snaps = []
-    shared_frame = len({c.frame_id for c in clouds.values()}) == 1 and len(clouds) > 1
+    if len({c.frame_id for c in clouds.values()}) > 1:  # separate reconstructions -> place by door matching
+        pre = detect_openings(layouts, clouds, cfg)
+        place = place_rooms(clouds, layouts, pre, cfg)
+        for ra, rb, score, da, db in place.pop("_edges"):
+            log(f"  door match {da} <-> {db}: visibility score {score}")
+        for r, pl in place.items():
+            c = clouds[r]
+            if pl["placed"]:
+                apply_placement(c, layouts[r], pl["R"], pl["t"])
+                c.frame_id = "stitched"
+                c.pose = (float(pl["t"][0]), float(pl["t"][1]), float(pl["theta_deg"]))
+                c.placed_by = "door_matching"
+                log(f"  placed {r}: theta {pl['theta_deg']} deg, shift ({pl['t'][0]:+.2f}, {pl['t'][1]:+.2f}) m"
+                    + (f" via {pl['via'][0]} <-> {pl['via'][1]}" if pl["via"] else " (root)"))
+            else:
+                log(f"  {r}: no door match, left unplaced")
+    else:
+        for c in clouds.values():
+            c.placed_by = "joint_reconstruction" if len(clouds) > 1 else "single_room"
+    # steps that compare rooms run on the rooms sharing the main frame (unplaced rooms are left alone)
+    frames = [c.frame_id for c in clouds.values()]
+    main = max(set(frames), key=frames.count)
+    group = {r: layouts[r] for r, c in clouds.items() if c.frame_id == main}
+    shared_frame = len(group) > 1
     if shared_frame and cfg["stitch"]["snap_walls"]:
-        snaps = snap_walls(layouts, cfg)
+        snaps = snap_walls(group, cfg)
         for m in snaps:
             log(f"  snap {m['wall_id']}: {100 * m['shift_m']:+.1f} cm")
-    opened, open_pairs = classify_open_walls(layouts, cfg)
+    opened, open_pairs = classify_open_walls(group, cfg)
     if opened:
         log(f"  open boundaries (no wall): {', '.join(opened)}")
         if shared_frame:
-            snaps += merge_open_boundaries(layouts, open_pairs)  # no wall -> rooms meet at one line
+            snaps += merge_open_boundaries(group, open_pairs)  # no wall -> rooms meet at one line
     t = time.perf_counter()
     openings = detect_openings(layouts, clouds, cfg)
     for r, ops in openings.items():

@@ -115,6 +115,7 @@ def detect_openings(layouts: dict, clouds: dict, cfg: dict) -> dict[str, list[Op
 
     t = cfg["stitch"]["wall_thickness_m"]
     faces = [(r, w) for r, lay in layouts.items() for w in lay.walls]
+    frame = {r: clouds[r].frame_id for r in layouts}  # only rooms in the same frame can share a wall
     result: dict[str, list[OpeningSeg]] = {}
     for r, lay in layouts.items():
         c = clouds[r]
@@ -124,7 +125,7 @@ def detect_openings(layouts: dict, clouds: dict, cfg: dict) -> dict[str, list[Op
             if w.kind != "wall":
                 continue
             o, wv, L = wall_votes(w, c.views, ceil, cfg)
-            partners = [(pr, pw) for pr, pw in faces if pr != r and _facing(w, pw, t + 0.15)]
+            partners = [(pr, pw) for pr, pw in faces if pr != r and frame[pr] == frame[r] and _facing(w, pw, t + 0.15)]
             a, b = np.array(w.start), np.array(w.end)
             u_dir = (b - a) / L
             for d in extract(w, o, wv, L, ceil, cfg):

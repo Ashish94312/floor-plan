@@ -71,3 +71,5 @@ class RoomCloud:
     view_off_axis_deg: dict[str, float] | None = None  # per photo: median wall angle off the house axes
     openings: list = field(default_factory=list)  # layout.openings.OpeningSeg (step 1.7)
     damage: list = field(default_factory=list)  # damage.detect.DamageSeg (step 1.9)
+    pose: tuple[float, float, float] = (0.0, 0.0, 0.0)  # x, y, theta_deg of the room frame in the property frame
+    placed_by: str | None = None  # joint_reconstruction | door_matching | single_room | None (unplaced)

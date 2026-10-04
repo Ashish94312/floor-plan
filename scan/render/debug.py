@@ -44,7 +44,7 @@ def layout_plot(room: str, layout, path: Path) -> None:
 
     dbg = getattr(layout, "_debug", None)
     fig, ax = plt.subplots(figsize=(8, 8))
-    if dbg is not None:
+    if dbg is not None and "free" in dbg:
         lo, cell = dbg["lo"], dbg["cell"]
         h, w = dbg["free"].shape
         ext = [lo[0], lo[0] + w * cell, lo[1], lo[1] + h * cell]

@@ -83,6 +83,9 @@ stitch:
   wall_thickness_m: 0.12           # nominal wall thickness between two rooms' faces (O5)
   snap_tolerance_m: 0.25           # faces whose wall-centre estimates agree this well are one physical wall
   snap_max_along_gap_m: 0.50       # collinear outer walls: at most this far apart along the line
+  door_width_tol_m: 0.15           # door matching: widths of the two sides agree this well
+  door_match_margin_m: 0.25        # through-door depth must land inside the other room's outline (+ margin)
+  door_match_min_score: 0.5        # share of through-door points that must agree
 
 eval:
   wall_tolerance: {photo: 0.08, video: 0.03, lidar: 0.03}   # REQUIREMENTS §8: photo ±8%, video ±3%

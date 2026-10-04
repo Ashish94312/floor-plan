@@ -280,3 +280,24 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - **Mean half-width ±15% → ±5.0%, coverage still 100%.**
   - The result records the k used (`software.interval_k`, `interval_mode`); eval and calibration read it from there.
 - **Limit:** one home. The benchmark (Phase 4) must refit with more captures, and the floor should come down only when n ≥ 9 per type.
+
+## D31. Separately reconstructed rooms are placed by visibility-scored door matching
+- **Why:**
+  - Homes above `max_joint_views` (20 photos) run room by room, each in its own frame. Every room is already levelled and squared (step 1.3), so placing B in A's frame is a 90° multiple plus a shift. A door pair fixes both: B's door wall faces A's, and the centres sit one wall thickness apart.
+  - Rooms often have several doors of similar width (home01 hall: bedroom 0.72, front 0.70). Width alone can't choose.
+- **Rule (`stitch/doors.py`):**
+  - Candidate pairs: widths within 15 cm; outlines must not overlap.
+  - **Score = visibility.** Raw depth seen *through* A's door (rays crossing the door segment, landing > 25 cm beyond it) should fall inside B's outline (+25 cm), and vice versa. Accept ≥ 0.5.
+  - Spanning tree from the room with the most photos, best scores first.
+  - Placed rooms then go through the same snapping / open-side / door steps as a joint run, restricted to the rooms sharing the main frame.
+  - Rooms with no door match stay `unplaced` (warning, G5 fails).
+- **Evidence:**
+  - Synthetic: real door chosen over a same-width decoy; rotation exact, shift within 8 cm.
+  - home01 `--per-room`: bedroom ↔ hall matched through the bedroom door (score 0.88, not the front door); 0 overlaps; walls 7/7 within ±8%.
+  - But accuracy is worse than joint: bedroom +5.5–5.7%, from per-room scale, which confirms D20.
+  - The kitchen stays unplaced: it opens onto the hall without a door, so there's nothing to match.
+- **Not done yet:**
+  - Least-squares loop closure (rooms connected by more than a tree), so the per-room drift correction is currently tree + wall snapping.
+  - Matching open sides (no door).
+- **Known risk (found here):** in per-room runs, free-space carving can **leak through doorways**. The protocol's door shot looks straight through the door, and if that depth is confident, the room's outline extends into the next room (seen in the synthetic room: wrong walls, door widths 2.2 m). Joint runs are protected by ownership; real home01 data was protected by low through-door confidence.
+  - Fix direction: drop carved regions reached only through a detected doorway. A plain larger neck cut would erase narrow room parts such as the hall's 0.98 m passage.

@@ -106,6 +106,9 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~21:40 | home01: window added (0.69 × 1.06; tape 0.90 × 1.21 → −21 cm), sticker door added (hall W3, 0.93 × 1.93; not yet in the tape file → counted as a phantom), **0 damage** (stain D1 missed: in no photo). G1 0/5. 56 tests pass | Step 1.9 ✅ |
 | ~21:55 | **Step 1.10 calibration** (D30): split-conformal k per tier_mode × type, small-sample guards (n < 9 → max × 2; k ≥ 0.5), leave-one-room-out coverage; `scan-calibrate` writes `config/calibration.yaml`; results record the k used. Bug found: per-room measurements were built from the uncalibrated config → fixed | D30 |
 | ~22:00 | home01 calibrated: wall/ceiling/area k = 0.5 (floor; n too small), LOO coverage 100%. **Interval mean half-width ±15% → ±5.0%, coverage still 100% (10/10)**. 61 tests pass | Step 1.10 ✅ |
+| ~22:10 | **Step 1.8 per-room stitching** (D31): door pairs (width ±15 cm) → 90°-multiple rotation + shift → **visibility score** (through-door depth must land in the other room) → spanning tree → snapping/openings on the rooms sharing the main frame. Config keys first landed under the wrong YAML section (fixed) | D31 |
+| ~22:20 | home01 `--per-room`: bedroom ↔ hall matched via the bedroom door (score 0.88, front door rejected), hall rotated 180°; kitchen unplaced (open side, no door); 0 overlaps; walls 7/7 within ±8% but bedroom +5.5–5.7% (per-room scale; joint is +0.2–1.6%) | — |
+| ~22:30 | Synthetic stitching test exposed a **carving leak through doorways in per-room runs** (protocol door shot looks straight through; confident through-door depth extends the outline). Test isolated with true outlines: real door beats a same-width decoy, rotation exact, shift within 8 cm. Leak logged as an open risk with a fix direction. 62 tests pass | Step 1.8 ✅ (tree; loop closure + open-side matching not done) |
 
 ### Open data issues
 
@@ -580,6 +583,9 @@ Same machine. Main env after the switch: torch 2.14.1, numpy 2.4.6, `opencv-pyth
   - The ceiling of 2.52 m needs verifying.
 
 ## Open questions / next experiments
+
+- **Carving leak through doorways (per-room runs, D31):** remove carved regions reached only through a detected doorway; test with the synthetic two-room house (`tests/unit/test_stitch_doors.py` scene) using carved, not true, outlines.
+- **Per-room stitching gaps:** least-squares loop closure; matching open sides (an open kitchen has no door).
 
 - **Repeatability:** bedroom1 again (`home01_photo_b`). Walls must agree within 1 cm (G3). The 8 cm doubled walls from E7 are the main risk.
 - **4 vs 8 photos per room:** what is the minimum that still passes?

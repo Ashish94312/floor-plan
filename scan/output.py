@@ -85,7 +85,7 @@ def assemble(cap, clouds: dict, cfg: dict, timing: dict) -> ScanResult:
     from scan.uncertainty.intervals import k_for
 
     tier = cap.tier
-    mode = "joint" if (len({c.frame_id for c in clouds.values()}) == 1 and len(clouds) > 1) else "per_room"
+    mode = "joint" if all(c.placed_by == "joint_reconstruction" for c in clouds.values()) else "per_room"
     u = {**cfg["uncertainty"], "mode": mode, "calibration": load_calibration()}
     warnings = list(cap.warnings)
     rooms = [_room(r, c, cfg, tier, u) for r, c in clouds.items()]

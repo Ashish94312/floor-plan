@@ -60,16 +60,20 @@ def stitch(clouds: dict, cfg: dict, warnings: list[str]):
     """-> (placement_method, poses, adjacency, overlaps, drift)"""
     sc = cfg["stitch"]
     frames = {c.frame_id for c in clouds.values()}
-    joint = len(frames) == 1 and len(clouds) > 1
+    by = {c.placed_by for c in clouds.values()}
+    joint = by == {"joint_reconstruction"}
     single = len(clouds) == 1
-    placed = joint or single
-    poses = [RoomPose(room_id=r, x=0.0, y=0.0, theta_deg=0.0, placed=placed) for r in clouds]
-    if not placed:
-        warnings.append("rooms were reconstructed separately and are not placed in one frame yet "
-                        "(door-based photo stitching is Tier 1 step 1.8)")
+    doors = "door_matching" in by
+    joint or single or (doors and len(frames) == 1)
+    poses = [RoomPose(room_id=r, x=round(c.pose[0], 4), y=round(c.pose[1], 4), theta_deg=c.pose[2],
+                      placed=c.placed_by is not None) for r, c in clouds.items()]
+    unplaced = [r for r, c in clouds.items() if c.placed_by is None]
+    if unplaced:
+        warnings.append(f"not placed in the plan (no door match): {', '.join(unplaced)}")
     adjacency, overlaps = [], []
-    if placed and not single:
-        names = list(clouds)
+    if not single:
+        names = [r for r, c in clouds.items() if c.placed_by is not None]
+        names = [r for r in names if clouds[r].frame_id == clouds[names[0]].frame_id] if names else []
         for i, ra in enumerate(names):
             for rb in names[i + 1 :]:
                 la, lb = clouds[ra].layout, clouds[rb].layout
@@ -81,13 +85,14 @@ def stitch(clouds: dict, cfg: dict, warnings: list[str]):
                 inter = Polygon(la.polygon).intersection(Polygon(lb.polygon)).area
                 if inter > sc["overlap_tolerance_m2"]:
                     overlaps.append(Overlap(room_a=ra, room_b=rb, area_m2=round(inter, 3)))
-    method = "joint_reconstruction" if joint else ("single_room" if single else "unplaced")
-    snapped = joint and sc["snap_walls"]
+    method = "joint_reconstruction" if joint else ("single_room" if single else ("door_matching" if doors else "unplaced"))
+    snapped = (joint or doors) and sc["snap_walls"]
     drift = DriftCorrection(
         enabled=snapped,
-        method=("joint reconstruction in one shared frame + structural wall snapping (shared partitions to one "
-                f"{sc['wall_thickness_m']} m wall, collinear outer walls to one line, best-seen face sets the line)")
-        if snapped else ("joint reconstruction in one shared frame, wall snapping OFF (ablation)" if joint
-                         else "not applicable yet (door-based stitching is Tier 1 step 1.8)"),
+        method=(("joint reconstruction in one shared frame" if joint else
+                 "per-room reconstructions placed by visibility-scored door matching")
+                + (f" + structural wall snapping (shared partitions to one {sc['wall_thickness_m']} m wall, "
+                   "collinear outer walls to one line, best-seen face sets the line)" if snapped else
+                   ", wall snapping OFF (ablation)")),
     )
     return method, poses, adjacency, overlaps, drift
