@@ -30,14 +30,18 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~13:38 | **Data incident:** `home01_photo_portrait/photos` (IMG_4873–4880), `home01_photo_b/` and the E5 raw output deleted during a manual cleanup. Not recoverable from git (`captures/` is gitignored, no commits yet). Originals still on the iPhone. E4–E6 numbers kept in this log | Lesson: back up `captures/` separately from git |
 | 13:38 | Assignment-provided **real LiDAR samples** (Stray Scanner exports) added at the repo root, gitignored: `1a8384c3f6` (289 MB), `c00a170fe1` (93 MB), `c7d28f72c6` (530 MB). Each has `rgb.mp4`, `depth/`, `confidence/`, `odometry.csv`, `imu.csv`, `camera_matrix.csv` | Tier 3 can be tested on real data, not only synthetic. D3 to be revisited |
 | 13:50 | Log widened from experiments-only to everything (this file). First git commits | — |
+| 13:45–13:47 | Hall captured: 7 portrait photos (`IMG_4890`–`4897`, no `4893`), 1× lens, no duplicates. Openings seen: bedroom doorway, carved wooden door, sticker door + window, open kitchen doorway | `home01_photo_a/photos/hall` |
+| ~14:05 | MapAnything + EXIF on the hall. Walls −4.9% / −5.7%, ceiling −9.0% (all low: scale about 5–9% small here, against +1 to +2.5% in the bedroom) | E8 |
+| ~14:10 | Compared against the requirement gates: walls pass photo-tier ±8% in both rooms. **Ceiling G2 (≤ 1.5 cm) is far off** (8 cm bedroom, 25 cm hall) | Next priorities set below |
 
 ### Open data issues
 
 - **Hall:** W1 (361) and W3 (230) can't both be right for a rectangle. Photo 4879 shows a recess. Every straight section of wall needs measuring.
-- **Hall:** sticker door not measured. Kitchen and bathroom doors commented out in the YAML.
+- **Hall:** missing from the YAML but visible in the photos: sticker door, the window next to it, the open kitchen doorway (`IMG_4894`). The bathroom door is commented out.
+- **Hall shape:** the E8 reconstruction shows a box about 2.17 × 3.52 m with a 15 cm step on one side. W1 = 361 may include the recess or the kitchen passage. Measure every straight wall section.
 - **Bedroom:** W2 (289) and W4 (294) differ by 5 cm. Re-measure, or confirm it's real.
 - **Stain D1:** converted from raw notes, assuming 50 cm is the horizontal width and 85 cm runs to the stain's near edge. **Not visible in any photo yet.**
-- **Captures still needed:** hall (`home01_photo_a`), bedroom round 2 (`home01_photo_b`).
+- **Captures still needed:** bedroom round 2 (`home01_photo_b`, repeatability G2/G3).
 
 ---
 
@@ -74,6 +78,7 @@ Running record of **everything** done on this project: setup, data, captures, me
 | E5 | Does rotating portrait photos fix VGGT? | Focal fixed (fx = fy ≈ 422 against EXIF 390). Scale still about 1.4× | D16 |
 | E6 | MapAnything, with and without EXIF focal | With focal: walls −1.5% / −0.4%, ceiling +5.7%. Without: ceiling +11.8% | D17 (tentative) |
 | E7 | O1 decider on a protocol capture | VGGT + DAv2 **+53 to +57%**. MapAnything + focal **+2.5% / +1.2% / −3.0%** | **D17: MapAnything** |
+| E8 | MapAnything on a second room (hall) | Walls −4.9% / −5.7% (pass ±8%), ceiling −9.0%. Scale differs per room | Joint multi-room run and scale anchors are next (E9) |
 
 ### What affects the results (so far)
 
@@ -90,6 +95,7 @@ Running record of **everything** done on this project: setup, data, captures, me
 | View through a door | Points from the next room land in this room's cloud | E4, E6 | Layout: clip to the room polygon |
 | Peak-picking heuristic | Strongest-peak picking fails. Same result at threshold 0.2 and 0.08 once the photos are good | E4, E7 | Rewrite in `layout/room.py` |
 | View alignment | Walls doubled by about 8 cm | E7 | Fix-loop candidate (G3, 1 cm) |
+| Per-room scale | MapAnything metric scale +1 to +2.5% in the bedroom, −5 to −9% in the hall | E7, E8 | Joint reconstruction across rooms, scale anchors (door heights), calibrated intervals |
 | File handling | AirDrop renamed a duplicate `IMG_4876 2.HEIC` into the wrong folder. Capture folders vanished from disk (13:3x) | E4 | Hash-check on ingest. Keep originals on the phone |
 | Determinism | Re-running E4 gave identical numbers | E4 | ✓ |
 
@@ -242,6 +248,34 @@ Running record of **everything** done on this project: setup, data, captures, me
 
 ---
 
+### E8. MapAnything on the hall
+
+- **Question:** does the E7 accuracy carry over to a second, non-rectangular room?
+- **Setup:**
+  - Data: `home01_photo_a/photos/hall`, 7 portrait photos.
+  - Env: `.venv-mapanything` (in the repo, gitignored).
+  - Commands:
+    - `PYTORCH_ENABLE_MPS_FALLBACK=1 .venv-mapanything/bin/python scripts/experiments/mapanything_run.py captures/home01_photo_a/photos/hall captures/home01_photo_a/experiments/E8_hall_mapanything_k k`
+    - `uv run python scripts/experiments/measure_cloud.py <out>/ma_raw.npz 0.08 361 370 280.25`
+  - Code at commit `5e99225`, plus a `measure_cloud.py` change to take tape values as arguments.
+- **Results:** load 39.3 s, infer 23.7 s, peak MPS 7.13 GB. Focal out 395–449 px (input 389).
+
+  | | Tape | MapAnything | Error |
+  |---|---|---|---|
+  | Long side (W2 / W4) | 3.70 m | 3.520 m | −4.9% |
+  | Short side | W3 2.30 / W1 3.61 | 2.170 m | −5.7% against W3 |
+  | Ceiling | 2.8025 m | 2.550 m | −9.0% |
+
+  - The plot shows a clean box: straight long walls, complete end walls, and a 15 cm step at one end (the recess?).
+  - A sparse patch of points comes from seeing through a doorway.
+- **What affected it:**
+  - All three errors are low, so this is a **scale error, not a shape error**.
+  - MapAnything's metric scale is −5 to −9% here against +1 to +2.5% in the bedroom. Per-room scale is not consistent.
+- **Impact:**
+  - Walls pass the photo-tier ±8% in both rooms. The ceiling misses G2 (≤ 1.5 cm) by a wide margin.
+  - Next: run all rooms jointly so they share one scale, and try scale anchors. The doors are measured at 211 cm in both rooms.
+  - The 361 vs 230 hall conflict still needs measuring.
+
 ## Open questions / next experiments
 
 - **Repeatability:** bedroom1 again (`home01_photo_b`). Walls must agree within 1 cm (G3). The 8 cm doubled walls from E7 are the main risk.
@@ -250,5 +284,7 @@ Running record of **everything** done on this project: setup, data, captures, me
 - **Offline:** cache DINOv2 code in `scan-fetch-weights`, then verify a run with the network off.
 - **MapAnything load time:** 33–44 s. Investigate caching or keeping the model loaded across rooms.
 - **Hall:** not a rectangle (W1 361 vs W3 230). This tests layout beyond 4 walls.
+- **E9: joint bedroom + hall reconstruction.** One MapAnything run over all 15 photos. Do the rooms share one consistent scale? Do the door shots (bedroom 4884/4885 ↔ hall 4891/4897) register the rooms to each other? That would give photo-tier stitching (G5) almost for free.
+- **Ceiling G2 (≤ 1.5 cm):** current error 8–25 cm. Probably the hardest gate for the photo tier. Report honestly with intervals if it can't be met.
 - **Mixed orientation within a room:** `IMG_4887` was excluded in E7; the pipeline must handle it.
 - **E7 OWLv2 detections:** review, then start tuning O4.

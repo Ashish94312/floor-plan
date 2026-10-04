@@ -1,7 +1,8 @@
 """Measure room width / length / ceiling from a saved cloud (MapAnything ma_raw.npz or VGGT raw.npz)
-with the spike's heuristic at one peak threshold, and compare to the bedroom1 tape.
+with the spike's heuristic at one peak threshold, and compare to the tape.
 
-Usage: uv run python scripts/experiments/measure_cloud.py <raw.npz> <rel_threshold>
+Usage: uv run python scripts/experiments/measure_cloud.py <raw.npz> <rel_threshold> [short_cm long_cm ceiling_cm]
+       (tape defaults to bedroom1: 239 291.5 279.25)
 """
 import sys
 from pathlib import Path
@@ -22,5 +23,6 @@ else:               # VGGT raw (rotated portrait -> camera +x is down)
     P, down = pts[r["depth_conf"] >= np.percentile(r["depth_conf"], 50)], 0
 room = sp.measure_room(P, E, np.random.default_rng(0), down_axis=down)
 out = Path(src).parent / f"rel{rel}"; out.mkdir(exist_ok=True); sp.save_plots(out, room)
-tape = {"short_side_m": 2.39, "long_side_m": 2.915, "ceiling_height_m": 2.7925}
+t = [float(v) / 100 for v in sys.argv[3:6]] if len(sys.argv) >= 6 else [2.39, 2.915, 2.7925]
+tape = {"short_side_m": t[0], "long_side_m": t[1], "ceiling_height_m": t[2]}
 print(f"{Path(src).parent.name:6s} rel={rel}: " + "  ".join(f"{k.split('_')[0]} {room[k]:.3f} ({100*(room[k]-t)/t:+.1f}%)" for k, t in tape.items()))
