@@ -84,7 +84,7 @@ def stitch(clouds: dict, cfg: dict, warnings: list[str]):
     drift = DriftCorrection(
         enabled=snapped,
         method=("joint reconstruction in one shared frame + structural wall snapping (shared partitions to one "
-                f"{sc['wall_thickness_m']} m wall, collinear outer walls to one line, support-weighted)")
+                f"{sc['wall_thickness_m']} m wall, collinear outer walls to one line, best-seen face sets the line)")
         if snapped else ("joint reconstruction in one shared frame, wall snapping OFF (ablation)" if joint
                          else "not applicable yet (door-based stitching is Tier 1 step 1.8)"),
     )

@@ -54,7 +54,7 @@ rooms:
       - {id: W2, length_cm: 370}                # south
       - {id: W3, length_cm: 230}                # west
       - {id: W4, length_cm: null}               # north, west corner to the passage: wall to the kitchen (plan ~2.68 m)
-      - {id: W5, length_cm: null, kind: open}   # passage side facing the kitchen: OPEN, no wall. Measure corner to corner (plan ~1.30 m)
+      - {id: W5, length_cm: null, kind: open, connects_to: kitchen}   # passage side facing the kitchen: OPEN, no wall. Measure corner to corner (plan ~1.30 m)
       - {id: W6, length_cm: null}               # passage end (plan ~1.04 m)
     checks:
       # the first "W4 = 369.5" was measured straight across the passage mouth: W4 + width of the passage (= W6)
@@ -78,7 +78,7 @@ rooms:
     #   plan          W4(open)  W1    W2    W3
     ceiling_height_cm: [null, null]  # plan: 2.74 m (floor not seen in the photos; measured from the shared floor, D27)
     walls:
-      - {id: W1, length_cm: null, kind: open}   # east, OPEN to the hall's passage                 plan guide ~1.18 m
+      - {id: W1, length_cm: null, kind: open, connects_to: hall}   # east, OPEN to the hall's passage   plan guide ~1.18 m
       - {id: W2, length_cm: null}               # south (partition with the hall, back of hall W4)  plan guide ~2.68 m
       - {id: W3, length_cm: null}               # west                                              plan guide ~1.18 m
       - {id: W4, length_cm: null}               # north                                             plan guide ~2.68 m

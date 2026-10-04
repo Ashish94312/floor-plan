@@ -83,3 +83,8 @@ stitch:
   wall_thickness_m: 0.12           # nominal wall thickness between two rooms' faces (O5)
   snap_tolerance_m: 0.25           # faces whose wall-centre estimates agree this well are one physical wall
   snap_max_along_gap_m: 0.50       # collinear outer walls: at most this far apart along the line
+
+eval:
+  wall_tolerance: {photo: 0.08, video: 0.03, lidar: 0.03}   # REQUIREMENTS §8: photo ±8%, video ±3%
+  g2_ceiling_m: 0.015              # G2: ceiling error <= 1.5 cm
+  g5_footprint_rel: 0.08           # G5: footprint within ±8%

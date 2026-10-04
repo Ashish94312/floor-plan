@@ -81,7 +81,24 @@ def evaluate(
     gt: Path = typer.Option(..., exists=True, dir_okay=False, help="Ground-truth YAML"),
 ) -> None:
     """Score a scan output against tape-measured ground truth."""
-    _not_yet("Tier 1 step 1.6")
+    import json
+
+    from scan.config import load_config
+    from scan.eval.gates import evaluate as score
+    from scan.eval.gt import load_gt
+    from scan.eval.report import markdown
+    from scan.schema import ScanResult
+
+    res_path = out_dir / "result.json"
+    if not res_path.exists():
+        typer.secho(f"Error: {res_path} not found. Run: uv run scan <capture>", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    ev = score(ScanResult.model_validate_json(res_path.read_text()), load_gt(gt), load_config())
+    md = markdown(ev)
+    (out_dir / "eval.json").write_text(json.dumps(ev, indent=2, default=str))
+    (out_dir / "eval.md").write_text(md)
+    typer.echo(md)
+    typer.secho(f"Wrote {out_dir / 'eval.md'} and eval.json", fg=typer.colors.GREEN)
 
 
 def bench(suite: Path | None = typer.Option(None, help="bench.yaml")) -> None:

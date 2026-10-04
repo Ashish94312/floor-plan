@@ -93,6 +93,9 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~20:05 | Ground truth in line with the plan: hall W5 and kitchen W1 `kind: open` (replacing the opening entries), plan ↔ ground-truth wall-number tables for hall and kitchen, kitchen notes updated (IMG_4900 dropped, ceiling 2.52 to verify). 46 tests pass (3 open-boundary tests) | `home01.yaml` |
 | ~20:05 | User: doors (e.g. the bedroom door) come in a later step (1.7) | — |
 | ~20:10 | User: use connected rooms to get heights (kitchen ↔ hall ↔ bedroom). Height histograms: the kitchen ceiling peak (2.76) matches hall/bedroom, but **the kitchen floor was never seen** (lowest peaks 0.20 / 0.29 m: plinth or shelves behind the counters) → 2.52 m. Fix: joint-frame rooms use the shared floor (z = 0, fitted from all rooms) when their own floor is > 8 cm off; ceiling mismatches > 10 cm are warned, not overwritten. **Kitchen ceiling 2.52 → 2.741 m** (bedroom 2.769, hall 2.803). 48 tests pass | D27 |
+| ~20:20 | User: remove the Claude co-author line from all commits; keep commit messages short. History rewritten with `filter-branch` (20 commits; code identical to backup branch `backup-before-trailer-removal`); commit hashes referenced in docs updated | — |
+| ~20:35 | **Step 1.6 eval harness:** `scan/eval/{gt,match,gates,report}.py`, `uv run scan-eval <out> --gt <yaml>` → `eval.md` + `eval.json`. Walls matched by rotation (open/wall kind + measured lengths; shift reported). Ground truth: open walls carry `connects_to` | — |
+| ~20:35 | **home01_photo_a scored:** walls **7/7 within ±8%** (mean 0.89%, max 1.63%); W4+W6 check +0.5%; ceilings hall +0.1 cm ✅ G2, bedroom −2.4 cm ❌ G2; bedroom area +1.9%; adjacency equals the tape (bedroom–hall, hall–kitchen); 0 overlaps; G5 pass (footprint n/a until all walls are measured). **Calibration: 100% coverage at ±15% mean half-width** → intervals far too wide (step 1.10). 51 tests pass | Step 1.6 exit check ✅ |
 
 ### Open data issues
 
