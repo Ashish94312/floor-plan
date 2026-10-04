@@ -15,7 +15,15 @@ from typing import Any
 import numpy as np
 
 from scan.device import go_offline, seed_everything, select_device
-from scan.geometry.align import Alignment, apply, estimate_alignment, room_planes, view_off_axis_deg
+from scan.geometry.align import (
+    Alignment,
+    apply,
+    ceiling_consistency,
+    estimate_alignment,
+    room_planes,
+    use_shared_floor,
+    view_off_axis_deg,
+)
 from scan.geometry.cloud import build_cloud, save_ply
 from scan.io.ingest import ingest
 from scan.layout.room import classify_open_walls, layout_rooms
@@ -180,6 +188,7 @@ def align_rooms(clouds: dict[str, RoomCloud], cfg, log) -> dict[str, Alignment]:
         log(f"  alignment {fid}: tilt corrected {a.tilt_correction_deg} deg, floor-ceiling angle "
             f"{a.floor_ceiling_angle_deg} deg, walls rotated {a.manhattan_deg} deg "
             f"(support {a.manhattan_support:.0%}), floor rms {100 * a.floor_rms_m:.1f} cm")
+        shared = len(rooms) > 1
         for c in rooms:
             c.points = apply(a.T, c.points)
             c.views["T_wc"] = np.einsum("ij,sjk->sik", a.T, c.views["T_wc"])  # poses now in the aligned frame
@@ -187,6 +196,10 @@ def align_rooms(clouds: dict[str, RoomCloud], cfg, log) -> dict[str, Alignment]:
             c.alignment = a
             c.planes = room_planes(c.points, cfg)
             check_views(c, cfg, log)
+            if shared:
+                c.planes = use_shared_floor(c.planes, cfg["alignment"]["shared_floor_tol_m"])
+        if shared:
+            ceiling_consistency({c.room_id: c for c in rooms}, cfg["alignment"]["ceiling_mismatch_warn_m"])
     return alignments
 
 

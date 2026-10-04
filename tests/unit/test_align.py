@@ -86,3 +86,29 @@ def test_missing_ceiling_is_partial_with_warning():
     planes = room_planes(apply(a.T, P), CFG)
     assert planes.status == "partial" and planes.ceiling_height_m is None
     assert "ceiling not visible" in planes.warnings[0]
+
+
+def test_shared_floor_replaces_an_unseen_room_floor():
+    from scan.geometry.align import RoomPlanes, use_shared_floor
+
+    p = RoomPlanes(floor_z=0.22, ceiling_z=2.74, ceiling_height_m=2.52, floor_rms_m=0.02, ceiling_rms_m=0.02, status="ok")
+    use_shared_floor(p, tol_m=0.08)
+    assert p.floor_z == 0.0 and p.ceiling_height_m == pytest.approx(2.74)
+    assert "shared floor" in p.warnings[0]
+    q = RoomPlanes(floor_z=0.03, ceiling_z=2.80, ceiling_height_m=2.77, floor_rms_m=0.02, ceiling_rms_m=0.02, status="ok")
+    use_shared_floor(q, tol_m=0.08)
+    assert q.ceiling_height_m == 2.77 and not q.warnings  # floor seen: untouched
+
+
+def test_ceiling_mismatch_is_warned_not_overwritten():
+    from types import SimpleNamespace
+
+    from scan.geometry.align import RoomPlanes, ceiling_consistency
+
+    def room(h):
+        return SimpleNamespace(planes=RoomPlanes(0.0, h, h, 0.01, 0.01, "ok"))
+
+    rooms = {"bed": room(2.78), "hall": room(2.80), "kitchen": room(2.52)}
+    ceiling_consistency(rooms, tol_m=0.10)
+    assert rooms["kitchen"].planes.ceiling_height_m == 2.52 and "differs" in rooms["kitchen"].planes.warnings[0]
+    assert not rooms["hall"].planes.warnings

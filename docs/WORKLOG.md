@@ -92,12 +92,13 @@ Running record of **everything** done on this project: setup, data, captures, me
 | ~20:00 | `classify_open_walls` + `merge_open_boundaries` (open faces meet at their midline, no wall thickness), `Wall.kind` in the schema (regenerated), renderer draws open sides as one dashed line without a wall band. Plan: kitchen open to the passage, partition kept. W4 + W6 check 2.68 + 1.04 = 3.72 (+0.7%) | — |
 | ~20:05 | Ground truth in line with the plan: hall W5 and kitchen W1 `kind: open` (replacing the opening entries), plan ↔ ground-truth wall-number tables for hall and kitchen, kitchen notes updated (IMG_4900 dropped, ceiling 2.52 to verify). 46 tests pass (3 open-boundary tests) | `home01.yaml` |
 | ~20:05 | User: doors (e.g. the bedroom door) come in a later step (1.7) | — |
+| ~20:10 | User: use connected rooms to get heights (kitchen ↔ hall ↔ bedroom). Height histograms: the kitchen ceiling peak (2.76) matches hall/bedroom, but **the kitchen floor was never seen** (lowest peaks 0.20 / 0.29 m: plinth or shelves behind the counters) → 2.52 m. Fix: joint-frame rooms use the shared floor (z = 0, fitted from all rooms) when their own floor is > 8 cm off; ceiling mismatches > 10 cm are warned, not overwritten. **Kitchen ceiling 2.52 → 2.741 m** (bedroom 2.769, hall 2.803). 48 tests pass | D27 |
 
 ### Open data issues
 
 - **Hall measurements:** W4 (north segment), W5 (kitchen-side passage wall), W6 (passage end), kitchen opening size (O2 on W5), sticker door (which wall + size), the window beside it (size + sill), and confirm which wall the carved front door is on (O4 on W3? photos 4891/4897 show it beside the bedroom door).
 - **Kitchen measurements:** its 4 walls, ceiling (2 spots) and the opening from the hall.
-- **Kitchen photos (retake):** only 3 taken; `IMG_4900` (a plain wall) was placed 19° off the house axes and dropped automatically (E16), so the kitchen rests on 2 photos. Its ceiling (2.52 m against 2.77–2.80 elsewhere) is suspicious: a real lowered ceiling, or the underside of the wall cabinets? Retake 4–8: corners + one shot through the opening into the hall + one from the hall into the kitchen.
+- **Kitchen photos (retake):** only 3 taken; `IMG_4900` (a plain wall) was placed 19° off the house axes and dropped automatically (E16), so the kitchen rests on 2 photos, and its floor wasn't seen (ceiling now measured from the shared floor, D27: 2.741 m). Retake 4–8: corners with the floor in frame + one shot through the opening into the hall + one from the hall into the kitchen.
 - **Bedroom:** W2 (289) and W4 (294) differ by 5 cm. Re-measure, or confirm it's real.
 - **Stain D1:** converted from raw notes, assuming 50 cm is the horizontal width and 85 cm runs to the stain's near edge. **Not visible in any photo yet.**
 - **Captures still needed:** bedroom round 2 (`home01_photo_b`, repeatability G2/G3).

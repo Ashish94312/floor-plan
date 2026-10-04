@@ -213,3 +213,12 @@ Every decision here must be defensible live at the defense, without tools. Each 
 - **Limits:**
   - Partly open edges (a wide opening in a short wall) are all-or-nothing for now. Openings inside walls (doors, windows) come in step 1.7.
   - The 50% threshold was set on one home.
+
+## D27. Joint-run rooms share one floor; ceiling mismatches are warned, not overwritten
+- **Why:** user: connected rooms let you work out each other's heights. The data showed the kitchen's ceiling was right (2.76 m, matching hall 2.80 / bedroom 2.83 peaks), but its 2 photos never saw the floor. The counters hide it, and the lowest surface found was 0.20–0.29 m up. That made the kitchen 2.52 m tall.
+- **Rule:**
+  - In a joint frame the floor z = 0 is fitted from **all** rooms' floor points (step 1.3).
+  - A room whose own floor estimate is > 8 cm away from it didn't see its floor, so its ceiling height is measured from the shared floor, with a warning.
+  - Ceilings are **not** copied between rooms, because kitchens and bathrooms can genuinely be lower. A room > 10 cm off its frame-mates' median gets a warning instead.
+- **Result:** kitchen ceiling 2.52 → **2.741 m** (bedroom 2.769, hall 2.803). No mismatch warnings.
+- **Limit:** assumes one floor level per joint run. A step down between rooms of more than 8 cm (e.g. a sunken bathroom) would be flattened. The warning says so.

@@ -41,6 +41,8 @@ alignment:
   min_ceiling_m: 1.8               # ceiling at least this far above the floor
   max_floor_ceiling_angle_deg: 3   # average floor + ceiling normals only if they agree this well
   max_view_off_axis_deg: 8         # a photo whose walls sit further off the house axes is misplaced (good: 2-5 deg, E16)
+  shared_floor_tol_m: 0.08         # joint run: a room floor further than this from the shared floor (z=0) was not seen
+  ceiling_mismatch_warn_m: 0.10    # joint run: warn if a room's ceiling differs from the others' median by more
 
 layout:
   wall_min_z_m: 0.30               # wall points: vertical surfaces from 0.3 m ...

@@ -76,7 +76,7 @@ rooms:
     # or the evaluation would grade the pipeline against itself.
     #   ground truth  W1(open)  W2    W3    W4
     #   plan          W4(open)  W1    W2    W3
-    ceiling_height_cm: [null, null]  # plan says 2.52 m (lower than the hall's 2.80: real, or the cabinet undersides?)
+    ceiling_height_cm: [null, null]  # plan: 2.74 m (floor not seen in the photos; measured from the shared floor, D27)
     walls:
       - {id: W1, length_cm: null, kind: open}   # east, OPEN to the hall's passage                 plan guide ~1.18 m
       - {id: W2, length_cm: null}               # south (partition with the hall, back of hall W4)  plan guide ~2.68 m

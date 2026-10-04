@@ -192,3 +192,36 @@ def view_off_axis_deg(views: dict, i: int, rays: str, cfg: dict) -> float:
         return float("nan")
     phi = np.degrees(np.arctan2(N[wall, 1], N[wall, 0])) % 90
     return float(np.median(np.minimum(phi, 90 - phi)))
+
+
+def use_shared_floor(planes: RoomPlanes, tol_m: float) -> RoomPlanes:
+    """Rooms in one joint frame stand on one floor: z = 0, fitted from ALL rooms' floor points (step 1.3).
+    A room whose own floor estimate is further than tol_m from it did not really see its floor
+    (e.g. a galley kitchen whose counters hide it: lowest surface found 0.2-0.3 m up), so its ceiling
+    height is measured from the shared floor instead, with a warning."""
+    if planes.floor_z is not None and abs(planes.floor_z) <= tol_m:
+        return planes
+    was = planes.floor_z
+    planes.floor_z = 0.0
+    if planes.ceiling_z is not None:
+        planes.ceiling_height_m = round(planes.ceiling_z, 4)
+        if planes.status == "partial" and planes.warnings == ["floor not found"]:
+            planes.status = "ok"
+    planes.warnings.append(
+        f"own floor not reliably seen (found at z={was:+.2f} m); ceiling height measured from the shared floor "
+        "of the joint reconstruction (z=0)"
+    )
+    return planes
+
+
+def ceiling_consistency(rooms: dict, tol_m: float) -> None:
+    """Warn when a room's ceiling height differs from its frame-mates' median by more than tol_m.
+    Not corrected: kitchens and bathrooms can genuinely have lower ceilings."""
+    hs = {r: c.planes.ceiling_height_m for r, c in rooms.items() if c.planes.ceiling_height_m is not None}
+    for r, h in hs.items():
+        others = [v for k, v in hs.items() if k != r]
+        if len(others) >= 1 and abs(h - float(np.median(others))) > tol_m:
+            rooms[r].planes.warnings.append(
+                f"ceiling {h:.2f} m differs from the other rooms ({float(np.median(others)):.2f} m): "
+                "real lowered ceiling, or cabinets / a beam taken as ceiling? Check."
+            )
