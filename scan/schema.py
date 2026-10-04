@@ -37,6 +37,9 @@ class Wall(_Model):
     start: tuple[float, float] = Field(description="room-local metres (aligned frame, x/y along the walls)")
     end: tuple[float, float]
     length: Measurement
+    kind: Literal["wall", "open"] = Field(
+        default="wall", description="open = boundary to another room with no wall (open kitchen, archway); drawn dashed"
+    )
 
 
 class Opening(_Model):

@@ -26,6 +26,15 @@ def _draw_room(ax, room, fill: str, show_dims: bool = True, inside: set[str] = f
     poly = Polygon(P)
     ax.fill(P[:, 0], P[:, 1], color=fill, zorder=1)
     band = poly.buffer(WALL_T, join_style="mitre").difference(poly)
+    for w in room.walls:  # open boundaries: cut the wall band away, draw a dashed line instead
+        if w.kind != "open":
+            continue
+        a, b = np.array(w.start), np.array(w.end)
+        d = (b - a) / (np.linalg.norm(b - a) + 1e-12)
+        out = np.array([-d[1], d[0]])
+        cut = Polygon([a - out * 0.01, b - out * 0.01, b + out * (WALL_T + 0.02), a + out * (WALL_T + 0.02)])
+        band = band.difference(cut)
+        ax.plot([a[0], b[0]], [a[1], b[1]], ls=(0, (4, 3)), color="#777", lw=1.2, zorder=3)
     for g in getattr(band, "geoms", [band]):
         x, y = g.exterior.xy
         ax.fill(x, y, color="#2f2f2f", zorder=2)
@@ -39,7 +48,8 @@ def _draw_room(ax, room, fill: str, show_dims: bool = True, inside: set[str] = f
             out = np.array([-d[1], d[0]]) / (np.linalg.norm(d) + 1e-12)  # polygon is clockwise -> left = outside
             mid = (a + b) / 2 + (-out * 0.28 if w.wall_id in inside else out * (WALL_T + 0.22))
             vertical = abs(d[0]) < abs(d[1])
-            ax.text(*mid, f"{w.wall_id.split('-')[-1]}  {w.length.value:.2f} m {_pm(w.length)}", fontsize=7.5,
+            tag = " (open)" if w.kind == "open" else ""
+            ax.text(*mid, f"{w.wall_id.split('-')[-1]}{tag}  {w.length.value:.2f} m {_pm(w.length)}", fontsize=7.5,
                     ha="center", va="center", rotation=90 if vertical else 0, color="#333", zorder=4)
     c = poly.representative_point()
     lines = [room.room_id, f"{room.floor_area.value:.2f} m² {_pm(room.floor_area)}"]

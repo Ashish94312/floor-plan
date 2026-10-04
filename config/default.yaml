@@ -61,6 +61,9 @@ layout:
   min_room_area_m2: 1.5
   min_edge_m: 0.15                 # outline jogs shorter than this are removed
   refine_window_m: [0.10, 0.35]    # wall = median of wall points from 10 cm inside to 35 cm outside the outline
+  coverage_window_m: 0.12          # wall coverage: vertical-surface points within 12 cm of the wall line ...
+  coverage_min_points: 5           # ... at least this many per 10 cm of wall
+  open_max_coverage: 0.50          # below this on BOTH rooms' faces = open boundary (no wall). Walls: 0.76-1.0 (home01)
 
 uncertainty:
   interval_level: 0.90             # every [lo, hi] is a nominal 90% interval

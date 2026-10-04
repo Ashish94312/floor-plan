@@ -102,3 +102,23 @@ def _rebuild(lay, lines) -> None:
     lay.polygon = [w.start for w in lay.walls]
     P = np.array(lay.polygon)
     lay.floor_area_m2 = round(abs(0.5 * float(np.dot(P[:, 0], np.roll(P[:, 1], -1)) - np.dot(np.roll(P[:, 0], -1), P[:, 1]))), 4)
+
+
+def merge_open_boundaries(layouts: dict, pairs: list[tuple[str, str]]) -> list[dict]:
+    """An open boundary (no wall) has no thickness: move both rooms' faces to their common midline and
+    rebuild the polygons, so the rooms meet at one line. pairs: (wall_id, partner wall_id)."""
+    lines = {r: _lines(lay) for r, lay in layouts.items() if lay.method == "free_space_carving"}
+    where = {w.wall_id: (r, k) for r, lay in layouts.items() for k, w in enumerate(lay.walls)}
+    moves, touched = [], set()
+    for a_id, b_id in pairs:
+        (ra, ka), (rb, kb) = where[a_id], where[b_id]
+        if ra not in lines or rb not in lines:
+            continue
+        mid = (lines[ra][ka]["c"] + lines[rb][kb]["c"]) / 2
+        for r, k, wid in ((ra, ka, a_id), (rb, kb, b_id)):
+            moves.append({"room": r, "wall_id": wid, "shift_m": round(mid - lines[r][k]["c"], 4)})
+            lines[r][k]["c"] = mid
+            touched.add(r)
+    for r in touched:
+        _rebuild(layouts[r], lines[r])
+    return moves

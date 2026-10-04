@@ -32,33 +32,36 @@ rooms:
   - id: hall
     label: Hallway
     ceiling_height_cm: [280, 280.5]
-    # L-shaped (user, 2026-10-04): a passage notch runs along the bedroom wall at the north end,
-    # and the KITCHEN lies beyond W4/W5 (north of W4, west of W5), entered through an opening in W5.
+    # L-shaped (user, 2026-10-04): a passage runs along the bedroom wall at the north end; the KITCHEN is
+    # in the north-west corner and is OPEN to the passage (no wall on W5, user 19:50).
     # Clockwise from W1 seen from above (W1 = bedroom-door wall, as originally measured):
     #
-    #            W6 (notch top)
-    #           +----+
-    #   kitchen | W5 |                    <- kitchen opening in W5
+    #            W6 (passage end)
+    #   +-------+----+
+    #   |kitchen:    |                    : = W5 is OPEN (open kitchen, no wall)
     #   +-------+    |
     #   |   W4       |  W1  (shared with bedroom1, bedroom door)
     #   W3           |
     #   |            |
     #   +----- W2 ---+
     #
+    # Plan wall numbers (out/plan.png) differ until doors are detected (step 1.7 makes W1 = main-door wall):
+    #   ground truth  W1    W2    W3    W4    W5(open)  W6
+    #   plan          W6    W1    W2    W3    W4(open)  W5
     # null = not measured yet. First measured as a 4-wall room: W1 361, W2 370, W3 230, W4 369.5.
     walls:
-      - {id: W1, length_cm: 361}         # east, shared with bedroom1 (bedroom door), full length incl. the notch
-      - {id: W2, length_cm: 370}         # south
-      - {id: W3, length_cm: 230}         # west
-      - {id: W4, length_cm: null}        # north, from the west corner to the notch (plan: ~2.77 m)
-      - {id: W5, length_cm: null}        # notch side facing the kitchen, holds the kitchen opening (plan: ~1.41 m)
-      - {id: W6, length_cm: null}        # notch top (plan: ~0.95 m)
+      - {id: W1, length_cm: 361}                # east, shared with bedroom1 (bedroom door), full length incl. the passage
+      - {id: W2, length_cm: 370}                # south
+      - {id: W3, length_cm: 230}                # west
+      - {id: W4, length_cm: null}               # north, west corner to the passage: wall to the kitchen (plan ~2.68 m)
+      - {id: W5, length_cm: null, kind: open}   # passage side facing the kitchen: OPEN, no wall. Measure corner to corner (plan ~1.30 m)
+      - {id: W6, length_cm: null}               # passage end (plan ~1.04 m)
     checks:
-      # the first "W4 = 369.5" was measured straight across the notch mouth: W4 + width of the notch (= W6)
+      # the first "W4 = 369.5" was measured straight across the passage mouth: W4 + width of the passage (= W6)
       - {sum: [W4, W6], length_cm: 369.5}
     openings:
       - {id: O1, type: door, wall: W1, width_cm: 90, height_cm: 211, connects_to: bedroom1}
-      - {id: O2, type: opening, wall: W5, width_cm: null, height_cm: null, connects_to: kitchen}   # to measure
+      # kitchen: no opening entry; the whole of W5 is open (kind: open)
       # - {id: O3, type: door, wall: ?, width_cm: null, height_cm: null, connects_to: bathroom}   # sticker door: wall + size to measure
       - {id: O4, type: door, wall: W3, width_cm: 89, height_cm: 210, connects_to: outside}       # carved front door: confirm wall (photos 4891/4897 show it beside the bedroom door)
       # - {id: O5, type: window, wall: ?, width_cm: null, height_cm: null, sill_cm: null}       # window beside the sticker door
@@ -66,19 +69,20 @@ rooms:
 
   - id: kitchen
     label: Kitchen
-    captured: true                   # photos/kitchen/ (3 photos, 2026-10-04 16:05); values still null -> not scored until measured
-    # North-west corner of the flat, beyond the hall (user, 2026-10-04): its south wall is the hall's W4, its east
-    # wall is the hall's W5 (kitchen opening), and it runs west to the line of the hall's west wall (W3).
+    captured: true                   # photos/kitchen/ (3 photos, 2026-10-04 16:05; IMG_4900 auto-dropped as misplaced)
+    # North-west corner of the flat, OPEN to the hall's passage on W1 (no wall, user 19:50). Its south wall is the
+    # partition with the hall (hall W4), its west wall is on the hall's west line, its north wall on the flat's north line.
     # Plan values in comments are ONLY a guide for measuring. Never copy them in: ground truth must be tape/laser,
     # or the evaluation would grade the pipeline against itself.
-    ceiling_height_cm: [null, null]
+    #   ground truth  W1(open)  W2    W3    W4
+    #   plan          W4(open)  W1    W2    W3
+    ceiling_height_cm: [null, null]  # plan says 2.52 m (lower than the hall's 2.80: real, or the cabinet undersides?)
     walls:
-      - {id: W1, length_cm: null}    # wall with the opening from the hall (= hall W5 side)   plan guide ~1.41 m
-      - {id: W2, length_cm: null}    # south (back of hall W4)                               plan guide ~2.77 m
-      - {id: W3, length_cm: null}    # west                                                  plan guide ~1.41 m
-      - {id: W4, length_cm: null}    # north                                                 plan guide ~2.77 m
-    openings:
-      - {id: O1, type: opening, wall: W1, width_cm: null, height_cm: null, connects_to: hall}
+      - {id: W1, length_cm: null, kind: open}   # east, OPEN to the hall's passage                 plan guide ~1.18 m
+      - {id: W2, length_cm: null}               # south (partition with the hall, back of hall W4)  plan guide ~2.68 m
+      - {id: W3, length_cm: null}               # west                                              plan guide ~1.18 m
+      - {id: W4, length_cm: null}               # north                                             plan guide ~2.68 m
+    openings: []                     # the open side W1 replaces an opening
     damage: []
 
 repeat_captures: []

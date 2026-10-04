@@ -18,10 +18,10 @@ from scan.device import go_offline, seed_everything, select_device
 from scan.geometry.align import Alignment, apply, estimate_alignment, room_planes, view_off_axis_deg
 from scan.geometry.cloud import build_cloud, save_ply
 from scan.io.ingest import ingest
-from scan.layout.room import layout_rooms
+from scan.layout.room import classify_open_walls, layout_rooms
 from scan.output import assemble, write
 from scan.render.debug import alignment_plot, layout_plot
-from scan.stitch.snap import snap_walls
+from scan.stitch.snap import merge_open_boundaries, snap_walls
 from scan.types import Capture, RoomCloud, Scale, Tier
 
 
@@ -61,6 +61,11 @@ def run(
         snaps = snap_walls(layouts, cfg)
         for m in snaps:
             log(f"  snap {m['wall_id']}: {100 * m['shift_m']:+.1f} cm")
+    opened, open_pairs = classify_open_walls(layouts, cfg)
+    if opened:
+        log(f"  open boundaries (no wall): {', '.join(opened)}")
+        if shared_frame:
+            snaps += merge_open_boundaries(layouts, open_pairs)  # no wall -> rooms meet at one line
 
     t = time.perf_counter()
     result = assemble(cap, clouds, cfg, timing)

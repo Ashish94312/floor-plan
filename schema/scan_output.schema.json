@@ -561,6 +561,16 @@
         },
         "length": {
           "$ref": "#/$defs/Measurement"
+        },
+        "kind": {
+          "default": "wall",
+          "description": "open = boundary to another room with no wall (open kitchen, archway); drawn dashed",
+          "enum": [
+            "wall",
+            "open"
+          ],
+          "title": "Kind",
+          "type": "string"
         }
       },
       "required": [

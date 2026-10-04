@@ -30,6 +30,8 @@ class WallSeg:
     length_m: float
     support: int  # wall-band points within the refine window
     spread_m: float  # robust spread of those points across the wall (doubling / noise)
+    coverage: float = 1.0  # share of the wall's length with vertical-surface points on it
+    kind: str = "wall"  # wall | open (boundary between two rooms with no wall: open kitchen, archway)
 
 
 @dataclass
@@ -350,3 +352,61 @@ def _fallback(room_id, points, ceiling_h, why) -> Layout:
     poly, walls = _walls_clockwise(V, [(0, float("nan"))] * 4, room_id)
     return Layout(room_id, poly, walls, round(abs(_signed_area(np.array(poly))), 4), ceiling_h, "partial",
                   "bbox_fallback", None, warnings=why + ["layout fell back to a bounding rectangle"])
+
+
+def wall_coverage(wall, wall_pts: np.ndarray, window: float, bin_m: float, min_pts: int) -> float:
+    """Share of the wall's length (bins of bin_m) holding >= min_pts vertical-surface points within
+    `window` of the wall line. Real walls ~0.75-1.0 (minus doors); an open side between rooms ~0-0.4."""
+    a, b = np.array(wall.start), np.array(wall.end)
+    d = b - a
+    L = float(np.linalg.norm(d))
+    if L < 1e-6:
+        return 0.0
+    u = d / L
+    n = np.array([-u[1], u[0]])
+    rel = wall_pts[:, :2] - a
+    along, across = rel @ u, rel @ n
+    m = (np.abs(across) < window) & (along > 0) & (along < L)
+    bins = np.zeros(max(1, int(L / bin_m)), int)
+    np.add.at(bins, np.clip((along[m] / bin_m).astype(int), 0, len(bins) - 1), 1)
+    return float((bins >= min_pts).mean())
+
+
+def classify_open_walls(layouts: dict, cfg: dict) -> tuple[list[str], list[tuple[str, str]]]:
+    """Mark wall edges with no physical wall as `open`. An edge is open only if its coverage is low AND
+    the other room's face on the same boundary is low too (both rooms saw through it). A low-coverage
+    edge with a well-covered partner is a real wall one room barely looked at; a low-coverage outer
+    wall with no room behind it is poorly seen, not open. Returns the ids marked open."""
+    lc = cfg["layout"]
+    t = cfg["stitch"]["wall_thickness_m"]
+    faces = []
+    for r, lay in layouts.items():
+        pts = getattr(lay, "_debug", {}).get("walls_pts")
+        for w in lay.walls:
+            if pts is not None:
+                w.coverage = round(wall_coverage(w, pts, lc["coverage_window_m"], 0.1, lc["coverage_min_points"]), 3)
+            faces.append((r, w))
+    opened, pairs = [], []
+    for r, w in faces:
+        if w.coverage >= lc["open_max_coverage"]:
+            continue
+        partners = [pw for pr, pw in faces if pr != r and _facing(w, pw, t + 0.15)]
+        if partners and all(pw.coverage < lc["open_max_coverage"] for pw in partners):
+            w.kind = "open"
+            opened.append(w.wall_id)
+            pairs += [(w.wall_id, pw.wall_id) for pw in partners if (pw.wall_id, w.wall_id) not in pairs]
+    return opened, pairs
+
+
+def _facing(a, b, max_gap: float) -> bool:
+    """Parallel, overlapping walls within max_gap of each other (two faces of one boundary)."""
+    ha = abs(a.end[1] - a.start[1]) < abs(a.end[0] - a.start[0])
+    hb = abs(b.end[1] - b.start[1]) < abs(b.end[0] - b.start[0])
+    if ha != hb:
+        return False
+    k, span = (1, 0) if ha else (0, 1)
+    if abs(a.start[k] - b.start[k]) > max_gap:
+        return False
+    a0, a1 = sorted((a.start[span], a.end[span]))
+    b0, b1 = sorted((b.start[span], b.end[span]))
+    return min(a1, b1) - max(a0, b0) > 0.3

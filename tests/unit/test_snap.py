@@ -55,3 +55,57 @@ def test_far_apart_walls_untouched():
     moves = snap_walls({"a": a, "b": b}, CFG)
     assert all(abs(m["shift_m"]) < 1e-9 for m in moves if m["room"] == "a")
     assert wall_at(b, "y", 3.6) is not None and wall_at(b, "x", 3.8) is not None
+
+
+# ---- open boundaries (no wall between two rooms: open kitchen, archway) --------------------------
+
+from scan.layout.room import classify_open_walls
+from scan.stitch.snap import merge_open_boundaries
+
+
+def wall_points_on(lay, skip=(), step=0.02):
+    """Dense vertical-surface points on every wall of `lay` except the ids in `skip`."""
+    pts = []
+    for w in lay.walls:
+        if w.wall_id in skip:
+            continue
+        a, b = np.array(w.start), np.array(w.end)
+        L = np.linalg.norm(b - a)
+        for s_ in np.arange(0, L, step):
+            xy = a + (b - a) * s_ / L
+            for z in (0.5, 1.0, 1.5, 2.0, 2.5):
+                pts.append((xy[0], xy[1], z))
+    return np.array(pts)
+
+
+def two_rooms(open_on_a=True, open_on_b=True):
+    a = layout("a", [(0, 0), (3, 0), (3, 3), (0, 3)], support=5000)
+    b = layout("b", [(3 + T, 0), (6, 0), (6, 3), (3 + T, 3)], support=5000)
+    a_shared = wall_at(a, "x", 3.0).wall_id
+    b_shared = wall_at(b, "x", 3.0 + T).wall_id
+    a._debug = {"walls_pts": wall_points_on(a, skip=(a_shared,) if open_on_a else ())}
+    b._debug = {"walls_pts": wall_points_on(b, skip=(b_shared,) if open_on_b else ())}
+    return a, b, a_shared, b_shared
+
+
+def test_open_boundary_detected_and_merged_to_one_line():
+    a, b, sa, sb = two_rooms()
+    opened, pairs = classify_open_walls({"a": a, "b": b}, CFG)
+    assert set(opened) == {sa, sb}
+    merge_open_boundaries({"a": a, "b": b}, pairs)
+    xa, xb = wall_at(a, "x", 3.0 + T / 2, tol=0.01), wall_at(b, "x", 3.0 + T / 2, tol=0.01)
+    assert xa is not None and xb is not None  # both faces on the common midline: no wall thickness
+
+
+def test_boundary_seen_as_wall_by_one_room_stays_a_wall():
+    a, b, _, _ = two_rooms(open_on_a=True, open_on_b=False)  # room a never looked at it; b sees a wall
+    opened, _ = classify_open_walls({"a": a, "b": b}, CFG)
+    assert opened == []
+
+
+def test_poorly_seen_outer_wall_is_not_open():
+    a = layout("a", [(0, 0), (3, 0), (3, 3), (0, 3)], support=5000)
+    north = wall_at(a, "y", 3.0).wall_id
+    a._debug = {"walls_pts": wall_points_on(a, skip=(north,))}
+    opened, _ = classify_open_walls({"a": a}, CFG)
+    assert opened == []  # nothing behind it: poorly seen, not an open boundary

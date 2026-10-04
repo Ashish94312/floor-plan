@@ -200,3 +200,16 @@ Every decision here must be defensible live at the defense, without tools. Each 
   - No flat-specific values are in the code: the same rules apply to any capture.
   - Risk: a real 10–25 cm step between collinear outer walls would be wrongly flattened.
   - **Ablation:** `--no-drift-correction` turns snapping off (G4). On home01: footprint 20.30 m² off against 20.06 m² on; 0 overlaps both ways; the kitchen–hall gap is present only with snapping off.
+
+## D26. Open boundaries between rooms (open kitchen, archway) are detected from wall coverage
+- **Why:** the layout outputs closed outlines, so every edge was drawn as a wall. home01's kitchen is **open** to the hall's passage (user). Its edge there has no physical wall, so drawing one is wrong in the plan, in wall counts and in scope items (no wall to repaint).
+- **Rule:**
+  - **Coverage** of an edge = share of its length (10 cm bins) with ≥ 5 vertical-surface points within 12 cm of the line.
+  - An edge is `open` only if its coverage is < 50% **and** the other room's face on the same boundary is also < 50%: both rooms saw through it.
+  - Measured on home01: real walls 0.76–1.0. Open side: hall 0.42, kitchen 0.27. The kitchen ↔ hall partition: kitchen face 0.04 (its 2 photos never looked at it) but hall face 1.00, so it stays a wall.
+  - A low-coverage outer wall with no room behind it is *poorly seen*, not open.
+- **Geometry:** an open boundary has no thickness. Both rooms' faces move to their midline (`merge_open_boundaries`) and the polygons are rebuilt, so the rooms meet at one dashed line.
+- **Schema:** `Wall.kind: wall | open` (default `wall`). Ground truth uses the same field (hall W5, kitchen W1 open).
+- **Limits:**
+  - Partly open edges (a wide opening in a short wall) are all-or-nothing for now. Openings inside walls (doors, windows) come in step 1.7.
+  - The 50% threshold was set on one home.

@@ -42,8 +42,8 @@ def _room(r: str, c, cfg: dict, tier: str) -> Room:
     lay, pl = c.layout, c.planes
     s_log = c.scale.sigma_log
     sig = wall_sigmas(lay, s_log, u, tier)
-    walls = [Wall(wall_id=w.wall_id, start=w.start, end=w.end, length=measurement(w.length_m, s, "m", u, tier))
-             for w, s in zip(lay.walls, sig)]
+    walls = [Wall(wall_id=w.wall_id, start=w.start, end=w.end, length=measurement(w.length_m, s, "m", u, tier),
+                  kind=w.kind) for w, s in zip(lay.walls, sig)]
     cs = ceiling_sigma(pl, s_log, u, tier)
     ceiling = None if cs is None else measurement(pl.ceiling_height_m, cs, "m", u, tier)
     a_scale, a_edge = area_sigma_parts(lay, s_log, u, tier)
