@@ -35,6 +35,6 @@ def markdown(ev: dict) -> str:
           "## Gates", "", "| gate | result |", "|---|---|"]
     L += [f"| {k} | {v} |" for k, v in ev["gates"].items()]
     s = ev["summary"]
-    L += ["", f"Walls scored {s['walls_scored']}, mean |error| {s['mean_abs_wall_err_pct']}%, max {s['max_abs_wall_err_pct']}%. "
-          f"Interval coverage {s['coverage']}, mean half-width {s['mean_half_width_pct']}%."]
+    L += ["", (f"Walls scored {s['walls_scored']}, mean |error| {s['mean_abs_wall_err_pct']}%, max {s['max_abs_wall_err_pct']}%. "
+               f"Interval coverage {s['coverage']}, mean half-width {s['mean_half_width_pct']}%.")]
     return "\n".join(L) + "\n"
