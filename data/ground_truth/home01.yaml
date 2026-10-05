@@ -53,9 +53,9 @@ rooms:
       - {id: W1, length_cm: 361}                # east, shared with bedroom1 (bedroom door), full length incl. the passage
       - {id: W2, length_cm: 370}                # south
       - {id: W3, length_cm: 230}                # west
-      - {id: W4, length_cm: null}               # north, west corner to the passage: wall to the kitchen (plan ~2.68 m)
-      - {id: W5, length_cm: null, kind: open, connects_to: kitchen}   # passage side facing the kitchen: OPEN, no wall. Measure corner to corner (plan ~1.30 m)
-      - {id: W6, length_cm: null}               # passage end (plan ~1.04 m)
+      - {id: W4, length_cm: 280.5}              # north, west corner to the passage: wall to the kitchen. DERIVED, not measured: check 369.5 − W6 89
+      - {id: W5, length_cm: 131, kind: open, connects_to: kitchen}    # passage side facing the kitchen: OPEN, no wall. DERIVED, not measured: W1 − W3 = 361 − 230 (right-angled L)
+      - {id: W6, length_cm: 89}                 # passage end = passage width (laser, 2026-10-05)
     checks:
       # the first "W4 = 369.5" was measured straight across the passage mouth: W4 + width of the passage (= W6)
       - {sum: [W4, W6], length_cm: 369.5}
@@ -76,12 +76,12 @@ rooms:
     # or the evaluation would grade the pipeline against itself.
     #   ground truth  W1(open)  W2    W3    W4
     #   plan          W4(open)  W1    W2    W3
-    ceiling_height_cm: [null, null]  # plan: 2.74 m (floor not seen in the photos; measured from the shared floor, D27)
+    ceiling_height_cm: [279]         # laser, one spot (2026-10-05)
     walls:
-      - {id: W1, length_cm: null, kind: open, connects_to: hall}   # east, OPEN to the hall's passage   plan guide ~1.18 m
-      - {id: W2, length_cm: null}               # south (partition with the hall, back of hall W4)  plan guide ~2.68 m
-      - {id: W3, length_cm: null}               # west                                              plan guide ~1.18 m
-      - {id: W4, length_cm: null}               # north                                             plan guide ~2.68 m
+      - {id: W1, length_cm: 117, kind: open, connects_to: hall}    # east, OPEN to the hall's passage (laser, 2026-10-05). Hall W5 131 − 117 = 14 cm partition
+      - {id: W2, length_cm: 280.5}              # south (partition with the hall). DERIVED, not measured: = hall W4 (same partition, west wall continuous)
+      - {id: W3, length_cm: 117}                # west. DERIVED, not measured: = W1 (rectangle)
+      - {id: W4, length_cm: 280.5}              # north. DERIVED, not measured: = W2 (rectangle)
     openings: []                     # the open side W1 replaces an opening
     damage: []
 
