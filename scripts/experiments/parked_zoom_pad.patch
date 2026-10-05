@@ -1,0 +1,411 @@
+diff --git a/config/calibration.yaml b/config/calibration.yaml
+index c4524eb..6ca76eb 100644
+--- a/config/calibration.yaml
++++ b/config/calibration.yaml
+@@ -24,48 +24,48 @@ photo_joint:
+     n: 7
+ photo_joint_vote:
+   area:
+-    k: 1.1081
++    k: 1.5056
+     loo_coverage: 1.0
+     loo_n: 4
+-    max_ratio_at_k_used: 0.3694
++    max_ratio_at_k_used: 0.5019
+     method: 'n=4 too small for q=0.9: max x 2.0'
+     n: 4
+   ceiling:
+-    k: 0.6627
++    k: 0.9906
+     loo_coverage: 1.0
+-    loo_n: 5
+-    max_ratio_at_k_used: 0.2209
+-    method: 'n=5 too small for q=0.9: max x 2.0'
+-    n: 5
++    loo_n: 6
++    max_ratio_at_k_used: 0.3302
++    method: 'n=6 too small for q=0.9: max x 2.0'
++    n: 6
+   scale_bias:
+-    factor: 1.0821
+-    log_bias: 0.0789
++    factor: 1.0343
++    log_bias: 0.0337
+     loo:
+-    - corrected_pct: -1.49
++    - corrected_pct: -4.33
+       raw_pct: -8.95
+       room: home01_photo_a/bedroom1
+-    - corrected_pct: 1.48
+-      raw_pct: -6.21
++    - corrected_pct: 7.87
++      raw_pct: 2.67
+       room: home01_photo_b/bedroom1
+-    - corrected_pct: -2.38
++    - corrected_pct: -7.32
+       raw_pct: -9.05
+       room: home01_photo_a/hall
+-    - corrected_pct: -3.04
++    - corrected_pct: -5.21
+       raw_pct: -11.11
+       room: home01_photo_a/kitchen
+-    - corrected_pct: 8.28
+-      raw_pct: -0.73
++    - corrected_pct: 19.0
++      raw_pct: 11.59
+       room: home01_photo_b/kitchen
+     physical_rooms: 3
+     rooms: 5
+-    sigma_log: 0.0383
++    sigma_log: 0.0878
+   wall:
+-    k: 0.7086
+-    loo_coverage: 0.889
+-    loo_n: 18
+-    max_ratio_at_k_used: 0.4724
+-    method: conformal order statistic 18/18
+-    n: 18
++    k: 0.9329
++    loo_coverage: 0.909
++    loo_n: 22
++    max_ratio_at_k_used: 0.6757
++    method: conformal order statistic 21/22
++    n: 22
+ video_per_room_repose:
+   scale_bias:
+     factor: 1.0173
+diff --git a/scan/damage/detect.py b/scan/damage/detect.py
+index a4e6095..ef5fb10 100644
+--- a/scan/damage/detect.py
++++ b/scan/damage/detect.py
+@@ -34,9 +34,11 @@ def _cache_key(frames, cfg):
+     from scan.weights import MODELS
+ 
+     d = cfg["detector"]
++    # a photo padded to the joint run's orientation is a different image (old keys unchanged when none is)
++    padded = [list(f.rgb.shape) for f in frames if (f.rgb.shape[0] > f.rgb.shape[1]) != (f.meta.orientation == "portrait")]
+     return cache_key(kind="owlv2", images=[f.meta.sha256 for f in frames], weights=MODELS["owlv2-base-ensemble"].revision,
+                      classes=d["classes"], side=d["image_side"], nms=d["nms_iou"],
+-                     working_max_side=cfg["ingest"]["working_max_side"])
++                     working_max_side=cfg["ingest"]["working_max_side"], **({"padded": padded} if padded else {}))
+ 
+ 
+ def detect(frames, cfg, device, use_cache=True) -> dict[str, list[dict]]:
+@@ -92,14 +94,6 @@ def detect(frames, cfg, device, use_cache=True) -> dict[str, list[dict]]:
+ # ----------------------------------------------------------------------------------- lifting
+ 
+ 
+-def _frame_to_view(frame_hw, view_hw):
+-    """MapAnything resizes by max(scale) and centre-crops (verified to 1 px, WORKLOG E18)."""
+-    H, W = frame_hw
+-    Hd, Wd = view_hw
+-    s = max(Wd / W, Hd / H)
+-    return s, (W * s - Wd) / 2, (H * s - Hd) / 2
+-
+-
+ def _ray(K, T, px, py):
+     """World ray (origin, unit direction) through pixel (px, py) of a view."""
+     d_cam = np.array([(px - K[0, 2]) / K[0, 0], (py - K[1, 2]) / K[1, 1], 1.0])
+@@ -109,10 +103,10 @@ def _ray(K, T, px, py):
+ 
+ def lift(det, frame_hw, i, views, layout, planes, dcfg, rays: str = "exif") -> SurfaceBox | None:
+     """Box -> surface + metric extent on it."""
+-    from scan.geometry.cloud import ray_K
++    from scan.geometry.cloud import frame_to_view, ray_K
+ 
+     K, T, depth = ray_K(views, i, rays), views["T_wc"][i], views["depth"][i]
+-    s, ox, oy = _frame_to_view(frame_hw, depth.shape)
++    s, ox, oy = frame_to_view(frame_hw, depth.shape)
+     x0, y0, x1, y1 = det["box"]
+     cx, cy = (x0 + x1) / 2 * s - ox, (y0 + y1) / 2 * s - oy
+     ix, iy = int(np.clip(cx, 0, depth.shape[1] - 1)), int(np.clip(cy, 0, depth.shape[0] - 1))
+diff --git a/scan/geometry/cloud.py b/scan/geometry/cloud.py
+index f53c5f9..825f01d 100644
+--- a/scan/geometry/cloud.py
++++ b/scan/geometry/cloud.py
+@@ -61,6 +61,25 @@ def scale_pred(pred: dict[str, np.ndarray], k: float) -> dict[str, np.ndarray]:
+     return out
+ 
+ 
++def frame_to_view(frame_hw, view_hw) -> tuple[float, float, float]:
++    """Frame pixels -> model view pixels: MapAnything resizes by max(scale) and centre-crops (verified to 1 px,
++    WORKLOG E18). Returns (scale, x offset, y offset): view = frame * scale - offset."""
++    H, W = frame_hw
++    Hd, Wd = view_hw
++    s = max(Wd / W, Hd / H)
++    return s, (W * s - Wd) / 2, (H * s - Hd) / 2
++
++
++def content_mask(frame_hw, view_hw, box) -> np.ndarray:
++    """View pixels that show the frame's content box (x0, y0, x1, y1), 1 px in from a padded black edge."""
++    s, ox, oy = frame_to_view(frame_hw, view_hw)
++    x0, y0, x1, y1 = box
++    u, v = np.arange(view_hw[1]) + 0.5, np.arange(view_hw[0]) + 0.5
++    inx = (u >= x0 * s - ox + 1) & (u <= x1 * s - ox - 1)
++    iny = (v >= y0 * s - oy + 1) & (v <= y1 * s - oy - 1)
++    return iny[:, None] & inx[None, :]
++
++
+ def ray_K(views: dict[str, np.ndarray], i: int, rays: str) -> np.ndarray:
+     """Intrinsics consistent with view_points(views, i, rays): the model's for rays='model' (video,
+     E22c), EXIF for rays='exif'. Anything that projects into a view or back out of it must use these."""
+diff --git a/scan/io/photos.py b/scan/io/photos.py
+index 85b7697..3cc1302 100644
+--- a/scan/io/photos.py
++++ b/scan/io/photos.py
+@@ -2,6 +2,7 @@
+ 
+ from __future__ import annotations
+ 
++import dataclasses
+ import hashlib
+ import math
+ from pathlib import Path
+@@ -53,6 +54,24 @@ def intrinsics(f35_mm: float, width: int, height: int, film_diagonal_mm: float)
+     return np.array([[f, 0.0, width / 2], [0.0, f, height / 2], [0.0, 0.0, 1.0]])
+ 
+ 
++def pad_to_aspect_of(frame: Frame, W_ref: int, H_ref: int) -> tuple[Frame, tuple[int, int, int, int]]:
++    """A photo whose orientation differs from the rest of a joint run, centred on a black canvas of the run's aspect
++    (W_ref x H_ref). MapAnything resizes and centre-crops every view to one batch shape, which cut a portrait photo
++    among landscape ones to its middle ~57% (no floor, no ceiling: home01_photo_b kitchen). On the canvas all of it
++    is kept; rays stay true (only the principal point moves). Returns the padded frame and its content box
++    (x0, y0, x1, y1) on the canvas."""
++    h, w = frame.rgb.shape[:2]
++    a = W_ref / H_ref
++    Wc, Hc = max(w, round(h * a)), max(h, round(w / a))
++    x0, y0 = (Wc - w) // 2, (Hc - h) // 2
++    canvas = np.zeros((Hc, Wc, 3), np.uint8)
++    canvas[y0:y0 + h, x0:x0 + w] = frame.rgb
++    K = frame.K.copy()
++    K[0, 2] += x0
++    K[1, 2] += y0
++    return dataclasses.replace(frame, rgb=canvas, K=K), (x0, y0, x0 + w, y0 + h)
++
++
+ def sha256_file(path: Path) -> str:
+     return hashlib.sha256(path.read_bytes()).hexdigest()
+ 
+@@ -81,8 +100,12 @@ def load_photo(path: Path, room: str, cfg: dict[str, Any]) -> tuple[Frame, list[
+     lo, hi = kcfg["main_lens_f35_range_mm"]
+     if not lo <= f35 <= hi:
+         warnings.append(f"{path.name}: focal {f35:g} mm (35 mm eq.) is not the 1x lens; protocol says 1x only")
+-    if ex["digital_zoom"] and float(ex["digital_zoom"]) > 1.0:
+-        warnings.append(f"{path.name}: digital zoom {float(ex['digital_zoom']):g}x; protocol says no zoom")
++    # digital zoom crops the sensor and resamples to the same pixel count: focal in pixels x zoom. The 35 mm tag
++    # leaves it out (iPhone: 26 at 1.035x, not 27; vanishing points ~1.04x EXIF on zoomed photos vs ~1.0 unzoomed)
++    zoom = float(ex["digital_zoom"]) if ex["digital_zoom"] else 1.0
++    if zoom > 1.0:
++        warnings.append(f"{path.name}: digital zoom {zoom:g}x; protocol says no zoom (focal x{zoom:g})")
++    zoom = max(zoom, 1.0)
+ 
+     k = icfg["working_max_side"] / max(W, H)
+     if k < 1:
+@@ -91,7 +114,7 @@ def load_photo(path: Path, room: str, cfg: dict[str, Any]) -> tuple[Frame, list[
+     else:
+         w, h, small = W, H, up
+     rgb = np.asarray(small, dtype=np.uint8)
+-    K = intrinsics(f35, W, H, kcfg["film_diagonal_mm"])
++    K = intrinsics(f35 * zoom, W, H, kcfg["film_diagonal_mm"])
+     K[0] *= w / W  # fx, cx
+     K[1] *= h / H  # fy, cy
+ 
+diff --git a/scan/pipeline.py b/scan/pipeline.py
+index ef07e0d..4b8d2a5 100644
+--- a/scan/pipeline.py
++++ b/scan/pipeline.py
+@@ -27,8 +27,16 @@ from scan.geometry.align import (
+     use_shared_floor,
+     view_off_axis_deg,
+ )
+-from scan.geometry.cloud import build_cloud, depth_focal_fix, focal_scale_vote, save_ply, scale_pred
++from scan.geometry.cloud import (
++    build_cloud,
++    content_mask,
++    depth_focal_fix,
++    focal_scale_vote,
++    save_ply,
++    scale_pred,
++)
+ from scan.io.ingest import ingest
++from scan.io.photos import pad_to_aspect_of
+ from scan.layout.openings import (
+     detect_openings,
+     drop_one_sided_doors,
+@@ -302,6 +310,30 @@ def plan_groups(cap: Capture, g: dict) -> tuple[dict[str, list], bool]:
+     return ({"joint": [f for fs in cap.rooms.values() for f in fs]} if joint else dict(cap.rooms)), joint
+ 
+ 
++def pad_mixed_orientation(cap: Capture, frames: list) -> tuple[list, dict[int, tuple]]:
++    """One joint photo run over rooms shot in different orientations: the minority orientation is padded to the
++    majority's aspect (pad_to_aspect_of) instead of being cropped by the model's batching. The padded frames replace
++    the originals in cap.rooms, so the detector sees the image the model saw. -> (frames, {view index: box})."""
++    portrait = [f.rgb.shape[0] > f.rgb.shape[1] for f in frames]
++    n = sum(portrait)
++    if n in (0, len(frames)):
++        return frames, {}
++    major = n > len(frames) - n  # majority portrait? A tie goes to landscape, the protocol's orientation
++    ref = next(f for f, p in zip(frames, portrait) if p == major)
++    out, boxes, rooms = list(frames), {}, {}
++    for i, (f, p) in enumerate(zip(frames, portrait)):
++        if p == major:
++            continue
++        out[i], boxes[i] = pad_to_aspect_of(f, ref.rgb.shape[1], ref.rgb.shape[0])
++        room = cap.rooms[f.room_hint]
++        room[next(j for j, x in enumerate(room) if x is f)] = out[i]
++        rooms[f.room_hint] = rooms.get(f.room_hint, 0) + 1
++    other, run = ("landscape", "portrait") if major else ("portrait", "landscape")
++    cap.warnings.append(f"{', '.join(f'{r} ({k})' for r, k in rooms.items())}: {other} photos in a {run} joint run, "
++                        f"padded to {run} (not cropped); the protocol says landscape")
++    return out, boxes
++
++
+ def vote_level(cap: Capture, cfg, joint: bool) -> dict | None:
+     """The photo vote's level: the model's absolute size sense, calibrated on taped captures (FIX_DECLARATION.md).
+     None (with a warning) until scan-calibrate --bias-only has fitted it for this mode."""
+@@ -339,7 +371,13 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
+     t_all = time.perf_counter()
+     for gid, frames in groups.items():
+         log(f"  geometry: {gid} ({len(frames)} photos)")
++        frames, boxes = pad_mixed_orientation(cap, frames) if cap.tier == "photo" else (frames, {})
+         pred, pinfo = predict(frames, cfg, dev, get_model, use_cache)
++        if boxes:  # the black padding is not the room: out of every use of the view (all read views["mask"])
++            pred = dict(pred)
++            pred["mask"] = pred["mask"].copy()
++            for i, box in boxes.items():
++                pred["mask"][i] &= content_mask(frames[i].rgb.shape[:2], pred["mask"][i].shape, box)
+         fix = g.get("depth_focal_fix")
+         if g["repose"]["enabled"]:  # video: poses from PnP with the true focal on focal-corrected depth (E22o)
+             pred, rinfo = repose(pred, frames, cfg)
+diff --git a/tests/unit/test_ingest.py b/tests/unit/test_ingest.py
+index fa88720..3eedcdc 100644
+--- a/tests/unit/test_ingest.py
++++ b/tests/unit/test_ingest.py
+@@ -19,7 +19,7 @@ CFG = load_config()
+ REPO = Path(__file__).resolve().parents[2]
+ 
+ 
+-def jpeg(path: Path, size=(64, 48), f35=26, orientation=1, sharp=True, seed=0, model="iPhone 15"):
++def jpeg(path: Path, size=(64, 48), f35=26, orientation=1, sharp=True, seed=0, model="iPhone 15", zoom=None):
+     """Small JPEG with iPhone-like EXIF. Noise = sharp, flat grey = blurry."""
+     rng = np.random.default_rng(seed)
+     w, h = size
+@@ -30,6 +30,8 @@ def jpeg(path: Path, size=(64, 48), f35=26, orientation=1, sharp=True, seed=0, m
+         ex[0x0112] = orientation
+     if f35 is not None:
+         ex.get_ifd(IFD.Exif)[0xA405] = f35
++    if zoom is not None:
++        ex.get_ifd(IFD.Exif)[0xA404] = zoom
+     path.parent.mkdir(parents=True, exist_ok=True)
+     Image.fromarray(px).save(path, exif=ex)
+     return path
+@@ -59,6 +61,13 @@ def test_load_photo_applies_orientation_and_scales_K(tmp_path):
+     assert fr.meta.device == "Apple iPhone 15" and fr.meta.intrinsics_source == "exif_f35" and not warns
+ 
+ 
++def test_digital_zoom_lengthens_focal(tmp_path):
++    fr, warns = load_photo(jpeg(tmp_path / "z.jpg", size=(80, 60), zoom=1.5), "bedroom1", CFG)
++    assert fr.K[0, 0] == pytest.approx(1.5 * 26 * 100 / 43.27)
++    assert fr.meta.f35_mm == 26  # the lens check still sees the 1x lens
++    assert any("digital zoom 1.5x" in w for w in warns)
++
++
+ def test_load_photo_downsizes_to_working_side(tmp_path):
+     p = jpeg(tmp_path / "big.jpg", size=(2048, 1536))
+     fr, _ = load_photo(p, "r", CFG)
+diff --git a/tests/unit/test_orientation_pad.py b/tests/unit/test_orientation_pad.py
+new file mode 100644
+index 0000000..c194d6f
+--- /dev/null
++++ b/tests/unit/test_orientation_pad.py
+@@ -0,0 +1,52 @@
++"""Mixed orientation in one joint photo run: the minority is padded, not cropped (home01_photo_b kitchen)."""
++
++from pathlib import Path
++from types import SimpleNamespace
++
++import numpy as np
++
++from scan.geometry.cloud import content_mask
++from scan.io.photos import pad_to_aspect_of
++from scan.pipeline import pad_mixed_orientation
++from scan.types import Frame
++
++
++def _frame(h, w, room="r", seed=0):
++    rgb = np.random.default_rng(seed).integers(1, 256, (h, w, 3), dtype=np.uint8)
++    K = np.array([[10.0, 0, w / 2], [0, 10.0, h / 2], [0, 0, 1]])
++    return Frame(image_path=Path(f"{room}_{seed}.jpg"), K=K, rgb=rgb, room_hint=room)
++
++
++def test_portrait_padded_to_landscape_keeps_content_and_rays():
++    f = _frame(8, 6)
++    g, box = pad_to_aspect_of(f, 8, 6)
++    assert g.rgb.shape == (8, 11, 3) and box == (2, 0, 8, 8)
++    assert np.array_equal(g.rgb[:, 2:8], f.rgb) and not g.rgb[:, :2].any() and not g.rgb[:, 8:].any()
++    # pixel u on the original and u + 2 on the canvas look along the same ray
++    u, v = 1.5, 3.5
++    assert np.allclose(np.linalg.solve(f.K, [u, v, 1]), np.linalg.solve(g.K, [u + 2, v, 1]))
++
++
++def test_content_mask_excludes_padding():
++    m = content_mask((8, 11), (8, 11), (2, 0, 8, 8))
++    assert m[1:7, 3:7].all()
++    assert not m[:, :3].any() and not m[:, 7:].any() and not m[0].any() and not m[7].any()
++
++
++def test_minority_orientation_padded_in_capture():
++    land = [_frame(6, 8, "bedroom1", s) for s in range(3)]
++    port = [_frame(8, 6, "kitchen", s) for s in range(2)]
++    cap = SimpleNamespace(rooms={"bedroom1": list(land), "kitchen": list(port)}, warnings=[])
++    frames, boxes = pad_mixed_orientation(cap, land + port)
++    assert sorted(boxes) == [3, 4]
++    assert all(f.rgb.shape == (8, 11, 3) for f in frames[3:])
++    assert all(f is g for f, g in zip(frames[:3], land))
++    assert all(a is b for a, b in zip(cap.rooms["kitchen"], frames[3:]))  # the detector sees the padded image
++    assert "kitchen (2): portrait photos in a landscape joint run" in cap.warnings[0]
++
++
++def test_one_orientation_untouched():
++    land = [_frame(6, 8, "bedroom1", s) for s in range(3)]
++    cap = SimpleNamespace(rooms={"bedroom1": list(land)}, warnings=[])
++    frames, boxes = pad_mixed_orientation(cap, land)
++    assert frames is land and boxes == {} and cap.warnings == []
+diff --git a/scripts/experiments/e23_zoom_pad_ablation.py b/scripts/experiments/e23_zoom_pad_ablation.py
+new file mode 100644
+index 0000000..5687594
+--- /dev/null
++++ b/scripts/experiments/e23_zoom_pad_ablation.py
+@@ -0,0 +1,32 @@
++"""E23b: which of two input changes moved home01_photo_b: the digital zoom in K, or padding the portrait kitchen?
++
++Runs the pipeline with one change switched off (monkeypatched), level off (vote only), then scan-eval.
++
++    uv run python scripts/experiments/e23_zoom_pad_ablation.py {zoom_only|pad_only|neither}
++"""
++
++import subprocess
++import sys
++from pathlib import Path
++
++import scan.io.photos as photos
++import scan.pipeline as pipeline
++from scan.config import load_config
++
++case = sys.argv[1]
++cap = Path("captures/home01_photo_b")
++out = cap / "experiments" / f"E23b_{case}"
++
++if case in ("pad_only", "neither"):  # no zoom: the EXIF tag says 1.0
++    orig = photos._exif
++    photos._exif = lambda im: {**orig(im), "digital_zoom": None}
++if case in ("zoom_only", "neither"):  # no padding: the model's batching crops as before
++    pipeline.pad_mixed_orientation = lambda cap, frames: (frames, {})
++
++cfg = load_config(overrides={"uncertainty": {"apply_scale_bias": False}})
++pipeline.run(cap, cfg, out=out, log=lambda s: print(s) if "scale vote" in s or "warning" in s and "zoom" not in s else None)
++subprocess.run(["uv", "run", "scan-eval", str(out), "--gt", "data/ground_truth/home01.yaml"], check=True,
++               stdout=subprocess.DEVNULL)
++for line in (out / "eval.md").read_text().splitlines():
++    if line.startswith(("| bedroom1-W", "| kitchen-W", "- ceiling", "## ", "Walls scored")):
++        print(line)
