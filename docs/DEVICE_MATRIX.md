@@ -15,5 +15,5 @@ Each row is one tier: the hardware it needs, what it was tested on, and how accu
 - **Orientation.** The protocol asks for landscape. Model scale depends on orientation, and the scale vote corrects for that (`reports/fix_loop.md`). Photos in the minority orientation within a room are dropped.
 - **Run machine.** The pipeline was run on a MacBook with an M4 and 16 GB of memory.
   - A 20-photo joint run peaks at about 12.8 GB. A cold photo run of 3 rooms takes about 4 minutes, of which the model takes about 2.
-  - Video spends 2.5–3.5 minutes decoding frames and choosing keyframes.
+  - Video spends about 50–55 s per 3-room capture decoding frames and choosing keyframes (hardware decode).
   - Cached re-runs take seconds.

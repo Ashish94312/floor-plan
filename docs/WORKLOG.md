@@ -222,6 +222,7 @@ Running record of **everything** done on this project: setup, data, captures, me
 | Time | What | Result / link |
 |---|---|---|
 | ~23:55 | **Submission PDFs.** `scripts/build_pdfs.sh` renders the brief's document deliverables (compliance matrix, capture protocol, device matrix, benchmark, fix declaration, fix loop, technical report) to `deliverables/*.pdf` (pandoc → HTML → weasyprint; relative links pointed at the GitHub repo) and checks page caps. At the normal style the protocol and fix declaration ran to 2 pages; the one-page docs now get `scripts/pdf/compact.css` (8.4 pt, 9–11 mm margins). Text unchanged: the fix declaration is the pre-fix record. Pages: protocol 1/1, fix declaration 1/1, technical report 5/6, compliance 3, benchmark 3, fix loop 2, device matrix 1. PDFs are gitignored (`*.pdf`); regenerate with the script | `deliverables/` |
+| ~00:15 | **Benchmark regenerated on a clean tree** (`uv run scan-bench` at `b8ddde0`; the old report said `91e974c-dirty`). Every accuracy number identical (gates, repeatability, G4, head-to-head); `benchmark.json` differs only in `timing_s`. Changed: config hash (LiDAR keys in `default.yaml`) and video ingest 156–160 s → 52–54 s (hardware decode, b6248e1); DEVICE_MATRIX timing line updated. Previous outputs kept outside the repo for the comparison | `reports/benchmark.md` |
 
 ### Open data issues
 
