@@ -1,0 +1,24 @@
+# Head-to-head: magicplan's raw scan of home01, transcribed from its exports in captures/magicplan/
+# (Report.pdf pages 5, 7 and 9; Statistics.pdf). No dimension was edited in the app.
+#
+# Mapping to the tape (data/ground_truth/home01.yaml):
+#   bedroom1: magicplan drew a 2.45 x 2.32 m trapezoid. Its 2.32 m wall holds the window, so it is W3 (window
+#             wall, 2.39). Its 2.45 m side is the room's long dimension (tape W2 2.89 / W4 2.94, compared with
+#             their mean). magicplan's other bedroom walls (1.53, 0.48, 0.48, 1.87) come from a distorted outline
+#             with no tape counterpart.
+#   hall:     magicplan drew a 3.68 x 2.22 m rectangle: the main hall without the passage (the hall is an L).
+#             3.68 is the south wall W2 (3.70); 2.22 is the west wall W3 (2.30).
+#   Doors are left out: magicplan's hinged door (0.93) and opening (0.71) cannot be tied to one tape door.
+app: magicplan
+app_version: 2026.38.0     # from the app: Settings -> About
+device: Apple iPhone 13 (no LiDAR; magicplan's camera-based scan)
+scanned_at: 2026-10-05 15:50-16:05
+dimensions:
+  - {room: bedroom1, name: "short side (window wall)", kind: wall, walls: [W3], app: 2.32}
+  - {room: bedroom1, name: "long side", kind: wall_mean, walls: [W2, W4], app: 2.45}
+  - {room: bedroom1, name: "ceiling height", kind: ceiling, app: 2.14}
+  - {room: bedroom1, name: "floor area", kind: area, app: 4.83}
+  - {room: hall, name: "south wall", kind: wall, walls: [W2], app: 3.68}
+  - {room: hall, name: "west wall", kind: wall, walls: [W3], app: 2.22}
+  - {room: hall, name: "ceiling height", kind: ceiling, app: 2.72}
+  - {room: hall, name: "floor area", kind: area, app: 8.15}

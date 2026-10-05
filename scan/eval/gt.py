@@ -46,9 +46,12 @@ class GTRoom:
     connects_to: set[str] = field(default_factory=set)  # via doors/openings/open walls
     openings: list[GTOpening] = field(default_factory=list)
     damage: list[GTDamage] = field(default_factory=list)
+    floor_area_m2: float | None = None  # stated in the file for non-rectangular rooms (from measured walls)
 
     def area_m2(self) -> float | None:
-        """Rectangle rooms with all 4 walls measured: mean of opposite walls multiplied."""
+        """Stated area, else for rectangle rooms with all 4 walls measured: mean of opposite walls multiplied."""
+        if self.floor_area_m2 is not None:
+            return self.floor_area_m2
         L = [w.length_m for w in self.walls]
         if len(L) != 4 or any(v is None for v in L):
             return None
@@ -73,7 +76,7 @@ def load_gt(path: Path) -> dict[str, GTRoom]:
         dmg = [GTDamage(d["id"], d["class"], d["wall"], _m(d.get("width_cm")), _m(d.get("height_cm")),
                         _m(d.get("from_left_cm")), _m(d.get("from_floor_cm"))) for d in r.get("damage") or []]
         rooms[r["id"]] = GTRoom(r["id"], r.get("captured", True), sum(ceil) / 100 / len(ceil) if ceil else None,
-                                walls, checks, conn, ops, dmg)
+                                walls, checks, conn, ops, dmg, r.get("floor_area_m2"))
     return rooms
 
 

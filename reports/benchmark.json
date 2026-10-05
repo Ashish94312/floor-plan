@@ -1,0 +1,1668 @@
+{
+  "captures": {
+    "captures/home01_photo_a": {
+      "capture_id": "home01_photo_a",
+      "tier": "photo",
+      "mode": "photo_joint_vote",
+      "interval_k": {
+        "default": 1.5,
+        "wall": 0.7086,
+        "ceiling": 0.6627,
+        "area": 1.1081,
+        "opening": 1.5
+      },
+      "rooms": {
+        "bedroom1": {
+          "status": "ok",
+          "shift": 0,
+          "walls": [
+            {
+              "plan": "bedroom1-W1",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.3883,
+              "lo": 2.1985,
+              "hi": 2.5781,
+              "gt": 2.39,
+              "err_m": -0.0017,
+              "err_pct": -0.07,
+              "covered": true,
+              "half_width_pct": 7.9,
+              "within_tol": true
+            },
+            {
+              "plan": "bedroom1-W2",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.871,
+              "lo": 2.6453,
+              "hi": 3.0967,
+              "gt": 2.89,
+              "err_m": -0.019,
+              "err_pct": -0.66,
+              "covered": true,
+              "half_width_pct": 7.8,
+              "within_tol": true
+            },
+            {
+              "plan": "bedroom1-W3",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.3883,
+              "lo": 2.1985,
+              "hi": 2.5781,
+              "gt": 2.39,
+              "err_m": -0.0017,
+              "err_pct": -0.07,
+              "covered": true,
+              "half_width_pct": 7.9,
+              "within_tol": true
+            },
+            {
+              "plan": "bedroom1-W4",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.871,
+              "lo": 2.6453,
+              "hi": 3.0967,
+              "gt": 2.94,
+              "err_m": -0.069,
+              "err_pct": -2.35,
+              "covered": true,
+              "half_width_pct": 7.7,
+              "within_tol": true
+            }
+          ],
+          "openings": [
+            {
+              "kind": "matched",
+              "gt": "O1",
+              "plan": "bedroom1-O1",
+              "type": "door",
+              "gt_width": 0.9,
+              "width": 0.72,
+              "err_cm": -18.0,
+              "width_ok": false,
+              "covered": false
+            },
+            {
+              "kind": "matched",
+              "gt": "O2",
+              "plan": "bedroom1-O2",
+              "type": "window",
+              "gt_width": 0.9,
+              "width": 0.673,
+              "err_cm": -22.7,
+              "width_ok": false,
+              "covered": false
+            }
+          ],
+          "damage": [
+            {
+              "kind": "missed",
+              "gt": "D1",
+              "class": "water_stain"
+            }
+          ],
+          "checks": [],
+          "ceiling": {
+            "pred": 2.7262,
+            "lo": 2.5316,
+            "hi": 2.9208,
+            "gt": 2.7925,
+            "err_m": -0.0663,
+            "err_pct": -2.37,
+            "covered": true,
+            "half_width_pct": 7.0,
+            "err_cm": -6.63,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 6.8568,
+            "lo": 5.2084,
+            "hi": 8.5052,
+            "gt": 6.9669,
+            "err_m": -0.1101,
+            "err_pct": -1.58,
+            "covered": true,
+            "half_width_pct": 23.7
+          }
+        },
+        "hall": {
+          "status": "ok",
+          "shift": 0,
+          "walls": [
+            {
+              "plan": "hall-W1",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 3.5559,
+              "lo": 3.2835,
+              "hi": 3.8283,
+              "gt": 3.61,
+              "err_m": -0.0541,
+              "err_pct": -1.5,
+              "covered": true,
+              "half_width_pct": 7.5,
+              "within_tol": true
+            },
+            {
+              "plan": "hall-W2",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 3.6549,
+              "lo": 3.3717,
+              "hi": 3.9381,
+              "gt": 3.7,
+              "err_m": -0.0451,
+              "err_pct": -1.22,
+              "covered": true,
+              "half_width_pct": 7.7,
+              "within_tol": true
+            },
+            {
+              "plan": "hall-W3",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.2809,
+              "lo": 2.0945,
+              "hi": 2.4673,
+              "gt": 2.3,
+              "err_m": -0.0191,
+              "err_pct": -0.83,
+              "covered": true,
+              "half_width_pct": 8.1,
+              "within_tol": true
+            },
+            {
+              "plan": "hall-W4",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.696,
+              "lo": 2.4773,
+              "hi": 2.9147,
+              "gt": 2.805,
+              "err_m": -0.109,
+              "err_pct": -3.89,
+              "covered": true,
+              "half_width_pct": 7.8,
+              "within_tol": true
+            },
+            {
+              "plan": "hall-W5",
+              "gt_id": "W5",
+              "kind_plan": "wall",
+              "kind_gt": "open",
+              "pred": 1.275,
+              "lo": 1.1668,
+              "hi": 1.3832,
+              "gt": 1.31,
+              "err_m": -0.035,
+              "err_pct": -2.67,
+              "covered": true,
+              "half_width_pct": 8.3,
+              "within_tol": true
+            },
+            {
+              "plan": "hall-W6",
+              "gt_id": "W6",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 0.9589,
+              "lo": 0.8526,
+              "hi": 1.0652,
+              "gt": 0.89,
+              "err_m": 0.0689,
+              "err_pct": 7.74,
+              "covered": true,
+              "half_width_pct": 11.9,
+              "within_tol": true
+            }
+          ],
+          "openings": [
+            {
+              "kind": "matched",
+              "gt": "O1",
+              "plan": "hall-O2",
+              "type": "door",
+              "gt_width": 0.9,
+              "width": 0.7,
+              "err_cm": -20.0,
+              "width_ok": false,
+              "covered": false
+            },
+            {
+              "kind": "matched",
+              "gt": "O4",
+              "plan": "hall-O3",
+              "type": "door",
+              "gt_width": 0.89,
+              "width": 0.7,
+              "err_cm": -19.0,
+              "width_ok": false,
+              "covered": false
+            },
+            {
+              "kind": "phantom",
+              "plan": "hall-O1",
+              "type": "door",
+              "width": 1.06
+            },
+            {
+              "kind": "phantom",
+              "plan": "hall-O4",
+              "type": "door",
+              "width": 0.918
+            }
+          ],
+          "damage": [],
+          "checks": [
+            {
+              "sum": [
+                "W4",
+                "W6"
+              ],
+              "pred": 3.6549,
+              "gt": 3.695,
+              "err_pct": -1.09
+            }
+          ],
+          "ceiling": {
+            "pred": 2.7602,
+            "lo": 2.5622,
+            "hi": 2.9582,
+            "gt": 2.8025,
+            "err_m": -0.0423,
+            "err_pct": -1.51,
+            "covered": true,
+            "half_width_pct": 7.1,
+            "err_cm": -4.23,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 9.5591,
+            "lo": 7.2689,
+            "hi": 11.8493,
+            "gt": 9.68,
+            "err_m": -0.1209,
+            "err_pct": -1.25,
+            "covered": true,
+            "half_width_pct": 23.7
+          }
+        },
+        "kitchen": {
+          "status": "ok",
+          "shift": 1,
+          "walls": [
+            {
+              "plan": "kitchen-W2",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "open",
+              "pred": 1.155,
+              "lo": 0.9989,
+              "hi": 1.3111,
+              "gt": 1.17,
+              "err_m": -0.015,
+              "err_pct": -1.28,
+              "covered": true,
+              "half_width_pct": 13.3,
+              "within_tol": true
+            },
+            {
+              "plan": "kitchen-W3",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.576,
+              "lo": 2.2933,
+              "hi": 2.8587,
+              "gt": 2.805,
+              "err_m": -0.229,
+              "err_pct": -8.16,
+              "covered": true,
+              "half_width_pct": 10.1,
+              "within_tol": false
+            },
+            {
+              "plan": "kitchen-W4",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 1.155,
+              "lo": 0.9989,
+              "hi": 1.3111,
+              "gt": 1.17,
+              "err_m": -0.015,
+              "err_pct": -1.28,
+              "covered": true,
+              "half_width_pct": 13.3,
+              "within_tol": true
+            },
+            {
+              "plan": "kitchen-W1",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.576,
+              "lo": 2.2933,
+              "hi": 2.8587,
+              "gt": 2.805,
+              "err_m": -0.229,
+              "err_pct": -8.16,
+              "covered": true,
+              "half_width_pct": 10.1,
+              "within_tol": false
+            }
+          ],
+          "openings": [
+            {
+              "kind": "phantom",
+              "plan": "kitchen-O1",
+              "type": "window",
+              "width": 2.5
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-O2",
+              "type": "window",
+              "width": 0.84
+            }
+          ],
+          "damage": [],
+          "checks": [],
+          "ceiling": {
+            "pred": 2.6917,
+            "lo": 2.4951,
+            "hi": 2.8883,
+            "gt": 2.79,
+            "err_m": -0.0983,
+            "err_pct": -3.52,
+            "covered": true,
+            "half_width_pct": 7.0,
+            "err_cm": -9.83,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 2.9753,
+            "lo": 2.0195,
+            "hi": 3.9311,
+            "gt": 3.2818,
+            "err_m": -0.3066,
+            "err_pct": -9.34,
+            "covered": true,
+            "half_width_pct": 29.1
+          }
+        }
+      },
+      "adjacency": {
+        "plan": [
+          [
+            "bedroom1",
+            "hall"
+          ],
+          [
+            "hall",
+            "kitchen"
+          ]
+        ],
+        "gt": [
+          [
+            "bedroom1",
+            "hall"
+          ],
+          [
+            "hall",
+            "kitchen"
+          ]
+        ],
+        "equal": true
+      },
+      "overlaps": 0,
+      "footprint": {
+        "pred": 19.3912,
+        "lo": 13.1975,
+        "hi": 25.5849,
+        "gt": 19.9287,
+        "err_m": -0.5375,
+        "err_pct": -2.7,
+        "covered": true,
+        "half_width_pct": 31.1
+      },
+      "summary": {
+        "walls_scored": 14,
+        "mean_abs_wall_err_pct": 2.85,
+        "max_abs_wall_err_pct": 8.16,
+        "coverage": 1.0,
+        "mean_half_width_pct": 11.3
+      },
+      "gates": {
+        "G1 openings (width <= 2 cm, >= 85%)": "fail: 0/8 = 0% (4 measured, 4 phantom)",
+        "G2 ceiling <= 1.5 cm": "fail",
+        "G3 repeatability": "n/a (needs a repeat capture, e.g. home01_photo_b)",
+        "G4 drift handling": "on: joint reconstruction in one shared frame + structural wall snapping (shared partitions to one 0.12 m wall, collinear outer walls to one line, best-seen face sets the line)",
+        "G5 stitch": "pass",
+        "damage": "found 0/1, phantom 0",
+        "walls within \u00b18%": "12/14",
+        "calibration (target 90%)": "100% of 20 intervals contain the truth"
+      }
+    },
+    "captures/home01_photo_b": {
+      "capture_id": "home01_photo_b",
+      "tier": "photo",
+      "mode": "photo_joint_vote",
+      "interval_k": {
+        "default": 1.5,
+        "wall": 0.7086,
+        "ceiling": 0.6627,
+        "area": 1.1081,
+        "opening": 1.5
+      },
+      "rooms": {
+        "bedroom1": {
+          "status": "ok",
+          "walls": "wall count differs: plan 6, ground truth 4",
+          "ceiling": {
+            "pred": 2.7514,
+            "lo": 2.5548,
+            "hi": 2.948,
+            "gt": 2.7925,
+            "err_m": -0.0411,
+            "err_pct": -1.47,
+            "covered": true,
+            "half_width_pct": 7.0,
+            "err_cm": -4.11,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 7.3024,
+            "lo": 5.5338,
+            "hi": 9.071,
+            "gt": 6.9669,
+            "err_m": 0.3355,
+            "err_pct": 4.82,
+            "covered": true,
+            "half_width_pct": 25.4
+          }
+        },
+        "hall": {
+          "status": "ok",
+          "walls": "wall count differs: plan 8, ground truth 6",
+          "ceiling": {
+            "pred": 2.7738,
+            "lo": 2.5729,
+            "hi": 2.9747,
+            "gt": 2.8025,
+            "err_m": -0.0287,
+            "err_pct": -1.02,
+            "covered": true,
+            "half_width_pct": 7.2,
+            "err_cm": -2.87,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 9.5628,
+            "lo": 7.1372,
+            "hi": 11.9884,
+            "gt": 9.68,
+            "err_m": -0.1172,
+            "err_pct": -1.21,
+            "covered": true,
+            "half_width_pct": 25.1
+          }
+        },
+        "kitchen": {
+          "status": "partial",
+          "shift": 1,
+          "walls": [
+            {
+              "plan": "kitchen-W2",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "open",
+              "pred": 1.3096,
+              "lo": 1.17,
+              "hi": 1.4492,
+              "gt": 1.17,
+              "err_m": 0.1396,
+              "err_pct": 11.93,
+              "covered": true,
+              "half_width_pct": 11.9,
+              "within_tol": false
+            },
+            {
+              "plan": "kitchen-W3",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.7615,
+              "lo": 2.4879,
+              "hi": 3.0351,
+              "gt": 2.805,
+              "err_m": -0.0435,
+              "err_pct": -1.55,
+              "covered": true,
+              "half_width_pct": 9.8,
+              "within_tol": true
+            },
+            {
+              "plan": "kitchen-W4",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 1.3096,
+              "lo": 1.17,
+              "hi": 1.4492,
+              "gt": 1.17,
+              "err_m": 0.1396,
+              "err_pct": 11.93,
+              "covered": true,
+              "half_width_pct": 11.9,
+              "within_tol": false
+            },
+            {
+              "plan": "kitchen-W1",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.7615,
+              "lo": 2.4879,
+              "hi": 3.0351,
+              "gt": 2.805,
+              "err_m": -0.0435,
+              "err_pct": -1.55,
+              "covered": true,
+              "half_width_pct": 9.8,
+              "within_tol": true
+            }
+          ],
+          "openings": [
+            {
+              "kind": "phantom",
+              "plan": "kitchen-O1",
+              "type": "window",
+              "width": 0.92
+            }
+          ],
+          "damage": [],
+          "checks": [],
+          "area": {
+            "pred": 3.6165,
+            "lo": 2.5918,
+            "hi": 4.6412,
+            "gt": 3.2818,
+            "err_m": 0.3346,
+            "err_pct": 10.2,
+            "covered": true,
+            "half_width_pct": 31.2
+          }
+        }
+      },
+      "adjacency": {
+        "plan": [
+          [
+            "bedroom1",
+            "hall"
+          ],
+          [
+            "hall",
+            "kitchen"
+          ]
+        ],
+        "gt": [
+          [
+            "bedroom1",
+            "hall"
+          ],
+          [
+            "hall",
+            "kitchen"
+          ]
+        ],
+        "equal": true
+      },
+      "overlaps": 0,
+      "footprint": {
+        "pred": 20.4817,
+        "lo": 13.8703,
+        "hi": 27.0931,
+        "gt": 19.9287,
+        "err_m": 0.553,
+        "err_pct": 2.77,
+        "covered": true,
+        "half_width_pct": 33.2
+      },
+      "summary": {
+        "walls_scored": 4,
+        "mean_abs_wall_err_pct": 6.74,
+        "max_abs_wall_err_pct": 11.93,
+        "coverage": 1.0,
+        "mean_half_width_pct": 15.5
+      },
+      "gates": {
+        "G1 openings (width <= 2 cm, >= 85%)": "fail: 0/1 = 0% (0 measured, 1 phantom)",
+        "G2 ceiling <= 1.5 cm": "fail",
+        "G3 repeatability": "n/a (needs a repeat capture, e.g. home01_photo_b)",
+        "G4 drift handling": "on: joint reconstruction in one shared frame + structural wall snapping (shared partitions to one 0.12 m wall, collinear outer walls to one line, best-seen face sets the line)",
+        "G5 stitch": "pass",
+        "damage": "n/a (no damage in the ground truth or the result)",
+        "walls within \u00b18%": "2/4",
+        "calibration (target 90%)": "100% of 9 intervals contain the truth"
+      }
+    },
+    "captures/home01_video_d": {
+      "capture_id": "home01_video_d",
+      "tier": "video",
+      "mode": "video_per_room",
+      "interval_k": {
+        "default": 1.5,
+        "wall": 1.5,
+        "ceiling": 1.5,
+        "area": 1.5,
+        "opening": 1.5
+      },
+      "rooms": {
+        "bedroom1": {
+          "status": "ok",
+          "shift": 0,
+          "walls": [
+            {
+              "plan": "bedroom1-W1",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.3579,
+              "lo": 2.0486,
+              "hi": 2.6672,
+              "gt": 2.39,
+              "err_m": -0.0321,
+              "err_pct": -1.34,
+              "covered": true,
+              "half_width_pct": 12.9,
+              "within_tol": true
+            },
+            {
+              "plan": "bedroom1-W2",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.6185,
+              "lo": 2.2496,
+              "hi": 2.9874,
+              "gt": 2.89,
+              "err_m": -0.2715,
+              "err_pct": -9.39,
+              "covered": true,
+              "half_width_pct": 12.8,
+              "within_tol": false
+            },
+            {
+              "plan": "bedroom1-W3",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.3579,
+              "lo": 2.0486,
+              "hi": 2.6672,
+              "gt": 2.39,
+              "err_m": -0.0321,
+              "err_pct": -1.34,
+              "covered": true,
+              "half_width_pct": 12.9,
+              "within_tol": true
+            },
+            {
+              "plan": "bedroom1-W4",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.6185,
+              "lo": 2.2496,
+              "hi": 2.9874,
+              "gt": 2.94,
+              "err_m": -0.3215,
+              "err_pct": -10.94,
+              "covered": true,
+              "half_width_pct": 12.5,
+              "within_tol": false
+            }
+          ],
+          "openings": [
+            {
+              "kind": "matched",
+              "gt": "O1",
+              "plan": "bedroom1-O1",
+              "type": "door",
+              "gt_width": 0.9,
+              "width": 1.02,
+              "err_cm": 12.0,
+              "width_ok": false,
+              "covered": true
+            },
+            {
+              "kind": "matched",
+              "gt": "O2",
+              "plan": "bedroom1-O2",
+              "type": "window",
+              "gt_width": 0.9,
+              "width": 0.843,
+              "err_cm": -5.7,
+              "width_ok": false,
+              "covered": true
+            }
+          ],
+          "damage": [
+            {
+              "kind": "missed",
+              "gt": "D1",
+              "class": "water_stain"
+            }
+          ],
+          "checks": [],
+          "ceiling": {
+            "pred": 2.8661,
+            "lo": 2.489,
+            "hi": 3.2432,
+            "gt": 2.7925,
+            "err_m": 0.0736,
+            "err_pct": 2.64,
+            "covered": true,
+            "half_width_pct": 13.5,
+            "err_cm": 7.36,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 6.1742,
+            "lo": 4.5608,
+            "hi": 7.7876,
+            "gt": 6.9669,
+            "err_m": -0.7927,
+            "err_pct": -11.38,
+            "covered": true,
+            "half_width_pct": 23.2
+          }
+        },
+        "hall": {
+          "status": "ok",
+          "walls": "wall count differs: plan 4, ground truth 6",
+          "ceiling": {
+            "pred": 2.8436,
+            "lo": 2.4721,
+            "hi": 3.2151,
+            "gt": 2.8025,
+            "err_m": 0.0411,
+            "err_pct": 1.47,
+            "covered": true,
+            "half_width_pct": 13.3,
+            "err_cm": 4.11,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 6.9381,
+            "lo": 5.0183,
+            "hi": 8.8579,
+            "gt": 9.68,
+            "err_m": -2.7419,
+            "err_pct": -28.33,
+            "covered": false,
+            "half_width_pct": 19.8
+          }
+        },
+        "kitchen": {
+          "status": "ok",
+          "shift": 1,
+          "walls": [
+            {
+              "plan": "kitchen-W2",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "open",
+              "pred": 1.1455,
+              "lo": 0.9013,
+              "hi": 1.3897,
+              "gt": 1.17,
+              "err_m": -0.0245,
+              "err_pct": -2.09,
+              "covered": true,
+              "half_width_pct": 20.9,
+              "within_tol": true
+            },
+            {
+              "plan": "kitchen-W3",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 3.3345,
+              "lo": 2.9029,
+              "hi": 3.7661,
+              "gt": 2.805,
+              "err_m": 0.5295,
+              "err_pct": 18.88,
+              "covered": false,
+              "half_width_pct": 15.4,
+              "within_tol": false
+            },
+            {
+              "plan": "kitchen-W4",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 1.1455,
+              "lo": 0.9013,
+              "hi": 1.3897,
+              "gt": 1.17,
+              "err_m": -0.0245,
+              "err_pct": -2.09,
+              "covered": true,
+              "half_width_pct": 20.9,
+              "within_tol": true
+            },
+            {
+              "plan": "kitchen-W1",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 3.3345,
+              "lo": 2.9029,
+              "hi": 3.7661,
+              "gt": 2.805,
+              "err_m": 0.5295,
+              "err_pct": 18.88,
+              "covered": false,
+              "half_width_pct": 15.4,
+              "within_tol": false
+            }
+          ],
+          "openings": [
+            {
+              "kind": "phantom",
+              "plan": "kitchen-O1",
+              "type": "opening",
+              "width": 1.8
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-O2",
+              "type": "door",
+              "width": 0.62
+            }
+          ],
+          "damage": [
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D1",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D2",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D3",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D4",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D5",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D6",
+              "class": "crack"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D7",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D8",
+              "class": "crack"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D9",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D10",
+              "class": "crack"
+            }
+          ],
+          "checks": [],
+          "ceiling": {
+            "pred": 2.8886,
+            "lo": 2.5098,
+            "hi": 3.2674,
+            "gt": 2.79,
+            "err_m": 0.0986,
+            "err_pct": 3.53,
+            "covered": true,
+            "half_width_pct": 13.6,
+            "err_cm": 9.86,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 3.8197,
+            "lo": 2.6442,
+            "hi": 4.9952,
+            "gt": 3.2818,
+            "err_m": 0.5379,
+            "err_pct": 16.39,
+            "covered": true,
+            "half_width_pct": 35.8
+          }
+        }
+      },
+      "adjacency": {
+        "plan": [
+          [
+            "bedroom1",
+            "hall"
+          ],
+          [
+            "bedroom1",
+            "kitchen"
+          ],
+          [
+            "hall",
+            "kitchen"
+          ]
+        ],
+        "gt": [
+          [
+            "bedroom1",
+            "hall"
+          ],
+          [
+            "hall",
+            "kitchen"
+          ]
+        ],
+        "equal": false
+      },
+      "overlaps": 0,
+      "footprint": {
+        "pred": 16.932,
+        "lo": 14.1625,
+        "hi": 19.7015,
+        "gt": 19.9287,
+        "err_m": -2.9967,
+        "err_pct": -15.04,
+        "covered": false,
+        "half_width_pct": 13.9
+      },
+      "summary": {
+        "walls_scored": 8,
+        "mean_abs_wall_err_pct": 8.12,
+        "max_abs_wall_err_pct": 18.88,
+        "coverage": 0.786,
+        "mean_half_width_pct": 17.3
+      },
+      "gates": {
+        "G1 openings (width <= 2 cm, >= 85%)": "fail: 0/4 = 0% (2 measured, 2 phantom)",
+        "G2 ceiling <= 1.5 cm": "fail",
+        "G3 repeatability": "n/a (needs a repeat capture, e.g. home01_photo_b)",
+        "G4 drift handling": "on: per-room reconstructions placed by link frames (points seen from both rooms) + structural wall snapping (shared partitions to one 0.12 m wall, collinear outer walls to one line, best-seen face sets the line)",
+        "G5 stitch": "fail",
+        "damage": "found 0/1, phantom 10",
+        "walls within \u00b13%": "4/8",
+        "calibration (target 90%)": "79% of 14 intervals contain the truth"
+      }
+    },
+    "captures/home01_video_e": {
+      "capture_id": "home01_video_e",
+      "tier": "video",
+      "mode": "video_per_room",
+      "interval_k": {
+        "default": 1.5,
+        "wall": 1.5,
+        "ceiling": 1.5,
+        "area": 1.5,
+        "opening": 1.5
+      },
+      "rooms": {
+        "bedroom1": {
+          "status": "ok",
+          "walls": "wall count differs: plan 6, ground truth 4",
+          "ceiling": {
+            "pred": 2.5492,
+            "lo": 2.2149,
+            "hi": 2.8835,
+            "gt": 2.7925,
+            "err_m": -0.2433,
+            "err_pct": -8.71,
+            "covered": true,
+            "half_width_pct": 12.0,
+            "err_cm": -24.33,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 7.8938,
+            "lo": 5.6108,
+            "hi": 10.1768,
+            "gt": 6.9669,
+            "err_m": 0.9269,
+            "err_pct": 13.31,
+            "covered": true,
+            "half_width_pct": 32.8
+          }
+        },
+        "hall": {
+          "status": "ok",
+          "walls": "wall count differs: plan 4, ground truth 6",
+          "ceiling": {
+            "pred": 2.8521,
+            "lo": 2.4871,
+            "hi": 3.2171,
+            "gt": 2.8025,
+            "err_m": 0.0496,
+            "err_pct": 1.77,
+            "covered": true,
+            "half_width_pct": 13.0,
+            "err_cm": 4.96,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 5.5183,
+            "lo": 3.2716,
+            "hi": 7.765,
+            "gt": 9.68,
+            "err_m": -4.1617,
+            "err_pct": -42.99,
+            "covered": false,
+            "half_width_pct": 23.2
+          }
+        },
+        "kitchen": {
+          "status": "ok",
+          "shift": 1,
+          "walls": [
+            {
+              "plan": "kitchen-W2",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "open",
+              "pred": 1.112,
+              "lo": 0.7929,
+              "hi": 1.4311,
+              "gt": 1.17,
+              "err_m": -0.058,
+              "err_pct": -4.96,
+              "covered": true,
+              "half_width_pct": 27.3,
+              "within_tol": false
+            },
+            {
+              "plan": "kitchen-W3",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.5858,
+              "lo": 2.0627,
+              "hi": 3.1089,
+              "gt": 2.805,
+              "err_m": -0.2192,
+              "err_pct": -7.81,
+              "covered": true,
+              "half_width_pct": 18.6,
+              "within_tol": false
+            },
+            {
+              "plan": "kitchen-W4",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 1.112,
+              "lo": 0.7929,
+              "hi": 1.4311,
+              "gt": 1.17,
+              "err_m": -0.058,
+              "err_pct": -4.96,
+              "covered": true,
+              "half_width_pct": 27.3,
+              "within_tol": false
+            },
+            {
+              "plan": "kitchen-W1",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.5858,
+              "lo": 2.0627,
+              "hi": 3.1089,
+              "gt": 2.805,
+              "err_m": -0.2192,
+              "err_pct": -7.81,
+              "covered": true,
+              "half_width_pct": 18.6,
+              "within_tol": false
+            }
+          ],
+          "openings": [
+            {
+              "kind": "phantom",
+              "plan": "kitchen-O1",
+              "type": "opening",
+              "width": 0.92
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-O2",
+              "type": "opening",
+              "width": 0.72
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-O3",
+              "type": "window",
+              "width": 1.02
+            }
+          ],
+          "damage": [
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D1",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D2",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D3",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D4",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D5",
+              "class": "crack"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D6",
+              "class": "water_stain"
+            },
+            {
+              "kind": "phantom",
+              "plan": "kitchen-D7",
+              "class": "water_stain"
+            }
+          ],
+          "checks": [],
+          "ceiling": {
+            "pred": 2.0107,
+            "lo": 1.7206,
+            "hi": 2.3008,
+            "gt": 2.79,
+            "err_m": -0.7793,
+            "err_pct": -27.93,
+            "covered": false,
+            "half_width_pct": 10.4,
+            "err_cm": -77.93,
+            "g2_pass": false
+          },
+          "area": {
+            "pred": 2.8755,
+            "lo": 1.7396,
+            "hi": 4.0114,
+            "gt": 3.2818,
+            "err_m": -0.4063,
+            "err_pct": -12.38,
+            "covered": true,
+            "half_width_pct": 34.6
+          }
+        }
+      },
+      "adjacency": {
+        "plan": [
+          [
+            "bedroom1",
+            "hall"
+          ]
+        ],
+        "gt": [
+          [
+            "bedroom1",
+            "hall"
+          ],
+          [
+            "hall",
+            "kitchen"
+          ]
+        ],
+        "equal": false
+      },
+      "overlaps": 2,
+      "footprint": {
+        "pred": 16.2876,
+        "lo": 12.889,
+        "hi": 19.6862,
+        "gt": 19.9287,
+        "err_m": -3.6411,
+        "err_pct": -18.27,
+        "covered": false,
+        "half_width_pct": 17.1
+      },
+      "summary": {
+        "walls_scored": 4,
+        "mean_abs_wall_err_pct": 6.38,
+        "max_abs_wall_err_pct": 7.81,
+        "coverage": 0.8,
+        "mean_half_width_pct": 21.8
+      },
+      "gates": {
+        "G1 openings (width <= 2 cm, >= 85%)": "fail: 0/3 = 0% (0 measured, 3 phantom)",
+        "G2 ceiling <= 1.5 cm": "fail",
+        "G3 repeatability": "n/a (needs a repeat capture, e.g. home01_photo_b)",
+        "G4 drift handling": "on: per-room reconstructions placed by link frames (points seen from both rooms) + structural wall snapping (shared partitions to one 0.12 m wall, collinear outer walls to one line, best-seen face sets the line)",
+        "G5 stitch": "fail",
+        "damage": "found 0/0, phantom 7",
+        "walls within \u00b13%": "0/4",
+        "calibration (target 90%)": "80% of 10 intervals contain the truth"
+      }
+    }
+  },
+  "timing": {
+    "captures/home01_photo_a": {
+      "ingest_s": 2.9,
+      "geometry_s": 1.91,
+      "alignment_s": 2.84,
+      "layout_s": 1.65,
+      "openings_s": 0.03,
+      "detector_damage_s": 0.02
+    },
+    "captures/home01_photo_b": {
+      "ingest_s": 4.31,
+      "geometry_s": 1.78,
+      "alignment_s": 4.15,
+      "layout_s": 1.22,
+      "openings_s": 0.04,
+      "detector_damage_s": 0.02
+    },
+    "captures/home01_video_d": {
+      "ingest_s": 214.87,
+      "geometry_s": 2.48,
+      "alignment_s": 4.2,
+      "layout_s": 1.86,
+      "openings_s": 0.05,
+      "detector_damage_s": 0.02
+    },
+    "captures/home01_video_e": {
+      "ingest_s": 157.13,
+      "geometry_s": 2.07,
+      "alignment_s": 4.74,
+      "layout_s": 1.54,
+      "openings_s": 0.04,
+      "detector_damage_s": 0.04
+    }
+  },
+  "nodrift": {
+    "captures/home01_photo_a": {
+      "pred": 19.6481,
+      "lo": 13.3731,
+      "hi": 25.9231,
+      "gt": 19.9287,
+      "err_m": -0.2806,
+      "err_pct": -1.41,
+      "covered": true,
+      "half_width_pct": 31.5
+    },
+    "captures/home01_photo_b": {
+      "pred": 21.048,
+      "lo": 14.2623,
+      "hi": 27.8337,
+      "gt": 19.9287,
+      "err_m": 1.1193,
+      "err_pct": 5.62,
+      "covered": true,
+      "half_width_pct": 34.0
+    },
+    "captures/home01_video_e": {
+      "pred": 16.9987,
+      "lo": 13.4799,
+      "hi": 20.5175,
+      "gt": 19.9287,
+      "err_m": -2.93,
+      "err_pct": -14.7,
+      "covered": true,
+      "half_width_pct": 17.7
+    }
+  },
+  "head_to_head": {
+    "captures/home01_photo_a": [
+      {
+        "room": "bedroom1",
+        "name": "short side (window wall)",
+        "kind": "wall",
+        "walls": [
+          "W3"
+        ],
+        "app": 2.32,
+        "truth": 2.39,
+        "ours": 2.3883,
+        "err_ours": 0.0017000000000000348,
+        "err_app": 0.07000000000000028,
+        "result": "win"
+      },
+      {
+        "room": "bedroom1",
+        "name": "long side",
+        "kind": "wall_mean",
+        "walls": [
+          "W2",
+          "W4"
+        ],
+        "app": 2.45,
+        "truth": 2.915,
+        "ours": 2.871,
+        "err_ours": 0.04400000000000004,
+        "err_app": 0.46499999999999986,
+        "result": "win"
+      },
+      {
+        "room": "bedroom1",
+        "name": "ceiling height",
+        "kind": "ceiling",
+        "app": 2.14,
+        "truth": 2.7925,
+        "ours": 2.7262,
+        "err_ours": 0.06630000000000003,
+        "err_app": 0.6524999999999999,
+        "result": "win"
+      },
+      {
+        "room": "bedroom1",
+        "name": "floor area",
+        "kind": "area",
+        "app": 4.83,
+        "truth": 6.966850000000001,
+        "ours": 6.8568,
+        "err_ours": 0.11005000000000109,
+        "err_app": 2.136850000000001,
+        "result": "win"
+      },
+      {
+        "room": "hall",
+        "name": "south wall",
+        "kind": "wall",
+        "walls": [
+          "W2"
+        ],
+        "app": 3.68,
+        "truth": 3.7,
+        "ours": 3.6549,
+        "err_ours": 0.04510000000000014,
+        "err_app": 0.020000000000000018,
+        "result": "loss"
+      },
+      {
+        "room": "hall",
+        "name": "west wall",
+        "kind": "wall",
+        "walls": [
+          "W3"
+        ],
+        "app": 2.22,
+        "truth": 2.3,
+        "ours": 2.2809,
+        "err_ours": 0.019099999999999895,
+        "err_app": 0.07999999999999963,
+        "result": "win"
+      },
+      {
+        "room": "hall",
+        "name": "ceiling height",
+        "kind": "ceiling",
+        "app": 2.72,
+        "truth": 2.8025,
+        "ours": 2.7602,
+        "err_ours": 0.042300000000000004,
+        "err_app": 0.08250000000000002,
+        "result": "win"
+      },
+      {
+        "room": "hall",
+        "name": "floor area",
+        "kind": "area",
+        "app": 8.15,
+        "truth": 9.68,
+        "ours": 9.5591,
+        "err_ours": 0.1208999999999989,
+        "err_app": 1.5299999999999994,
+        "result": "win"
+      }
+    ],
+    "captures/home01_photo_b": [
+      {
+        "room": "bedroom1",
+        "name": "short side (window wall)",
+        "kind": "wall",
+        "walls": [
+          "W3"
+        ],
+        "app": 2.32,
+        "truth": 2.39,
+        "ours": null,
+        "err_ours": null,
+        "err_app": 0.07000000000000028,
+        "result": "loss"
+      },
+      {
+        "room": "bedroom1",
+        "name": "long side",
+        "kind": "wall_mean",
+        "walls": [
+          "W2",
+          "W4"
+        ],
+        "app": 2.45,
+        "truth": 2.915,
+        "ours": null,
+        "err_ours": null,
+        "err_app": 0.46499999999999986,
+        "result": "loss"
+      },
+      {
+        "room": "bedroom1",
+        "name": "ceiling height",
+        "kind": "ceiling",
+        "app": 2.14,
+        "truth": 2.7925,
+        "ours": 2.7514,
+        "err_ours": 0.041100000000000136,
+        "err_app": 0.6524999999999999,
+        "result": "win"
+      },
+      {
+        "room": "bedroom1",
+        "name": "floor area",
+        "kind": "area",
+        "app": 4.83,
+        "truth": 6.966850000000001,
+        "ours": 7.3024,
+        "err_ours": 0.3355499999999987,
+        "err_app": 2.136850000000001,
+        "result": "win"
+      },
+      {
+        "room": "hall",
+        "name": "south wall",
+        "kind": "wall",
+        "walls": [
+          "W2"
+        ],
+        "app": 3.68,
+        "truth": 3.7,
+        "ours": null,
+        "err_ours": null,
+        "err_app": 0.020000000000000018,
+        "result": "loss"
+      },
+      {
+        "room": "hall",
+        "name": "west wall",
+        "kind": "wall",
+        "walls": [
+          "W3"
+        ],
+        "app": 2.22,
+        "truth": 2.3,
+        "ours": null,
+        "err_ours": null,
+        "err_app": 0.07999999999999963,
+        "result": "loss"
+      },
+      {
+        "room": "hall",
+        "name": "ceiling height",
+        "kind": "ceiling",
+        "app": 2.72,
+        "truth": 2.8025,
+        "ours": 2.7738,
+        "err_ours": 0.02870000000000017,
+        "err_app": 0.08250000000000002,
+        "result": "win"
+      },
+      {
+        "room": "hall",
+        "name": "floor area",
+        "kind": "area",
+        "app": 8.15,
+        "truth": 9.68,
+        "ours": 9.5628,
+        "err_ours": 0.11720000000000041,
+        "err_app": 1.5299999999999994,
+        "result": "win"
+      }
+    ],
+    "captures/home01_video_e": [
+      {
+        "room": "bedroom1",
+        "name": "short side (window wall)",
+        "kind": "wall",
+        "walls": [
+          "W3"
+        ],
+        "app": 2.32,
+        "truth": 2.39,
+        "ours": null,
+        "err_ours": null,
+        "err_app": 0.07000000000000028,
+        "result": "loss"
+      },
+      {
+        "room": "bedroom1",
+        "name": "long side",
+        "kind": "wall_mean",
+        "walls": [
+          "W2",
+          "W4"
+        ],
+        "app": 2.45,
+        "truth": 2.915,
+        "ours": null,
+        "err_ours": null,
+        "err_app": 0.46499999999999986,
+        "result": "loss"
+      },
+      {
+        "room": "bedroom1",
+        "name": "ceiling height",
+        "kind": "ceiling",
+        "app": 2.14,
+        "truth": 2.7925,
+        "ours": 2.5492,
+        "err_ours": 0.24330000000000007,
+        "err_app": 0.6524999999999999,
+        "result": "win"
+      },
+      {
+        "room": "bedroom1",
+        "name": "floor area",
+        "kind": "area",
+        "app": 4.83,
+        "truth": 6.966850000000001,
+        "ours": 7.8938,
+        "err_ours": 0.9269499999999988,
+        "err_app": 2.136850000000001,
+        "result": "win"
+      },
+      {
+        "room": "hall",
+        "name": "south wall",
+        "kind": "wall",
+        "walls": [
+          "W2"
+        ],
+        "app": 3.68,
+        "truth": 3.7,
+        "ours": null,
+        "err_ours": null,
+        "err_app": 0.020000000000000018,
+        "result": "loss"
+      },
+      {
+        "room": "hall",
+        "name": "west wall",
+        "kind": "wall",
+        "walls": [
+          "W3"
+        ],
+        "app": 2.22,
+        "truth": 2.3,
+        "ours": null,
+        "err_ours": null,
+        "err_app": 0.07999999999999963,
+        "result": "loss"
+      },
+      {
+        "room": "hall",
+        "name": "ceiling height",
+        "kind": "ceiling",
+        "app": 2.72,
+        "truth": 2.8025,
+        "ours": 2.8521,
+        "err_ours": 0.049599999999999866,
+        "err_app": 0.08250000000000002,
+        "result": "win"
+      },
+      {
+        "room": "hall",
+        "name": "floor area",
+        "kind": "area",
+        "app": 8.15,
+        "truth": 9.68,
+        "ours": 5.5183,
+        "err_ours": 4.1617,
+        "err_app": 1.5299999999999994,
+        "result": "loss"
+      }
+    ]
+  }
+}

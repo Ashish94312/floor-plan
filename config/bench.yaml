@@ -1,0 +1,17 @@
+# scan-bench suite: every capture with tape ground truth, run with the default config (one command each).
+ground_truth: data/ground_truth/home01.yaml
+captures:
+  - {path: captures/home01_photo_a, note: "portrait, 3 rooms (bedroom1, hall, kitchen)"}
+  - {path: captures/home01_photo_b, note: "landscape as the protocol says, same 3 rooms (repeat of photo_a)"}
+  - {path: captures/home01_video_d, note: "portrait clips, 3 rooms"}
+  - {path: captures/home01_video_e, note: "landscape clips as the protocol says, same 3 rooms (repeat of video_d)"}
+# same rooms captured twice at the same tier (G2 spread, G3)
+repeat_pairs:
+  - [captures/home01_photo_a, captures/home01_photo_b]
+  - [captures/home01_video_d, captures/home01_video_e]
+# G4: stitched footprint with drift correction on and off
+drift_ablation: [captures/home01_photo_a, captures/home01_photo_b, captures/home01_video_e]
+head_to_head:
+  app: data/head_to_head/magicplan.yaml
+  ours: [captures/home01_photo_a, captures/home01_photo_b, captures/home01_video_e]
+  headline: captures/home01_photo_b   # chosen before the run: the capture taken as the protocol says

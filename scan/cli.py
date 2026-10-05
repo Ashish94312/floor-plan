@@ -101,9 +101,15 @@ def evaluate(
     typer.secho(f"Wrote {out_dir / 'eval.md'} and eval.json", fg=typer.colors.GREEN)
 
 
-def bench(suite: Path | None = typer.Option(None, help="bench.yaml")) -> None:
-    """Run every capture + eval and write reports/."""
-    _not_yet("Phase 4")
+def bench(
+    suite: Path = typer.Option(Path("config/bench.yaml"), exists=True, dir_okay=False, help="Suite YAML"),
+    skip_run: bool = typer.Option(False, help="Score the existing out/ folders without re-running the captures"),
+) -> None:
+    """Run every capture of the suite, score it against the tape, write reports/benchmark.md."""
+    from scan.eval.bench import run_suite
+
+    path = run_suite(suite, skip_run=skip_run, log=typer.echo)
+    typer.secho(f"Wrote {path}", fg=typer.colors.GREEN)
 
 
 def fetch_weights(

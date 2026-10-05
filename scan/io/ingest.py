@@ -111,6 +111,10 @@ def _ingest_photos(cap: Capture, cfg: dict[str, Any]) -> None:
     with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as pool:
         loaded = dict(zip(jobs, pool.map(load, jobs)))
 
+    # the capture's lens = its most common focal: photos on another lens are excluded (mixing lenses skewed the
+    # joint scale ~4.6%, E20). Not a fixed range: a Pro iPhone's 1x can be set to 24, 28 or 35 mm
+    f35s = [r[0].meta.f35_mm for r in loaded.values() if not isinstance(r, UnreadableImage)]
+    main_f35 = Counter(round(x) for x in f35s).most_common(1)[0][0] if f35s else None
     seen: dict[str, Path] = {}  # sha256 -> first file with that content
     cross_room_dupes: list[str] = []
     for d, fs in files.items():
@@ -123,9 +127,9 @@ def _ingest_photos(cap: Capture, cfg: dict[str, Any]) -> None:
                 continue
             frame, w = res
             cap.warnings.extend(f"{room}/{msg}" for msg in w)
-            lo, hi = icfg["intrinsics"]["main_lens_f35_range_mm"]
-            if icfg["reject_non_main_lens"] and not lo <= frame.meta.f35_mm <= hi:
-                cap.warnings.append(f"{f}: excluded (not the 1x lens: mixed lenses skewed the joint scale ~4.6%, E20)")
+            if icfg["reject_non_main_lens"] and abs(frame.meta.f35_mm / main_f35 - 1) > icfg["lens_mix_tol"]:
+                cap.warnings.append(f"{f}: excluded ({frame.meta.f35_mm:g} mm, the capture's lens is {main_f35} mm: "
+                                    "mixed lenses skewed the joint scale ~4.6%, E20)")
                 continue
             first = seen.get(frame.meta.sha256)
             if first is not None:

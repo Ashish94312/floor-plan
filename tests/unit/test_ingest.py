@@ -210,6 +210,12 @@ def test_home01_photo_a():
     assert any("dropped IMG_4887.HEIC" in w for w in cap.warnings)
 
 
+def test_whole_capture_on_another_1x_setting_is_kept(tmp_path):
+    room(tmp_path, "hall", 3, f35=35)  # iPhone 15 Pro with the 1x lens set to 35 mm
+    cap = ingest(tmp_path, None, CFG)
+    assert len(cap.rooms["hall"]) == 3 and not any("excluded" in w for w in cap.warnings)
+
+
 def test_non_main_lens_photos_excluded(tmp_path):
     room(tmp_path, "hall", 3)
     jpeg(tmp_path / "photos" / "hall" / "IMG_9000.jpg", f35=16, seed=9)  # 0.5x ultra-wide + zoom (E20)
