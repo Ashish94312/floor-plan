@@ -79,3 +79,4 @@ class RoomCloud:
     placed_by: str | None = None  # joint_reconstruction | door_matching | single_room | None (unplaced)
     up_world: np.ndarray | None = None  # LiDAR: gravity up in the recording's world (ARKit +y); None = from the cameras
     region: tuple | None = None  # split walk-through: (label image, origin xy, cell, label) of the room's free space
+    kind: str = "room"  # room | passage (a corridor narrower than a door, from a split walk-through, E27)

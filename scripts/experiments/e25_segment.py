@@ -3,7 +3,7 @@
 ingest -> LiDAR geometry -> alignment -> free space, cores, watershed rooms (lintels + detector doorways, magenta);
 plots free space, cores and rooms with the camera path coloured by its room.
 
-  uv run python scripts/experiments/e25_segment.py <recording> <png> [key=value config overrides, e.g. segment.door_max_m=1.2]
+  uv run python scripts/experiments/e25_segment.py <recording> <png> [--plan=<out>/result.json] [key=value overrides]
 """
 
 import sys
@@ -26,8 +26,9 @@ from scan.layout.segment import door_segments, free_space_rooms
 from scan.pipeline import align_rooms, geometry_lidar
 
 rec, png = Path(sys.argv[1]), Path(sys.argv[2])
+plan = next((Path(a.split("=", 1)[1]) for a in sys.argv[3:] if a.startswith("--plan=")), None)  # result.json to overlay
 over = {}
-for kv in sys.argv[3:]:
+for kv in [a for a in sys.argv[3:] if not a.startswith("--plan=")]:
     k, v = kv.split("=")
     d = over
     *path, last = k.split(".")
@@ -43,7 +44,7 @@ rays = view_rays(c, cfg)
 cams = np.array([x for x, _ in rays])
 walls = wall_points(c.points, normals(c.points, cfg["alignment"]["normal_radius_m"]), c.planes.ceiling_z, cfg)
 doors = door_segments(c.views, c.frames, detect(c.frames, cfg, select_device(None), True), cfg)  # cached by the pipeline
-labels, lo, cell, cam_lab = free_space_rooms(rays, cams, cfg, walls, doors)
+labels, lo, cell, cam_lab, passages = free_space_rooms(rays, cams, cfg, walls, doors)
 free = labels > 0
 clear = ndimage.distance_transform_edt(free) * cell
 cores, n = ndimage.label(clear > cfg["segment"]["door_max_m"] / 2)
@@ -55,6 +56,13 @@ for a, img, title in zip(ax, [clear, cores, labels], ["clearance to nearest obst
     a.plot(cams[:, 0], cams[:, 1], "r-", lw=0.5)
     for d0, d1, _ in doors:  # detector doorways
         a.plot([d0[0], d1[0]], [d0[1], d1[1]], "m-", lw=3)
+    if plan is not None:  # final room outlines (same aligned frame)
+        import json
+
+        for rm in json.loads(plan.read_text())["rooms"]:
+            P = np.array(rm["polygon"] + rm["polygon"][:1])
+            a.plot(P[:, 0], P[:, 1], "k-", lw=1.5)
+            a.text(*np.mean(P[:-1], 0), rm["room_id"], fontsize=8, ha="center")
     a.set_title(f"{rec.name}: {title}")
     a.set_aspect("equal")
 png.parent.mkdir(parents=True, exist_ok=True)

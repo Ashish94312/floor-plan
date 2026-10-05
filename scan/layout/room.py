@@ -110,12 +110,16 @@ def lintel_barrier(walls_pts: np.ndarray, lo, shape, cfg) -> np.ndarray | None:
     return cv2.dilate(img, np.ones((3, 3), np.uint8)).astype(bool)
 
 
-def _room_region(own: np.ndarray, floor_counts, seeds_ij, cfg, barrier: np.ndarray | None = None):
+def _room_region(own: np.ndarray, floor_counts, seeds_ij, cfg, barrier: np.ndarray | None = None,
+                 neck_m: float | None = None, forbid: np.ndarray | None = None, open_m: float | None = None):
     """Room's free space -> cut doorway necks -> best component -> Manhattan regularisation.
 
     own: cells this room's lines of sight passed through (in a joint run: and it saw them most).
-    open (rectangle, regularise_open_m): removes thin protrusions (doorway stubs).
-    close (rectangle, regularise_close_m): fills small concave blocks (corner wardrobes, unseen corners)."""
+    neck_m: doorway neck cut (default layout.neck_cut_m; 0 for a segment already cut at its doorways).
+    open (rectangle, regularise_open_m; open_m overrides, 0 for a passage: a corridor is itself thin): removes thin
+    protrusions (doorway stubs).
+    close (rectangle, regularise_close_m): fills small concave blocks (corner wardrobes, unseen corners).
+    forbid: cells the region may not take (other rooms' segments): filling concave blocks stops at them."""
     lc = cfg["layout"]
     cell = lc["cell_m"]
     mask = own.astype(np.uint8)
@@ -124,7 +128,7 @@ def _room_region(own: np.ndarray, floor_counts, seeds_ij, cfg, barrier: np.ndarr
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((kg, kg), np.uint8))
     if barrier is not None:
         mask[barrier] = 0
-    r = round(lc["neck_cut_m"] / 2 / cell)
+    r = round((lc["neck_cut_m"] if neck_m is None else neck_m) / 2 / cell)
     neck = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
     opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, neck)
     labels, n = ndimage.label(opened)
@@ -138,11 +142,13 @@ def _room_region(own: np.ndarray, floor_counts, seeds_ij, cfg, barrier: np.ndarr
     region = ndimage.binary_fill_holes(labels == best)
     region = cv2.dilate(region.astype(np.uint8), neck) & mask  # undo the neck cut's corner rounding
     before = region.sum()
-    ko = max(1, round(lc["regularise_open_m"] / cell))
+    ko = max(1, round((lc["regularise_open_m"] if open_m is None else open_m) / cell))
     kc = max(1, round(lc["regularise_close_m"] / cell))
     region = cv2.morphologyEx(region, cv2.MORPH_OPEN, np.ones((ko, ko), np.uint8))
     after_open = region.sum()
     region = cv2.morphologyEx(region, cv2.MORPH_CLOSE, np.ones((kc, kc), np.uint8))
+    if forbid is not None:
+        region &= ~forbid.astype(np.uint8) & 1
     labels, n = ndimage.label(region)
     if n > 1:
         sizes = ndimage.sum(region, labels, index=np.arange(1, n + 1))
@@ -368,11 +374,99 @@ def layout_rooms(clouds: dict, cfg: dict) -> dict[str, Layout]:
             own = {r: (owner == k) & (free[r] >= lc["min_views_free"]) for k, r in enumerate(names)}
         else:
             own = {names[0]: free[names[0]] >= lc["min_views_free"]}
+        seg = {r: region_on_grid(c.region, lo, shape, cell) for r, c in rooms.items() if c.region is not None}
         for r, c in rooms.items():
-            if c.region is not None:  # split walk-through: the room's own segment (doorway to doorway), E25
-                own[r] = region_on_grid(c.region, lo, shape, cell)
-            out[r] = _layout_one(r, c, data[r], own[r], free[r], lo, shape, cfg)
+            if r in seg:  # split walk-through: the room's own segment, already cut at its doorways (E25, E27)
+                others = np.any([m for q, m in seg.items() if q != r], axis=0) if len(seg) > 1 else None
+                out[r] = _layout_one(r, c, data[r], seg[r], free[r], lo, shape, cfg, neck_m=0.0, forbid=others,
+                                     open_m=0.0 if c.kind == "passage" else None)
+            else:
+                out[r] = _layout_one(r, c, data[r], own[r], free[r], lo, shape, cfg)
+        if len(seg) > 1:
+            resolve_overlaps({r: out[r] for r in seg}, {r: (seg[r], lo, cell) for r in seg})
     return out
+
+
+def resolve_overlaps(layouts: dict, segs: dict) -> None:
+    """Rooms split from one walk share a frame and their segments are disjoint, but moving each wall onto its wall
+    points (up to refine_window_m outward) can push it past the neighbour's edge. Each overlap goes to the room whose
+    segment holds more of it and is cut from the other; walls on an unchanged line keep their support, new edges
+    (the cut) have none: they are the boundary with the neighbour. segs: room -> (mask, origin, cell)."""
+    from shapely.geometry import Polygon
+
+    repair_outlines(layouts)
+    names = sorted(layouts, key=lambda r: -layouts[r].floor_area_m2)
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            la, lb = layouts[a], layouts[b]
+            if la.status == "failed" or lb.status == "failed":
+                continue
+            pa, pb = Polygon(la.polygon), Polygon(lb.polygon)
+            ov = pa.intersection(pb)
+            if ov.area < 1e-4:
+                continue
+            votes = {r: _segment_share(ov, *segs[r]) for r in (a, b)}
+            keep, cut = (a, b) if votes[a] >= votes[b] else (b, a)
+            _cut_layout(layouts[cut], Polygon(layouts[cut].polygon).difference(ov), layouts[keep].room_id)
+
+
+def repair_outlines(layouts: dict) -> list[str]:
+    """An outline that crosses itself (a branching space such as a corridor, or walls moved by snapping) is not a
+    valid polygon: keep its largest valid piece. Valid outlines are untouched. Returns the rooms repaired."""
+    from shapely import make_valid
+    from shapely.geometry import Polygon
+
+    fixed = []
+    for r, lay in layouts.items():
+        if lay.status != "failed" and len(lay.polygon) >= 3 and not Polygon(lay.polygon).is_valid:
+            _cut_layout(lay, make_valid(Polygon(lay.polygon)), None)
+            fixed.append(r)
+    return fixed
+
+
+def _segment_share(geom, mask, lo, cell) -> int:
+    """Cells of a segment inside a polygon's bounding box and polygon (cell centres)."""
+    from shapely import contains_xy
+
+    x0, y0, x1, y1 = geom.bounds
+    j0, i0 = np.floor((np.array([x0, y0]) - lo) / cell).astype(int)
+    j1, i1 = np.ceil((np.array([x1, y1]) - lo) / cell).astype(int)
+    j0, i0 = max(j0, 0), max(i0, 0)
+    sub = mask[i0:i1, j0:j1]
+    if not sub.size:
+        return 0
+    jj, ii = np.meshgrid(np.arange(j0, j0 + sub.shape[1]), np.arange(i0, i0 + sub.shape[0]))
+    inside = contains_xy(geom, lo[0] + (jj + 0.5) * cell, lo[1] + (ii + 0.5) * cell)
+    return int((sub & inside).sum())
+
+
+def _cut_layout(lay, poly, neighbour: str | None) -> None:
+    """Replace a layout's outline by `poly` (its old outline minus an overlap, or its repaired self-crossing outline:
+    neighbour None), keeping each wall's support where the new edge lies on the old wall's line."""
+    if poly.geom_type != "Polygon":  # the cut split it (or repair gave pieces, lines): keep the biggest polygon
+        parts = [g for g in getattr(poly, "geoms", []) for g in (getattr(g, "geoms", [g]))]
+        poly = max((g for g in parts if g.geom_type == "Polygon"), key=lambda g: g.area)
+    V = np.array(poly.simplify(1e-6).exterior.coords)[:-1]
+    old = lay.walls
+    sup = []
+    for k in range(len(V)):
+        a, b = V[k - 1], V[k]  # segment k of _walls_clockwise ends at vertex k
+        same = [w for w in old if _on_line(w, a, b)]
+        sup.append((same[0].support, same[0].spread_m) if same else (0, float("nan")))
+    poly_v, walls = _walls_clockwise(V, sup, lay.room_id)
+    lay.polygon, lay.walls = poly_v, walls
+    lay.floor_area_m2 = round(abs(_signed_area(np.array(poly_v))), 4)
+    lay.warnings.append(f"cut {neighbour}'s overlap from the outline (walls moved onto wall points overlapped)" if neighbour
+                        else "outline crossed itself (branching space): kept its largest valid piece")
+
+
+def _on_line(w, a, b, tol: float = 0.01) -> bool:
+    s, e = np.array(w.start), np.array(w.end)
+    if abs(s[0] - e[0]) < tol and abs(a[0] - b[0]) < tol:
+        return abs(s[0] - a[0]) < tol
+    if abs(s[1] - e[1]) < tol and abs(a[1] - b[1]) < tol:
+        return abs(s[1] - a[1]) < tol
+    return False
 
 
 def region_on_grid(region, lo, shape, cell) -> np.ndarray:
@@ -385,7 +479,7 @@ def region_on_grid(region, lo, shape, cell) -> np.ndarray:
     return sub & oi[:, None] & oj[None]
 
 
-def _layout_one(room_id, cloud, d, own, free, lo, shape, cfg) -> Layout:
+def _layout_one(room_id, cloud, d, own, free, lo, shape, cfg, neck_m=None, forbid=None, open_m=None) -> Layout:
     lc = cfg["layout"]
     cell = lc["cell_m"]
     ceiling_h = cloud.planes.ceiling_height_m
@@ -393,7 +487,8 @@ def _layout_one(room_id, cloud, d, own, free, lo, shape, cfg) -> Layout:
     if len(walls_pts) < lc["min_wall_points"]:
         return _fallback(room_id, cloud.points, ceiling_h, [f"only {len(walls_pts)} wall points"])
     floor_img = _cells(_to_ij(d["floor"][:, :2], lo, cell), shape).astype(float)
-    region, stats = _room_region(own, floor_img, _to_ij(d["cams"], lo, cell), cfg, lintel_barrier(walls_pts, lo, shape, cfg))
+    region, stats = _room_region(own, floor_img, _to_ij(d["cams"], lo, cell), cfg, lintel_barrier(walls_pts, lo, shape, cfg),
+                                 neck_m, forbid, open_m)
     warnings: list[str] = []
     if region is None or region.sum() * cell**2 < lc["min_room_area_m2"]:
         return _fallback(room_id, cloud.points, ceiling_h, ["free-space carving found no room region"])

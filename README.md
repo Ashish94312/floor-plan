@@ -117,8 +117,8 @@ The video captures take 10–50 s to ingest (keyframes + vanishing points) befor
 | 3D geometry | MapAnything: poses + metric depth | MapAnything | **The phone's LiDAR depth through the ARKit poses** (no model) |
 | Scale | Focal vote + calibration from taped rooms | Door-height anchor (doors 2.05 m) | Metric already (sensor) |
 | Floor / up | Floor and ceiling planes, Manhattan walls | same | same, with gravity from ARKit |
-| Rooms | One folder per room | One clip per room | Bare walk: split at doorways (necks ≤ 1.0 m, wall seen above door height, detector doors) |
-| Room outline | Free-space carving from lines of sight → square-cornered polygon, walls on the measured wall points | same | same, each room from its own segment |
+| Rooms | One folder per room | One clip per room | Bare walk: split at doorways (necks ≤ 1.0 m, wall seen above door height, detector doors); corridors the walk crossed become `passageN` spaces |
+| Room outline | Free-space carving from lines of sight → square-cornered polygon, walls on the measured wall points | same | same, each room from its own segment; overlaps between rooms resolved |
 | Stitching | Joint run shares one frame; otherwise door matching | Link frames, then doors; `hints.yaml` | One ARKit frame per recording |
 | Openings | Depth seen through a wall + OWLv2 detector | same | same; frames detected upright |
 | Damage / scope | OWLv2 boxes lifted onto surfaces; rules in `config/rules.yaml` | same | same |
@@ -186,11 +186,16 @@ uv run python scripts/experiments/e26_compare.py c00a170fe1 c7d28f72c6 1a8384c3f
 
 Run the LiDAR plans (above) first: the comparison reads `captures/lidar_samples/<rec>/out/result.json`.
 
+```bash
+# c) is a plan clean? overlaps between rooms, separate pieces, each room's gap to its nearest neighbour
+uv run python scripts/experiments/e27_plan_check.py captures/lidar_samples/*/out/result.json
+```
+
 ### 6. Experiments and scripts
 
-Every experiment (E1–E26) is logged in [docs/WORKLOG.md](docs/WORKLOG.md) with its question, setup, command, result and impact. Its outputs are in `captures/<capture>/experiments/`.
+Every experiment (E1–E27) is logged in [docs/WORKLOG.md](docs/WORKLOG.md) with its question, setup, command, result and impact. Its outputs are in `captures/<capture>/experiments/`.
 
-**[scripts/README.md](scripts/README.md) lists every script** (tools and the 45 experiment scripts) with its worklog entry, what it does and the exact command. It is generated from the scripts' own headers: `uv run python scripts/make_scripts_index.py`.
+**[scripts/README.md](scripts/README.md) lists every script** (tools and the experiment scripts) with its worklog entry, what it does and the exact command. It is generated from the scripts' own headers: `uv run python scripts/make_scripts_index.py`.
 
 ## Where each tier stands
 
@@ -198,7 +203,7 @@ Every experiment (E1–E26) is logged in [docs/WORKLOG.md](docs/WORKLOG.md) with
 |---|---|
 | Photo | Works end to end, including the stitched multi-room plan. home01_photo_a: 12/14 walls within ±8%, mean error 2.9%, footprint −2.7%. Details in [reports/benchmark.md](reports/benchmark.md). |
 | Video | Runs end to end. Room sizes are less reliable (about ±10%; home01_video_e footprint −4.3%). Intervals are calibrated against the tape. |
-| LiDAR | Runs end to end on the three assignment samples (E25). Geometry is the phone's own (floor fit 1.3–1.7 cm). Rooms come from splitting the walk at doorways: `c7d28f72c6` 6 rooms (ceilings filmed), `c00a170fe1` 3 rooms, `1a8384c3f6` only 2 (its walk never filmed above 2.3 m, so few doorways show). No taped LiDAR capture yet, so its intervals are not calibrated. |
+| LiDAR | Runs end to end on the three assignment samples (E25, E27). Geometry is the phone's own (floor fit 1.3–1.7 cm). Rooms come from splitting the walk at doorways, corridors become passages; every plan is one connected piece with no overlaps: `c7d28f72c6` 6 rooms + 2 passages (ceilings filmed), `c00a170fe1` 3 rooms, `1a8384c3f6` only 2 (its walk never filmed above 2.3 m, so few doorways show). No taped LiDAR capture yet, so its intervals are not calibrated. |
 
 MapAnything on the same LiDAR walks is far from the LiDAR plans: mean room-area error 80% with one run per room (E26) and 176% with one joint run over all rooms (E26b). Walk-through frames are close to walls and narrow, which it misplaces. The photo tier is meant for the protocol's corner photos.
 

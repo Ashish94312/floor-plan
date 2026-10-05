@@ -212,6 +212,8 @@ segment:                           # one recording through several rooms -> room
   door_box_width_m: [0.5, 1.4]     # detector door -> doorway if its jamb-to-jamb width is door-sized (as detector_openings)
   door_axis_tol_deg: 20            # ... and it lies along a house axis (doors sit in walls); snapped to it
   door_merge_m: 0.3                # same doorway in several frames: centres this close (as detector_openings' merge)
+  passage_min_length_m: 1.0        # the walk outside every room body for longer than this between two rooms crossed a
+                                   # passage, not a doorway (a door frame is 0.1-0.3 m deep), E27
 
 lidar:                             # Stray Scanner exports (ARKit depth + poses; no learned geometry model)
   max_frames_per_room: 120         # frames spread evenly over each recording's time (layout, openings, detector)

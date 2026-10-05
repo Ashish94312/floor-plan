@@ -76,7 +76,7 @@ def _room(r: str, c, cfg: dict, tier: str, u: dict) -> Room:
             sill_height=None if o.sill_m is None else measurement(o.sill_m, sig(o.sill_m), "m", u, tier),
             connects_to=o.connects_to, views=o.views,
         ))
-    return Room(room_id=r, label=None, status=status, polygon=lay.polygon, walls=walls, ceiling_height=ceiling,
+    return Room(room_id=r, label="passage" if c.kind == "passage" else None, status=status, polygon=lay.polygon, walls=walls, ceiling_height=ceiling,
                 floor_area=area, openings=ops, layout_method=lay.method, warnings=list(pl.warnings) + list(lay.warnings))
 
 

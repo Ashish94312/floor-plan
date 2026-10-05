@@ -36,7 +36,7 @@ from scan.layout.openings import (
     drop_reflections,
     reindex_by_main_door,
 )
-from scan.layout.room import classify_open_walls, layout_rooms
+from scan.layout.room import classify_open_walls, layout_rooms, repair_outlines
 from scan.output import assemble, scale_vote_on, write
 from scan.render.debug import alignment_plot, layout_plot
 from scan.stitch.doors import apply_placement, place_rooms
@@ -221,6 +221,8 @@ def run(
         log(f"  open boundaries (no wall): {', '.join(opened)}")
         if shared_frame:
             snaps += merge_open_boundaries(group, open_pairs)  # no wall -> rooms meet at one line
+    for r in repair_outlines(layouts):  # walls moved by snapping can make an outline cross itself
+        log(f"  {r}: outline crossed itself; kept its largest valid piece")
     t = time.perf_counter()
     openings = detect_openings(layouts, clouds, cfg)
     for r, ops in openings.items():
