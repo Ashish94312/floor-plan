@@ -56,10 +56,10 @@ def snap_walls(layouts: dict, cfg: dict) -> list[dict]:
             rb, _, b = items[j]
             if ra == rb or a["o"] != b["o"]:
                 continue
+            overlap = min(a["span"][1], b["span"][1]) - max(a["span"][0], b["span"][0])
             centre_a, centre_b = a["c"] + a["s"] * t / 2, b["c"] + b["s"] * t / 2
             if abs(centre_a - centre_b) > tol + (pushed if min(a["w"], b["w"]) - 1 < unseen else 0.0):
                 continue
-            overlap = min(a["span"][1], b["span"][1]) - max(a["span"][0], b["span"][0])
             # opposite faces of two rooms: facing across a gap, or crossed (the rooms overlap, which no partition
             # allows: the two faces are one wall misplaced), E23a
             partition = a["s"] != b["s"] and overlap >= sc["adjacency_min_overlap_m"]
@@ -90,6 +90,77 @@ def snap_walls(layouts: dict, cfg: dict) -> list[dict]:
                 ln["c"] = new_c[(r, k)]
         _rebuild(lay, lines)
     return moves
+
+
+def join_declared(layouts: dict, cfg: dict, same_line: list) -> list[dict]:
+    """Room pairs the user declared (captures/<capture>/hints.yaml `same_line`): their outer walls that continue each
+    other (same side, end to end) are one wall line whatever their offset, up to stitch.same_line_max_offset_m. The
+    line goes to the MEAN of the rooms' estimates, not the best-seen face: each estimate is off by its room's size
+    error (similar per room, D32), which no number of wall points reduces (E23c: kitchen + passage and hall span the
+    same width, 3.82 vs 3.41 m, tape 3.70). Runs last (openings and damage were measured on walls where the room's
+    points are; carry them over with surface_anchors / reanchor). Returns moves like snap_walls."""
+    sc = cfg["stitch"]
+    pairs = {frozenset(p) for p in same_line if len(set(p)) == 2}
+    lines = {r: _lines(lay) for r, lay in layouts.items() if lay.method == "free_space_carving"}
+    moves = []
+    for r1, r2 in (tuple(p) for p in pairs):
+        if r1 not in lines or r2 not in lines:
+            continue
+        for k1, a in enumerate(lines[r1]):
+            for k2, b in enumerate(lines[r2]):
+                overlap = min(a["span"][1], b["span"][1]) - max(a["span"][0], b["span"][0])
+                if (a["o"] != b["o"] or a["s"] != b["s"] or not -sc["snap_max_along_gap_m"] <= overlap <= 0.05
+                        or abs(a["c"] - b["c"]) > sc["same_line_max_offset_m"]):
+                    continue
+                mid = (a["c"] + b["c"]) / 2
+                for r, k, ln in ((r1, k1, a), (r2, k2, b)):
+                    moves.append({"room": r, "wall_id": layouts[r].walls[k].wall_id, "shift_m": round(mid - ln["c"], 4),
+                                  "declared": True})
+                    ln["c"] = mid
+    for r in {m["room"] for m in moves}:
+        _rebuild(layouts[r], lines[r])
+    return moves
+
+
+def surface_anchors(layouts: dict, clouds: dict) -> dict:
+    """Plan position of every opening's and wall damage's near edge (on its wall line), to carry them over when
+    walls move (join_declared)."""
+    out = {}
+    for r, lay in layouts.items():
+        walls = {w.wall_id: w for w in lay.walls}
+        for o in clouds[r].openings or []:
+            if o.wall_id in walls:
+                out[("o", r, o.opening_id)] = _point_at(walls[o.wall_id], o.offset_m)
+        for d in clouds[r].damage or []:
+            if d.surface_id in walls:
+                out[("d", r, d.damage_id)] = _point_at(walls[d.surface_id], d.from_left_m)
+    return out
+
+
+def reanchor(layouts: dict, clouds: dict, anchors: dict) -> None:
+    """Offsets along the (moved) walls from the anchored plan positions, kept on the wall."""
+    for r, lay in layouts.items():
+        walls = {w.wall_id: w for w in lay.walls}
+        for o in clouds[r].openings or []:
+            p = anchors.get(("o", r, o.opening_id))
+            if p is not None:
+                w = walls[o.wall_id]
+                o.offset_m = round(min(max(_along(w, p), 0.0), max(w.length_m - o.width_m, 0.0)), 3)
+        for d in clouds[r].damage or []:
+            p = anchors.get(("d", r, d.damage_id))
+            if p is not None:
+                w = walls[d.surface_id]
+                d.from_left_m = round(min(max(_along(w, p), 0.0), max(w.length_m - d.width_m, 0.0)), 3)
+
+
+def _point_at(w, offset: float) -> np.ndarray:
+    a, b = np.array(w.start, float), np.array(w.end, float)
+    return a + (b - a) / np.linalg.norm(b - a) * offset
+
+
+def _along(w, p: np.ndarray) -> float:
+    a, b = np.array(w.start, float), np.array(w.end, float)
+    return float((p - a) @ ((b - a) / np.linalg.norm(b - a)))
 
 
 def _rebuild(lay, lines) -> None:

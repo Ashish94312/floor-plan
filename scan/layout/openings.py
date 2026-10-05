@@ -185,9 +185,12 @@ def _share_partition_openings(layouts: dict, result: dict, t: float, min_support
                 pa, pb = np.array(pw.start), np.array(pw.end)
                 L2 = float(np.linalg.norm(pb - pa))
                 s0, s1 = sorted((float((p0 - pa) @ (pb - pa) / L2), float((p1 - pa) @ (pb - pa) / L2)))
-                s0, s1 = max(s0, 0.0), min(s1, L2)
-                if s1 - s0 < 0.5 * op.width_m:
+                if min(s1, L2) - max(s0, 0.0) < 0.5 * op.width_m:
                     continue
+                # the width is measured; where it sits along the wall carries the rooms' placement error (E23d: 9 cm past
+                # the bedroom's corner): keep the width, shift it inside the wall rather than cut it
+                s0 = min(max(s0, 0.0), max(L2 - op.width_m, 0.0))
+                s1 = min(s0 + op.width_m, L2)
                 theirs = result[op.connects_to]
                 if not any(o.wall_id == pw.wall_id and min(s1, o.offset_m + o.width_m) - max(s0, o.offset_m) > 0.5 * (s1 - s0)
                            for o in theirs) and pw.support < min_support:

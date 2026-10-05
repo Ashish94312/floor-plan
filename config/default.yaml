@@ -113,6 +113,7 @@ stitch:
   wall_thickness_m: 0.12           # nominal wall thickness between two rooms' faces (O5)
   snap_tolerance_m: 0.25           # faces whose wall-centre estimates agree this well are one physical wall
   snap_max_along_gap_m: 0.50       # collinear outer walls: at most this far apart along the line
+  same_line_max_offset_m: 1.00     # declared same line (hints.yaml): faces up to this far apart are still joined (beyond: the hint is wrong)
   door_width_tol_m: 0.15           # door matching: widths of the two sides agree this well
   door_match_margin_m: 0.25        # through-door depth must land inside the other room's outline (+ margin)
   door_match_min_score: 0.5        # share of through-door points that must agree
@@ -126,6 +127,7 @@ stitch:
   door_height_prior_m: null       # 2.05: each room's size from doors whose top was seen (doors 2.0-2.1 m; general, not tape), E22z
   door_height_sigma_m: 0.05       # spread of door heights between homes
   door_lintel_band_m: 0.20        # wall votes in this band above a door's top = its top was seen (else the view ended)
+  joint_scale: false              # rooms of separate model runs put on one scale by one run over all rooms (E23b)
 
 eval:
   wall_tolerance: {photo: 0.08, video: 0.03, lidar: 0.03}   # REQUIREMENTS §8: photo ±8%, video ±3%

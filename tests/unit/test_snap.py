@@ -7,7 +7,7 @@ import pytest
 
 from scan.config import load_config
 from scan.layout.room import Layout, _walls_clockwise
-from scan.stitch.snap import snap_walls
+from scan.stitch.snap import join_declared, reanchor, snap_walls, surface_anchors
 
 CFG = load_config()
 T = CFG["stitch"]["wall_thickness_m"]
@@ -65,6 +65,39 @@ def test_crossed_seen_faces_beyond_tolerance_untouched():
     b = layout("b", [(2.7, 0), (6, 0), (6, 3), (2.7, 3)], support=5000)
     snap_walls({"a": a, "b": b}, CFG)
     assert wall_at(b, "x", 2.7) is not None
+
+
+def test_declared_same_line_joins_far_walls_at_the_mean():
+    # kitchen strip north of the hall, both spanning the flat's width; west walls 0.40 m apart (each room's size
+    # error, E23c). Undeclared: left alone (a 0.4 m jog can be real). Declared: one line at the mean.
+    hall = layout("hall", [(-3.41, -2.3), (0, -2.3), (0, 0), (-3.41, 0)], support=19000)
+    kit = layout("kitchen", [(-3.81, T), (0, T), (0, 1.2 + T), (-3.81, 1.2 + T)], support=5000)
+    snap_walls({"hall": hall, "kitchen": kit}, CFG)
+    assert wall_at(hall, "x", -3.41) is not None and wall_at(kit, "x", -3.81) is not None
+    hall = layout("hall", [(-3.41, -2.3), (0, -2.3), (0, 0), (-3.41, 0)], support=19000)
+    kit = layout("kitchen", [(-3.81, T), (0, T), (0, 1.2 + T), (-3.81, 1.2 + T)], support=5000)
+    snap_walls({"hall": hall, "kitchen": kit}, CFG)
+    join_declared({"hall": hall, "kitchen": kit}, CFG, [["kitchen", "hall"]])
+    assert wall_at(hall, "x", -3.61) is not None and wall_at(kit, "x", -3.61) is not None
+
+
+def test_openings_keep_their_place_when_a_declared_line_moves_walls():
+    from types import SimpleNamespace
+
+    from scan.layout.openings import OpeningSeg
+
+    kit = layout("kitchen", [(-3.81, T), (0, T), (0, 1.2 + T), (-3.81, 1.2 + T)], support=5000)
+    hall = layout("hall", [(-3.41, -2.3), (0, -2.3), (0, 0), (-3.41, 0)], support=19000)
+    north = next(w for w in kit.walls if abs(w.start[1] - w.end[1]) < 1e-9 and w.start[1] > 1)
+    door = OpeningSeg("kitchen-O1", "window", north.wall_id, 0.0, 0.5, 0.8, 1.2, 3)
+    door.offset_m = round(float(np.hypot(*(np.array(north.start) - [-1.0, 1.2 + T]))), 3)  # near edge at x = -1.0
+    clouds = {"kitchen": SimpleNamespace(openings=[door], damage=[]), "hall": SimpleNamespace(openings=[], damage=[])}
+    anchors = surface_anchors({"kitchen": kit, "hall": hall}, clouds)
+    join_declared({"hall": hall, "kitchen": kit}, CFG, [["kitchen", "hall"]])
+    reanchor({"kitchen": kit, "hall": hall}, clouds, anchors)
+    north = next(w for w in kit.walls if w.wall_id == door.wall_id)
+    a, b = np.array(north.start), np.array(north.end)
+    assert np.allclose(a + (b - a) / np.linalg.norm(b - a) * door.offset_m, [-1.0, 1.2 + T], atol=1e-3)  # same place
 
 
 def test_far_apart_walls_untouched():

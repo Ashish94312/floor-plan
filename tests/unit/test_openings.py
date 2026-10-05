@@ -149,6 +149,12 @@ def test_door_is_shared_onto_a_partition_face_too_poorly_seen_to_vote():
         if copied:  # same place: b's west wall runs from y=3 down to y=0, so the door sits 3 - 1.9 = 1.1 m from its start
             d = result["b"][0]
             assert d.wall_id == "b-W4" and d.connects_to == "a" and d.offset_m == pytest.approx(1.1) and d.width_m == pytest.approx(0.9)
+    # a door seen 9 cm past the end of the neighbour's wall keeps its width and moves inside the wall (E23d)
+    layouts = {"a": room("a", 0.0, 3.0, 500, 500), "b": room("b", 3.0 + t, 6.0, 500, 4)}
+    result = {"a": [OpeningSeg("a-O1", "door", "a-W2", 2.19, 0.9, 2.0, None, 4, connects_to="b")], "b": []}
+    _share_partition_openings(layouts, result, t, CFG["layout"]["min_wall_support"])
+    d = result["b"][0]
+    assert d.width_m == pytest.approx(0.9) and d.offset_m == pytest.approx(0.0)  # b-W4 starts at y=3: the door's top end
 
 
 def test_window_reflected_in_the_wall_next_to_it_is_dropped():

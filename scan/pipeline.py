@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import yaml
 
 from scan.damage.detect import damage_regions, detector_openings, surface_boxes
 from scan.device import go_offline, seed_everything, select_device
@@ -104,6 +105,29 @@ def run(
             log(f"  size bias ({mode}): x{b['factor']:.4f}, spread {b['sigma_log']:.3f} from {b['rooms']} taped rooms")
         else:
             cap.warnings.append(f"no size calibration for {mode}: video sizes rest on the model's size sense alone")
+    if cfg["stitch"].get("joint_scale") and len({c.frame_id for c in clouds.values()}) > 1:
+        # every room on one scale: one model run over frames of all rooms, compared frame by frame (E23b)
+        from scan.geometry.mapanything_backend import load_model, predict
+        from scan.stitch.joint_scale import joint_frames, room_factors
+
+        held: dict = {}
+
+        def joint_model():
+            if "m" not in held:
+                held["m"] = load_model(dev)
+            return held["m"]
+
+        jf = joint_frames(cap, cfg["geometry"]["max_joint_views"])
+        jpred, jinfo = predict(jf, cfg, dev, joint_model, use_cache)
+        held.clear()
+        fac = room_factors(jpred, {r: c.run_views for r, c in clouds.items() if c.run_views is not None})
+        for r, f in fac.items():
+            c = clouds[r]
+            scale_room(c, f["c"])
+            c.planes = room_planes(c.points, cfg)
+            c.scale = Scale(s=1.0, sigma_log=float(np.hypot(np.nan_to_num(c.scale.sigma_log), np.nan_to_num(f["sigma_log"]))))
+            log(f"  joint scale {r}: x{f['c']:.3f} from {f['frames']} shared frames (per frame {f['per_frame']})")
+        info["joint_scale"] = {"views": len(jf), "cache": jinfo.get("cache"), "rooms": fac}
     t = time.perf_counter()
     layouts = layout_rooms(clouds, cfg)
     for r, lay in layouts.items():
@@ -114,15 +138,21 @@ def run(
         from scan.stitch.door_scale import door_scale, measured_door_heights
 
         info["door_scale"] = {}
+        heights = {r: measured_door_heights(c, layouts[r], cfg) for r, c in clouds.items()}
+        floor = cfg["geometry"]["sigma_log_floor_photo"]
+        if "joint_scale" in info:  # rooms already share one scale: all their doors set one size for the flat
+            pooled = [h for hs in heights.values() for h in hs]
+            sig = float(np.median([max(float(np.nan_to_num(c.scale.sigma_log)), floor) for c in clouds.values()]))
+            ds_flat = door_scale(pooled, sig, cfg)
         for r, c in clouds.items():
-            hs = measured_door_heights(c, layouts[r], cfg)
-            ds = door_scale(hs, max(float(np.nan_to_num(c.scale.sigma_log)), cfg["geometry"]["sigma_log_floor_photo"]), cfg)
+            hs = heights[r]
+            ds = ds_flat if "joint_scale" in info else door_scale(hs, max(float(np.nan_to_num(c.scale.sigma_log)), floor), cfg)
             info["door_scale"][r] = {"heights_m": [round(h, 3) for h in hs], "factor": ds and round(ds[0], 4)}
             if ds:
                 scale_room(c, ds[0])
                 c.planes = room_planes(c.points, cfg)
                 c.scale = Scale(s=1.0, sigma_log=ds[1])
-                log(f"  door scale {r}: doors {', '.join(f'{h:.2f}' for h in hs)} m -> x{ds[0]:.3f} (spread {ds[1]:.3f})")
+                log(f"  door scale {r}: doors {', '.join(f'{h:.2f}' for h in hs) or 'none'} m -> x{ds[0]:.3f} (spread {ds[1]:.3f})")
         if any(v["factor"] for v in info["door_scale"].values()):
             layouts = layout_rooms(clouds, cfg)
             for r, lay in layouts.items():
@@ -201,6 +231,19 @@ def run(
     timing["detector_damage_s"] = round(time.perf_counter() - t, 2)
 
     t = time.perf_counter()
+    hints_file = capture_dir / "hints.yaml"  # layout facts the user knows (not measurements), E23c
+    hints = (yaml.safe_load(hints_file.read_text()) or {}) if hints_file.exists() else {}
+    if hints.get("same_line") and shared_frame:
+        # last geometric step: openings / damage were measured on walls where the rooms' points are; carry them over
+        from scan.stitch.snap import join_declared, reanchor, surface_anchors
+
+        anchors = surface_anchors(group, clouds)
+        joined = join_declared(group, cfg, hints["same_line"])
+        reanchor(group, clouds, anchors)
+        snaps += joined
+        for m in joined:
+            log(f"  declared line {m['wall_id']}: {100 * m['shift_m']:+.1f} cm")
+        cap.warnings.append(f"hints.yaml: same wall line declared for {hints['same_line']}")
     result = assemble(cap, clouds, cfg, timing)
     files = write(result, out)
     timing["output_s"] = round(time.perf_counter() - t, 2)
