@@ -23,7 +23,7 @@ Requirement IDs refer to [REQUIREMENTS.md](../REQUIREMENTS.md). Numbers come fro
 |---|---|---|---|---|
 | FR-IN-01 | Photo tier: one folder per room, 2–8 stills | `scan/io/ingest.py`, `scan/io/photos.py` | `tests/unit/test_ingest.py` | ✅ duplicates dropped, more than 8 → sharpest 8, mixed orientation → majority, non-1× lens excluded |
 | FR-IN-02 | Video tier: handheld walkthrough | `scan/io/video.py` | `tests/unit/test_video.py` | ✅ keyframes by sharpness, focal from vanishing points |
-| FR-IN-03 | LiDAR tier: depth, poses, intrinsics | `scan/io/lidar.py`, `scan/synth/stray.py` | `tests/unit/test_lidar.py` | ⚠️ reader tested on synthetic rooms; wiring into the pipeline in progress |
+| FR-IN-03 | LiDAR tier: depth, poses, intrinsics | `scan/io/lidar.py`, `scan/layout/segment.py`, `scan/synth/stray.py` | `tests/unit/test_lidar.py`, `tests/unit/test_segment.py` | ✅ runs end to end on the three assignment Stray Scanner samples (E25); ⚠️ no tape-measured LiDAR capture, so accuracy and intervals are not calibrated |
 | FR-IN-04 | Clear errors on unusable input | `scan/errors.py`, `scan/io/ingest.py` | `tests/unit/test_ingest.py` | ✅ |
 | FR-IN-05 | Tier auto-detected | `scan/io/ingest.py` | `tests/unit/test_ingest.py::test_tier_detection` | ✅ |
 | FR-RUN-01, NFR-03 | One command per capture | `scan/cli.py` (`scan <capture>`) | README | ✅ |

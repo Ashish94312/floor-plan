@@ -4,7 +4,8 @@ Per room (same room ids: e26_lidar_to_photos.py keeps the LiDAR split's grouping
 long side (extent of its outline on its own axes; sorted, so the plans' axis choice does not matter), ceiling.
 Error = MapAnything / LiDAR - 1; 'in' = the LiDAR value lies inside MapAnything's 90% interval.
 
-  uv run python scripts/experiments/e26_compare.py <recording> [<recording> ...]
+  uv run python scripts/experiments/e26_compare.py [--ma=photo_from_lidar_joint] <recording> [<recording> ...]
+  (--ma: the MapAnything capture folder inside captures/lidar_samples/<rec>/; default photo_from_lidar)
 """
 
 import json
@@ -27,10 +28,12 @@ def rooms(path: Path) -> dict:
 
 
 errs = {"area": [], "short": [], "long": [], "ceiling": []}
-for rec in sys.argv[1:]:
+args = sys.argv[1:]
+ma_dir = next((a.split("=", 1)[1] for a in args if a.startswith("--ma=")), "photo_from_lidar")
+for rec in [a for a in args if not a.startswith("--ma=")]:
     base = Path("captures/lidar_samples") / rec
     ref, ref_fp = rooms(base / "out" / "result.json")
-    ma, ma_fp = rooms(base / "photo_from_lidar" / "out" / "result.json")
+    ma, ma_fp = rooms(base / ma_dir / "out" / "result.json")
     print(f"\n### {rec}: footprint LiDAR {ref_fp['value']:.2f} m², MapAnything {ma_fp['value']:.2f} m² "
           f"({100 * (ma_fp['value'] / ref_fp['value'] - 1):+.1f}%)\n")
     print("| Room | Area LiDAR → MA | Short side | Long side | Ceiling | MA layout |")

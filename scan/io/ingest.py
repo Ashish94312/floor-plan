@@ -2,7 +2,7 @@
 
 Layouts:
   photo  <capture>/photos/<room>/*.heic|jpg|png      one folder per room
-  video  <capture>/video/*.mov|mp4
+  video  <capture>/video/<room>/*.mov|mp4            one clip per room
   lidar  <capture>/lidar/[<recording>/]odometry.csv  or a bare Stray Scanner export
          (<capture>/odometry.csv, as in the assignment samples)
 """
@@ -56,7 +56,7 @@ def resolve_tier(root: Path, tier: Tier | None) -> Tier:
     if not found:
         raise InputError(
             f"No capture found in {root}. Expected photos/<room>/*.heic (photo), "
-            f"video/*.mov (video) or a Stray Scanner export with odometry.csv (LiDAR)."
+            f"video/<room>/*.mov (video) or a Stray Scanner export with odometry.csv (LiDAR)."
         )
     if len(found) > 1:
         raise InputError(f"{root} contains several tiers ({', '.join(found)}). Pass --tier to pick one.")

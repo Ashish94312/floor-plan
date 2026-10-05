@@ -21,7 +21,7 @@ The capture route is Route 2: the stock Camera app for photos and video, Stray S
 |---|---|
 | Photo | Works end to end, including the stitch. Portrait capture: 12/14 walls within ±8%, mean 2.9%, footprint −2.7%. Landscape capture: footprint +2.8%, but two room outlines are not scorable (§7). Intervals contain the tape value 100% of the time. |
 | Video | Runs end to end. Final config (§3): no overlaps, footprint −4.3%. Walls: mean 10.3%, 0/8 within the ±3% target. Intervals contain the tape value 75% of the time (§7). |
-| LiDAR | Stray Scanner reader built and tested on synthetic rooms. No Pro iPhone was available, so there is no tape-measured LiDAR result. |
+| LiDAR | Runs end to end on the three assignment Stray Scanner samples (E25): phone depth through ARKit poses, the walk split into rooms at doorways (2, 3 and 6 rooms). No Pro iPhone was available, so there is no tape-measured LiDAR result. On the same walks MapAnything is far off (mean room-area error 80%, E26). |
 
 ## 2. Architecture
 

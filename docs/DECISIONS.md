@@ -15,6 +15,7 @@ Every decision here must be defensible live at the defense, without tools. Each 
 ## D3. LiDAR tier: implemented against the Stray Scanner export format, validated on synthetic rooms only
 - **Why:** No Pro device is available. The walk-in may still choose LiDAR, so the code path must exist and run.
 - **Cost:** No real-capture accuracy numbers at the LiDAR tier. Reported honestly as "Partial".
+- **Update (2026-10-05, E25):** the tier now runs end to end on the three assignment Stray Scanner samples. Real data showed the export writes OpenCV camera axes (the reader's ARKit flip was wrong, E25a) and that a walk through a home needs splitting into rooms (`scan/layout/segment.py`). Still no tape-measured LiDAR capture, so accuracy remains unmeasured.
 
 ## D4. Head-to-head: magicplan on iPhone 13 vs our pipeline
 - **Why:** The spec asks for the LiDAR tier. That's impossible without a Pro device. magicplan runs without LiDAR, so this is the closest honest comparison available.

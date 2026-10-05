@@ -42,6 +42,7 @@ scan-calibrate = "scan.cli:calibrate_main"
 
 [dependency-groups]
 dev = [
+    "pycolmap>=4.2.1",
     "pytest>=8",
     "ruff>=0.6",
 ]

@@ -1,4 +1,4 @@
-# Capture Protocol (v1)
+# Capture Protocol (v2)
 
 One page. Follow it exactly, top to bottom. Allow about 15 minutes per tier for a 4-room home.
 
@@ -22,19 +22,24 @@ Do this room by room, including hallways.
 
 ## Tier 2 — Video (any iPhone, built-in Camera app, VIDEO mode)
 
-1. Stand in the doorway of the first room and press record.
+**One clip per room**, including hallways. One continuous clip through the whole home is not supported.
+
+1. Step **inside** the room and press record. Film every part of the room from inside it.
 2. Walk at **half your normal speed**. A quarter turn should take about 5 seconds.
-3. In each room, walk once around the edge. Point the phone across the room so the line where the floor meets the wall and the line where the ceiling meets the wall are both visible.
-4. Go through every doorway into every room. Pass back through the hallway between rooms.
-5. **Finish where you started**, pointing at the same view you recorded first. Then stop.
-6. Aim for about 1 minute per room, 10 minutes at most.
-7. **Hand-off.** AirDrop the video to the Mac. Save it as `captures/<capture-name>/video/walkthrough.mov`.
+3. Film from the corners towards the opposite corner. Tilt up until the ceiling line is in view, then down to the floor line, on every wall.
+4. Film each doorway **from inside this room**, with a moment looking through it into the next room.
+5. Aim for 1–2 minutes per room. Then stop.
+6. **Hand-off.** AirDrop the clips to the Mac. Put each room's clip in its own folder: `captures/<capture-name>/video/<room-name>/<clip>.MOV`, with the same room names as for photos.
 
 ## Tier 3 — LiDAR (iPhone Pro only, free App Store app "Stray Scanner")
 
+**One recording through the whole home.** The pipeline splits it into rooms at the doorways.
+
 1. Install **Stray Scanner** from the App Store and open it.
-2. Tap **record**. Walk exactly as described in Tier 2, steps 2–5. Tap **stop**.
-3. **Hand-off.** Open the Files app, then On My iPhone, then Stray Scanner. Long-press the newest folder, tap **Share**, and AirDrop it to the Mac. Put the folder in `captures/<capture-name>/lidar/`.
+2. Tap **record** in the first room. Walk at **half your normal speed** through every room and hallway: in each room, film every wall, and tilt up to the ceiling and down to the floor.
+3. **At every doorway, tilt up so the wall above the door and the ceiling are in view** before walking through. The wall above a door is what separates two rooms in the plan; a walk that never films above about 2 m comes out as one big room.
+4. Tap **stop**.
+5. **Hand-off.** Open the Files app, then On My iPhone, then Stray Scanner. Long-press the newest folder, tap **Share**, and AirDrop it to the Mac. Put the folder in `captures/<capture-name>/lidar/`. To film one recording per room instead, put each in `captures/<capture-name>/lidar/<room-name>/`.
 
 ## Avoid (all tiers)
 

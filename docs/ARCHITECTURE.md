@@ -47,7 +47,7 @@
 |---|---|
 | 48-hour build, single developer | Reuse pretrained models. Simple, explainable geometry. No custom training. |
 | Dev hardware: MacBook M4, 16 GB RAM, about 43 GB free disk after weights | Models must fit in memory on Apple MPS or CPU. Required weights about 5.5 GB (MapAnything 4.9 GB + OWLv2 0.6 GB + DINOv2 code). |
-| Dev phone: iPhone 13 (no LiDAR) | Photo and video developed on real data. LiDAR developed on synthetic data only. |
+| Dev phone: iPhone 13 (no LiDAR) | Photo and video developed on real data. LiDAR developed on synthetic data, then run on the assignment's real samples (E25). |
 | Walk-in uses reviewers' iPhone 15+ | Read camera parameters from each file. Never hardcode a phone model. |
 | Must run without our servers | Everything runs locally. Weights fetched by script. |
 | Reproducible and repeatable | Deterministic seeds, sorted inputs, replayable cache. |
@@ -621,7 +621,7 @@ This table seeds the compliance matrix (deliverable 1).
 
 | Requirement | Component / file | Artifact | Planned status |
 |---|---|---|---|
-| Three tiers, same contract | `io/ingest.py`, `pipeline.py`, `schema.py` | `out/result.json` per tier | Photo ✅ · Video ✅ · LiDAR ⚠️ synthetic only |
+| Three tiers, same contract | `io/ingest.py`, `pipeline.py`, `schema.py` | `out/result.json` per tier | Photo ✅ · Video ✅ · LiDAR ✅ assignment samples (no tape) |
 | Per-room plan (walls, ceiling, area, openings) | `layout/room.py`, `layout/openings.py` | `rooms` in JSON, `rooms/*.png` | ✅ |
 | Stitched plan, adjacency, no overlap | `stitch/*` | `stitched_plan`, `plan.png` | ✅ |
 | Photo-tier whole-property stitch (G5) | `stitch/doors.py`, `stitch/place.py` | `reports/benchmark.md#g5` | ✅ |
@@ -660,7 +660,7 @@ This table seeds the compliance matrix (deliverable 1).
 | R6 | Glass windows have no depth | Medium | Low | Windows detected from RGB. Wall plane fitted from surrounding points. |
 | R7 | Non-Manhattan rooms (angled or curved walls) | Low (dev home) | Medium | Documented failure mode. Fallback rectangle + wide interval. |
 | R8 | Video room segmentation fails without detected doors | Medium | High | Watershed fallback. Trajectory-based split. |
-| R9 | LiDAR path untested on real data | Certain | Medium | Synthetic tests. Disclosed. Stray format verified from documentation only. |
+| R9 | LiDAR path untested on real data | Retired (E25) | Medium | Run on the three assignment samples; the pose convention was checked on real frames (E25a). Still no tape-measured LiDAR capture. |
 | R10 | Disk full | ~~High~~ Low | High | 43 GB free after weights |
 | R11 | Run out of time before the fix loop | Medium | Very high | Feature freeze at H31 ([PLAN.md](PLAN.md)). |
 | R12 | Developer can't defend the code live | Medium | High | DECISIONS.md. Simple algorithms. Review each module on completion. |
