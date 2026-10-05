@@ -99,6 +99,15 @@ def test_separate_frames_are_unplaced_with_warning(tmp_path):
     assert any("not placed" in w for w in res.warnings)
 
 
+def test_rooms_placed_by_link_frames_report_the_method(tmp_path):
+    rooms = _two_rooms_joint()  # adjacent: the adjacency loop must not clobber the method name
+    for c in rooms.values():
+        c.frame_id, c.placed_by = "stitched", "video_links"
+    res = assemble(Capture("s", tmp_path, "video"), rooms, CFG, {})
+    assert res.stitched_plan.placement_method == "video_links" and res.stitched_plan.adjacency
+    assert "link frames" in res.stitched_plan.drift_correction.method
+
+
 @pytest.mark.skipif(not (REPO / "captures/home01_photo_a/out/result.json").exists(), reason="run the pipeline first")
 def test_home01_result_json_validates():
     res = ScanResult.model_validate_json((REPO / "captures/home01_photo_a/out/result.json").read_text())

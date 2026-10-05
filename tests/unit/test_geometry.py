@@ -134,6 +134,25 @@ def test_portrait_turn_round_trip_gives_the_same_world_points():
     assert np.allclose(unturn_K(Kt, W_turned=H), K) and np.allclose(unturn_R(Tt[:3, :3]), T[:3, :3])
 
 
+def test_depth_focal_fix_recovers_the_scene_a_wrong_focal_squeezed():
+    from scan.geometry.cloud import depth_focal_fix
+
+    rng = np.random.default_rng(0)
+    depth = rng.uniform(1.0, 4.0, (2, 30, 40))
+    T = np.stack([np.eye(4)] * 2)
+    T[1, :3, 3] = [0.5, 0.0, -0.3]
+    K_true, K_model = K(100.0), K(75.0)  # the model took a wider lens (75 vs 100 px)
+    truth = np.stack([unproject(depth[i], K_true, T[i]) for i in range(2)])
+    # same image, wrong focal: lateral/vertical extents kept, depth scaled by f'/f
+    d_model = depth * 75.0 / 100.0
+    pred = {"depth": d_model, "T_wc": T, "K_exif": np.stack([K_true] * 2), "K_model": np.stack([K_model] * 2),
+            "pts": np.stack([unproject(d_model[i], K_model, T[i]) for i in range(2)])}
+    assert np.allclose(pred["pts"][..., 1] - T[:, None, None, 1, 3], truth[..., 1] - T[:, None, None, 1, 3])  # heights kept
+    fixed, r = depth_focal_fix(pred)
+    assert np.allclose(r, 100.0 / 75.0) and np.allclose(fixed["pts"], truth, atol=1e-5)
+    assert np.allclose(fixed["K_model"], K_true)  # rays='model' stays consistent with the fixed points
+
+
 def test_plan_groups_auto_joint_and_fallback():
     from scan.pipeline import plan_groups
     from scan.types import Capture
@@ -179,3 +198,89 @@ def test_pipeline_replays_cache_deterministically(tmp_path):
     for r in ("bedroom1", "hall"):
         assert 100_000 < len(c1[r].points) < 300_000
         assert c1[r].views["depth"].shape[0] == 7
+
+
+def test_crop_aspect_keeps_every_pixel_ray():
+    from scan.geometry.mapanything_backend import crop_aspect
+
+    img = np.arange(1024 * 576 * 3, dtype=np.uint32).reshape(1024, 576, 3).astype(np.uint8)
+    Kf = np.array([[700.0, 0, 288], [0, 700.0, 512], [0, 0, 1]])
+    c, Kc = crop_aspect(img, Kf, 4 / 3)
+    assert c.shape[:2] == (768, 576) and np.array_equal(c[0], img[128])
+    ray = lambda K, u, v: np.linalg.inv(K) @ [u, v, 1.0]
+    assert np.allclose(ray(Kc, 10.0, 0.0), ray(Kf, 10.0, 128.0))
+    assert crop_aspect(img, Kf, None)[0] is img
+
+
+def test_pad_frame_content_box_matches_mapanything_preprocessing():
+    import torch
+    from mapanything.utils.image import preprocess_inputs
+    from PIL import Image
+
+    from scan.geometry.mapanything_backend import content_box, pad_frame
+
+    rng = np.random.default_rng(0)
+    img = rng.integers(40, 255, (1024, 576, 3), dtype=np.uint8)
+    K = np.array([[869.0, 0, 288], [0, 869.0, 512], [0, 0, 1]])
+    canvas, Kc, off = pad_frame(img, K, 1.25)
+    assert canvas.shape[:2] == (1280, 720) and np.array_equal(canvas[off[1]:off[1] + 1024, off[0]:off[0] + 576], img)
+    v = preprocess_inputs([{"img": Image.fromarray(canvas), "intrinsics": torch.tensor(Kc, dtype=torch.float32)}])[0]
+    Ko = v["intrinsics"][0].numpy().astype(np.float64)
+    xa, ya, xb, yb = content_box(Kc, Ko, off, img.shape[:2])
+    raw = (v["img"][0].permute(1, 2, 0).numpy())  # normalised image; black canvas -> one constant value
+    black = raw[0, 0]
+    inside = raw[ya:yb, xa:xb]
+    assert not np.any(np.all(np.isclose(inside, black, atol=1e-3), axis=-1))  # no canvas pixel inside the box
+    assert np.allclose(raw[ya - 6, xa:xb], black, atol=0.1) and np.allclose(raw[ya:yb, xa - 6], black, atol=0.1)
+    s = Ko[0, 0] / Kc[0, 0]
+    assert abs((xb - xa) - 576 * s) <= 4 and abs((yb - ya) - 1024 * s) <= 4  # 1-2 px in from each edge
+
+
+def test_repose_undoes_a_squeezed_focal_and_squeezed_camera_spacing():
+    """Model-like errors on a textured synthetic room: each frame's focal 0.80-0.90x the truth with depth squeezed to
+    match, camera spacing squeezed 0.77x, rotations off ~1 deg. repose must give back the true cameras and points."""
+    import cv2
+
+    from scan.config import load_config
+    from scan.geometry.repose import repose
+    from scan.types import Frame
+    from tests.unit.test_stitch_doors import cast
+    from tests.unit.test_stitch_links import K as K_true
+    from tests.unit.test_stitch_links import texture
+
+    cams = [(0.8, 0.8, 1.4, 30), (1.1, 0.9, 1.5, 38), (1.4, 1.0, 1.4, 46), (1.0, 1.4, 1.5, 22), (1.4, 1.5, 1.4, 34),
+            (1.8, 1.2, 1.5, 55)]
+    depth, T = map(np.stack, zip(*(cast(np.array(c[:3], float), c[3]) for c in cams)))
+    pts = np.stack([unproject(np.nan_to_num(d, posinf=50.0), K_true, t) for d, t in zip(depth, T)])
+    rgb = texture(pts)
+    rng = np.random.default_rng(0)
+    rho = np.array([0.80, 0.86, 0.90, 0.83, 0.88, 0.81])
+    Tm = T.copy()
+    mean = T[:, :3, 3].mean(0)
+    Tm[:, :3, 3] = mean + 0.77 * (T[:, :3, 3] - mean)
+    for i in range(len(cams)):
+        Tm[i, :3, :3] = cv2.Rodrigues(rng.normal(0, np.radians(0.7), 3))[0] @ T[i, :3, :3]
+    Km = np.stack([K_true.copy() for _ in cams])
+    Km[:, 0, 0] *= rho
+    Km[:, 1, 1] *= rho
+    pred = {"depth": (depth * rho[:, None, None]).astype(np.float32), "mask": np.isfinite(depth), "T_wc": Tm,
+            "K_model": Km, "K_exif": np.stack([K_true] * len(cams)), "rgb": rgb, "conf": np.ones_like(depth),
+            "pts": pts.astype(np.float32), "names": np.array([f"v{i}" for i in range(len(cams))])}
+    frames = [Frame(image_path=Path(f"v{i}"), K=K_true, rgb=rgb[i], timestamp=float(i)) for i in range(len(cams))]
+    out, info = repose(pred, frames, load_config())
+    assert info["views_reached"] == len(cams) and info["pairs"] >= len(cams), info
+    assert info["scale_sigma_log"] < 0.01  # every frame votes for the same room scale here
+    assert np.abs(np.linalg.norm(out["T_wc"][:, :3, 3] - T[:, :3, 3], axis=1)).max() < 0.03
+    ok = np.isfinite(depth) & (depth < 6)
+    assert np.median(np.linalg.norm(out["pts"][ok] - pts[ok], axis=-1)) < 0.03
+
+
+def test_similarity_ransac_never_refits_on_an_empty_set():
+    """Collinear matches: the refit is unstable and may leave no inlier; it must return a model or None, not crash."""
+    from scan.geometry.repose import similarity_ransac
+
+    rng = np.random.default_rng(0)
+    B = np.stack([np.linspace(0, 2, 40), np.zeros(40), np.full(40, 2.0)], 1) + rng.normal(0, 1e-4, (40, 3))
+    A = B * 1.1 + [0.2, 0.0, 0.1]
+    res = similarity_ransac(A, B, np.full(40, 0.01))
+    assert res is None or (res[3].sum() >= 3 and 0.3 < res[0] < 3.0)

@@ -14,6 +14,27 @@ def unproject(depth: np.ndarray, K: np.ndarray, T_wc: np.ndarray) -> np.ndarray:
     return cam @ T_wc[:3, :3].T + T_wc[:3, 3]
 
 
+def depth_focal_fix(pred: dict[str, np.ndarray], scale: float = 1.0) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    """Undo the focal-depth trade-off of a view whose focal the model misjudged (E22m).
+
+    A pinhole image fixes only depth/focal: if the model takes a focal f' instead of the true f, it can
+    still reproduce the image by keeping lateral and vertical extents right and scaling depth by f'/f.
+    On video frames MapAnything takes ~23-27 mm against ~30 mm, so heights come out right while
+    lengths along the line of sight come out short (hall -11%). Fix per view: depth x f/f', points
+    rebuilt with the true focal (K_exif x scale). Lateral/vertical extents stay as the model had them.
+    Returns the corrected arrays (K_model := true K, so rays='model' and ray_K stay consistent) and f/f'."""
+    K_true = pred["K_exif"].copy()
+    K_true[:, 0, 0] *= scale
+    K_true[:, 1, 1] *= scale
+    r = K_true[:, 0, 0] / pred["K_model"][:, 0, 0]
+    out = dict(pred)
+    out["depth"] = (pred["depth"] * r[:, None, None]).astype(np.float32)
+    out["pts"] = np.stack([unproject(out["depth"][i], K_true[i], pred["T_wc"][i]) for i in range(len(r))]).astype(np.float32)
+    out["K_model"] = K_true
+    out["K_exif"] = K_true
+    return out, r
+
+
 def ray_K(views: dict[str, np.ndarray], i: int, rays: str) -> np.ndarray:
     """Intrinsics consistent with view_points(views, i, rays): the model's for rays='model' (video,
     E22c), EXIF for rays='exif'. Anything that projects into a view or back out of it must use these."""

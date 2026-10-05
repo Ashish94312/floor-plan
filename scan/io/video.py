@@ -129,6 +129,12 @@ def ingest_video(cap, cfg: dict) -> None:
         raise InputError(f"{vdir}: no clips. Expected video/<room>/*.mov")
     per_room = vc["keyframes_per_room"]
     from scan.geometry.vanishing import focal_px
+    from scan.io.quicktime import focal_35mm
+
+    # QuickTime camera.focal_length.35mm_equivalent is the lens' nominal focal (iPhone 13 1x: 27 mm), not the
+    # 16:9 stabilised frame's: self-calibration and vanishing points agree on ~32 mm (E22n). Reported only.
+    meta_f35 = [x for x in (focal_35mm(f) for fs_ in clips.values() for f in fs_) if x]
+    need_vp = not vc.get("force_f35_mm")
 
     linking = vc["link_frames_per_pair"] > 0 and len(clips) > 1
     raw, fs = {}, []
@@ -141,7 +147,7 @@ def ingest_video(cap, cfg: dict) -> None:
             frames, ts, info = decode(f, vc["decode_fps"], cfg["ingest"]["working_max_side"])
             picks, sharp = keyframes(frames, max(1, per_room // len(files)), vc["min_sharpness"],
                                      min_gap=round(vc["min_keyframe_gap_s"] * vc["decode_fps"]))
-            for i in np.argsort(sharp)[::-1][: vc["vp_frames_per_clip"]]:  # focal: many sharp frames, not just keyframes
+            for i in np.argsort(sharp)[::-1][: vc["vp_frames_per_clip"] if need_vp else 0]:  # many sharp frames
                 f_px = focal_px(frames[i], seed=int(i))
                 if f_px is not None:
                     fs.append(f_px / math.hypot(*frames[i].shape[:2]))  # focal per unit diagonal
@@ -182,24 +188,32 @@ def ingest_video(cap, cfg: dict) -> None:
             meta = PhotoMeta(sha256=hashlib.sha256(f"{digest}@{t:.3f}".encode()).hexdigest(), full_size=(W, H),
                              orientation="portrait" if H > W else "landscape", device=info["model"], lens=None,
                              f35_mm=round(f35, 2), intrinsics_source=source, captured_at=None, sharpness=float(sh))
-            frames_out.append(Frame(image_path=f.parent / f"{f.stem}_t{t:06.2f}", K=K, rgb=np.ascontiguousarray(fr),
+            frames_out.append(Frame(image_path=f.parent / frame_name(f, t), K=K, rgb=np.ascontiguousarray(fr),
                                     room_hint=room, timestamp=float(t), meta=meta, link=lk))
         if sum(not fr.link for fr in frames_out) < cfg["ingest"]["min_images_per_room"]:
             raise InputError(f"{vdir / room}: only {len(frames_out)} sharp keyframes; record slower / steadier.")
         cap.rooms[room] = frames_out
     cap.devices = sorted({i[3]["model"] for _, n, _, _ in raw.values() for i in n if i[3]["model"]})
     cap.warnings.append(f"video: {sum(len(v) for v in cap.rooms.values())} keyframes from {sum(len(c) for c in clips.values())} "
-                        f"clips; focal {f35:.1f} mm (35 mm eq.) from {source} ({len(plausible)} frames)")
+                        f"clips; focal {f35:.1f} mm (35 mm eq.) from {source} "
+                        f"({len(plausible)} vanishing-point frames)"
+                        + (f"; lens nominal {'/'.join(f'{x:g}' for x in sorted(set(meta_f35)))} mm (QuickTime)" if meta_f35 else ""))
     if linking:
+        cap.links = [(a, na, b, nb) for a, _ta, b, _tb, _n, na, nb in links]
         cap.warnings.append("video links (both rooms see the same thing): " + (
-            "; ".join(f"{a} {ta:.1f} s <-> {b} {tb:.1f} s ({n} matches)" for a, ta, b, tb, n in links) or "none found"))
+            "; ".join(f"{a} {ta:.1f} s <-> {b} {tb:.1f} s ({n} matches)" for a, ta, b, tb, n, *_ in links) or "none found"))
+
+
+def frame_name(clip: Path, t: float) -> str:
+    """Name of the keyframe of `clip` at time t (Frame.image_path.name, model-run view name)."""
+    return f"{clip.stem}_t{t:06.2f}"
 
 
 def _add_links(raw: dict, lcand: dict, lfeat: dict, vc: dict) -> list[tuple]:
     """For each pair of rooms, the best `link_frames_per_pair` frame pairs that see the same thing join
     both rooms' keyframes, flagged as links: they tie the rooms together in a joint model run, but they
     look INTO the other room, so they are not used to measure or outline either room (E22l).
-    Returns [(room a, time a, room b, time b, matches)]."""
+    Returns [(room a, time a, room b, time b, matches, frame name in a, frame name in b)]."""
     import itertools
 
     links = []
@@ -210,14 +224,19 @@ def _add_links(raw: dict, lcand: dict, lfeat: dict, vc: dict) -> list[tuple]:
             if any(abs(ta - x) < vc["link_spread_s"] and abs(tb - y) < vc["link_spread_s"] for x, y in chosen):
                 continue  # a neighbour of a link already taken
             chosen.append((ta, tb))
-            links.append((a, round(float(ta), 2), b, round(float(tb), 2), n))
+            used = []  # per room: the frame that stands for this link (itself, or a keyframe < min gap away)
             for room, i in ((a, ia), (b, ib)):
                 fr, name, sh = lcand[room][i]
-                if all(n_[0] != name[0] or abs(n_[1] - name[1]) >= vc["min_keyframe_gap_s"] for n_ in raw[room][1]):
+                near = [n_ for n_ in raw[room][1] if n_[0] == name[0] and abs(n_[1] - name[1]) < vc["min_keyframe_gap_s"]]
+                if near:
+                    name = min(near, key=lambda n_: abs(n_[1] - name[1]))
+                else:
                     raw[room][0].append(fr)
                     raw[room][1].append(name)
                     raw[room][2].append(sh)
                     raw[room][3].append(True)
+                used.append(frame_name(name[0], name[1]))
+            links.append((a, round(float(ta), 2), b, round(float(tb), 2), n, *used))
             if len(chosen) == vc["link_frames_per_pair"]:
                 break
     return links

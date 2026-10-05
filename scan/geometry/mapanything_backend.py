@@ -95,7 +95,52 @@ def _cache_key(frames, cfg) -> str:
         amp_dtype=g["amp_dtype"],
         memory_efficient=g["memory_efficient"],
         **({"rotate_portrait": True} if _turns(frames, cfg) else {}),  # old keys unchanged when off
+        **({"max_aspect": g["max_aspect"]} if g.get("max_aspect") else {}),
+        **({"pad_scale": g["pad_scale"]} if g.get("pad_scale") else {}),
     )
+
+
+def pad_frame(img: np.ndarray, K: np.ndarray, pad_scale: float | None) -> tuple[np.ndarray, np.ndarray, tuple[int, int]]:
+    """Centre the image on a black canvas pad_scale times its size (E22n). MapAnything assumes a field of view
+    of its own (~72 deg on the long side) and takes a focal to match; on 32 mm video frames (61 deg) that
+    focal is ~20% short and depth is squeezed. On a canvas whose field of view at the TRUE focal is what the
+    model expects, the content keeps its true size. Returns (canvas, K on the canvas, content offset x, y)."""
+    if not pad_scale or pad_scale <= 1:
+        return img, K, (0, 0)
+    H, W = img.shape[:2]
+    Hc, Wc = round(H * pad_scale / 2) * 2, round(W * pad_scale / 2) * 2
+    x0, y0 = (Wc - W) // 2, (Hc - H) // 2
+    canvas = np.zeros((Hc, Wc, 3), img.dtype)
+    canvas[y0:y0 + H, x0:x0 + W] = img
+    K = K.copy()
+    K[0, 2] += x0
+    K[1, 2] += y0
+    return canvas, K, (x0, y0)
+
+
+def content_box(K_in: np.ndarray, K_out: np.ndarray, off: tuple[int, int], hw: tuple[int, int]) -> tuple[int, int, int, int]:
+    """Pixel box (x0, y0, x1, y1) of the padded frame's content at the model's resolution. K_in: canvas K at
+    working resolution, K_out: the same after preprocess_inputs (scale + centre crop); hw: content H, W."""
+    s = K_out[0, 0] / K_in[0, 0]
+    ox, oy = s * K_in[0, 2] - K_out[0, 2], s * K_in[1, 2] - K_out[1, 2]
+    xa, ya = int(np.ceil(s * off[0] - ox)) + 1, int(np.ceil(s * off[1] - oy)) + 1  # 1 px in from the black edge
+    xb, yb = int(np.floor(s * (off[0] + hw[1]) - ox)) - 1, int(np.floor(s * (off[1] + hw[0]) - oy)) - 1
+    return xa, ya, xb, yb
+
+
+def crop_aspect(img: np.ndarray, K: np.ndarray, max_aspect: float | None) -> tuple[np.ndarray, np.ndarray]:
+    """Centre-crop the long side to short side x max_aspect (E22n: 9:16 video frames -> 3:4 like photos)."""
+    if not max_aspect:
+        return img, K
+    H, W = img.shape[:2]
+    K = K.copy()
+    if H > W * max_aspect:
+        y0 = (H - round(W * max_aspect)) // 2
+        img, K[1, 2] = img[y0:y0 + round(W * max_aspect)], K[1, 2] - y0
+    elif W > H * max_aspect:
+        x0 = (W - round(H * max_aspect)) // 2
+        img, K[0, 2] = img[:, x0:x0 + round(H * max_aspect)], K[0, 2] - x0
+    return np.ascontiguousarray(img), K
 
 
 def _turns(frames, cfg) -> list[bool]:
@@ -104,6 +149,90 @@ def _turns(frames, cfg) -> list[bool]:
         return []
     t = [f.rgb.shape[0] > f.rgb.shape[1] for f in frames]
     return t if any(t) else []
+
+
+def _infer(model, views, g, device) -> tuple[list, float, float]:
+    import time
+
+    from scan.device import PeakMemory
+
+    torch.manual_seed(0)
+    t0 = time.perf_counter()
+    with PeakMemory(device) as mem, torch.inference_mode():
+        preds = model.infer(
+            views,
+            memory_efficient_inference=g["memory_efficient"],
+            use_amp=True,
+            amp_dtype=g["amp_dtype"],
+            apply_mask=True,
+            mask_edges=True,
+            apply_confidence_mask=False,
+        )
+    if device.type == "mps":
+        torch.mps.synchronize()
+    return preds, time.perf_counter() - t0, mem.peak_gb
+
+
+def refit_with_depth(pred: dict[str, np.ndarray], cfg, device, get_model, scale: float = 1.0, use_cache: bool = True
+                     ) -> tuple[dict[str, np.ndarray], dict]:
+    """Second model pass for video (E22n): the model re-solves poses (and refines depth) given each view's
+    depth stretched to the true focal (cloud.depth_focal_fix) and the true intrinsics as inputs. Pass 1
+    keeps its own focal (~23-27 mm vs 32 true) and squeezes depth along the line of sight; stretching depth
+    alone leaves the poses in the squeezed world (E22m). Inputs at the model's working resolution (pass 1's
+    image), masked pixels as depth 0 (= no input)."""
+    from scan import cache
+    from scan.cache import cache_key
+    from scan.geometry.cloud import depth_focal_fix
+
+    fixed, r = depth_focal_fix(pred, scale)
+    key = cache_key(kind="mapanything_refit", pass1=hashlib_of(pred), scale=scale, code=MAPANYTHING_COMMIT)
+    if use_cache and (hit := cache.load(cfg, "mapanything", key)) is not None:
+        hit["names"], hit["rooms"] = pred["names"], pred["rooms"]
+        return hit, {"cache": "hit", "key": key, "infer_s": 0.0, "depth_focal_ratio": _pct(r)}
+
+    from mapanything.utils.image import preprocess_inputs
+    from PIL import Image
+
+    g = cfg["geometry"]
+    views = []
+    for i in range(len(r)):
+        d = np.where(pred["mask"][i], fixed["depth"][i], 0.0).astype(np.float32)
+        views.append({"img": Image.fromarray(pred["rgb"][i]), "intrinsics": torch.tensor(fixed["K_exif"][i], dtype=torch.float32),
+                      "depth_z": torch.tensor(d), "is_metric_scale": torch.tensor([True])})
+    views = preprocess_inputs(views)  # same size in and out (pass 1's working resolution)
+    preds, infer_s, peak = _infer(get_model(), views, g, device)
+
+    def stack(k, fn=lambda x: x):
+        return np.stack([fn(p[k][0].float().cpu().numpy()) for p in preds])
+
+    out = {
+        "pts": stack("pts3d").astype(np.float32),
+        "depth": stack("depth_z", lambda x: x[..., 0]).astype(np.float32),
+        "conf": stack("conf").astype(np.float32),
+        "mask": np.stack([p["mask"][0, ..., 0].cpu().numpy().astype(bool) for p in preds]) & pred["mask"],
+        "T_wc": stack("camera_poses").astype(np.float64),
+        "K_model": stack("intrinsics").astype(np.float64),
+        "K_exif": fixed["K_exif"],
+        "rgb": pred["rgb"],
+        "names": pred["names"],
+        "rooms": pred["rooms"],
+    }
+    if use_cache:
+        cache.save(cfg, "mapanything", key, out)
+    return out, {"cache": "miss", "key": key, "infer_s": round(infer_s, 2), "peak_accel_gb": peak, "depth_focal_ratio": _pct(r)}
+
+
+def hashlib_of(pred: dict[str, np.ndarray]) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    for k in ("depth", "T_wc", "K_model", "K_exif"):
+        h.update(np.ascontiguousarray(pred[k]).tobytes())
+    return h.hexdigest()
+
+
+def _pct(r: np.ndarray) -> list[float]:
+    return [round(float(x), 3) for x in np.percentile(r, [10, 50, 90])]
 
 
 def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dict[str, np.ndarray], dict]:
@@ -124,17 +253,18 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
         hit["rooms"] = np.array([f.room_hint for f in frames])
         return hit, {"cache": "hit", "key": key, "infer_s": 0.0}
 
-    import time
-
     from mapanything.utils.image import preprocess_inputs
     from PIL import Image
 
     g = cfg["geometry"]
     fs = float(g["f_scale"])
     turned = _turns(frames, cfg) or [False] * len(frames)
-    views = []
+    views, pads = [], []
     for f, t in zip(frames, turned):
-        K, img = f.K.copy(), f.rgb
+        img, K = crop_aspect(f.rgb, f.K, g.get("max_aspect"))
+        hw = img.shape[:2]
+        img, K, off = pad_frame(img, K, g.get("pad_scale"))
+        pads.append((K.copy(), off, hw))
         if t:
             K, img = turn_K(K, img.shape[0]), np.ascontiguousarray(np.rot90(img, -1))
         K[0, 0] *= fs
@@ -148,24 +278,7 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
         if t:
             K_exif[i] = unturn_K(K_exif[i], v["img"].shape[-1])
 
-    from scan.device import PeakMemory
-
-    model = get_model()
-    torch.manual_seed(0)
-    t0 = time.perf_counter()
-    with PeakMemory(device) as mem, torch.inference_mode():
-        preds = model.infer(
-            views,
-            memory_efficient_inference=g["memory_efficient"],
-            use_amp=True,
-            amp_dtype=g["amp_dtype"],
-            apply_mask=True,
-            mask_edges=True,
-            apply_confidence_mask=False,
-        )
-    if device.type == "mps":
-        torch.mps.synchronize()
-    infer_s = time.perf_counter() - t0
+    preds, infer_s, peak = _infer(get_model(), views, g, device)
 
     def back(a, t):  # per-pixel output of a turned view -> original orientation
         return np.ascontiguousarray(np.rot90(a, 1, axes=(0, 1))) if t else a
@@ -191,6 +304,14 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
         "names": np.array([f.image_path.name for f in frames]),
         "rooms": np.array([f.room_hint for f in frames]),
     }
+    if g.get("pad_scale") and g["pad_scale"] > 1:  # back to the content: every view has the same box (same frame size)
+        xa, ya, xb, yb = content_box(pads[0][0], K_exif[0], pads[0][1], pads[0][2])  # both without f_scale
+        for k in ("pts", "depth", "conf", "mask", "rgb"):
+            out[k] = np.ascontiguousarray(out[k][:, ya:yb, xa:xb])
+        for k in ("K_model", "K_exif"):
+            out[k] = out[k].copy()
+            out[k][:, 0, 2] -= xa
+            out[k][:, 1, 2] -= ya
     if use_cache:
         cache.save(cfg, "mapanything", key, out)
-    return out, {"cache": "miss", "key": key, "infer_s": round(infer_s, 2), "views": len(frames), "peak_accel_gb": mem.peak_gb}
+    return out, {"cache": "miss", "key": key, "infer_s": round(infer_s, 2), "views": len(frames), "peak_accel_gb": peak}

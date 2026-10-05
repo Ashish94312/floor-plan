@@ -1,4 +1,5 @@
-# Written by scan-calibrate (D30). Per tier_mode and measurement type: interval inflation k.
+# Written by scan-calibrate (D30). Per tier_mode and measurement type: interval inflation k;
+# scale_bias: systematic size error, plan x factor (E22q).
 photo_joint:
   area:
     k: 0.5
@@ -21,3 +22,23 @@ photo_joint:
     max_ratio_at_k_used: 0.115
     method: 'n=7 too small for q=0.9: max x 2.0, floored at k_min=0.5'
     n: 7
+video_per_room_repose:
+  scale_bias:
+    factor: 1.0173
+    log_bias: 0.0171
+    loo:
+    - corrected_pct: -6.59
+      raw_pct: -7.62
+      room: home01_video_a/bedroom1
+    - corrected_pct: -1.21
+      raw_pct: -2.3
+      room: home01_video_c/bedroom1
+    - corrected_pct: 10.61
+      raw_pct: 9.4
+      room: home01_video_d/bedroom1
+    - corrected_pct: 1.23
+      raw_pct: -1.1
+      room: home01_video_d/hall
+    physical_rooms: 2
+    rooms: 4
+    sigma_log: 0.062

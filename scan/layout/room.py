@@ -90,7 +90,27 @@ def carve_free_space(rays: list[tuple[np.ndarray, np.ndarray]], lo, shape, cell,
     return free
 
 
-def _room_region(own: np.ndarray, floor_counts, seeds_ij, cfg):
+def lintel_barrier(walls_pts: np.ndarray, lo, shape, cfg) -> np.ndarray | None:
+    """Cells holding high wall points (above door height): walls, and the lintel over every door. Lines of sight
+    pass UNDER a lintel into the next room; cutting the free space along these cells separates what was only
+    seen through a door, while an open side (no wall above it, e.g. an open kitchen) stays open (E22n)."""
+    lc = cfg["layout"]
+    if not lc.get("lintel_min_z_m"):
+        return None
+    cell = lc["cell_m"]
+    hi = walls_pts[walls_pts[:, 2] >= lc["lintel_min_z_m"]]
+    img = np.zeros((shape[1], shape[0]), np.uint8)
+    if len(hi):
+        ij = _to_ij(hi[:, :2], lo, cell)
+        ok = (ij[:, 0] >= 0) & (ij[:, 0] < shape[0]) & (ij[:, 1] >= 0) & (ij[:, 1] < shape[1])
+        np.add.at(img, (ij[ok, 1], ij[ok, 0]), 1)
+    img = (img >= lc["lintel_min_points"]).astype(np.uint8)
+    k = max(1, round(lc["lintel_close_m"] / cell))  # bridge sparse points along the (Manhattan) wall lines
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((1, k), np.uint8)) | cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((k, 1), np.uint8))
+    return cv2.dilate(img, np.ones((3, 3), np.uint8)).astype(bool)
+
+
+def _room_region(own: np.ndarray, floor_counts, seeds_ij, cfg, barrier: np.ndarray | None = None):
     """Room's free space -> cut doorway necks -> best component -> Manhattan regularisation.
 
     own: cells this room's lines of sight passed through (in a joint run: and it saw them most).
@@ -102,6 +122,8 @@ def _room_region(own: np.ndarray, floor_counts, seeds_ij, cfg):
     # lines of sight fan out with distance and leave speckle near far walls: merge neighbours first
     kg = max(1, round(lc["free_gap_fill_m"] / cell))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((kg, kg), np.uint8))
+    if barrier is not None:
+        mask[barrier] = 0
     r = round(lc["neck_cut_m"] / 2 / cell)
     neck = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
     opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, neck)
@@ -358,7 +380,7 @@ def _layout_one(room_id, cloud, d, own, free, lo, shape, cfg) -> Layout:
     if len(walls_pts) < lc["min_wall_points"]:
         return _fallback(room_id, cloud.points, ceiling_h, [f"only {len(walls_pts)} wall points"])
     floor_img = _cells(_to_ij(d["floor"][:, :2], lo, cell), shape).astype(float)
-    region, stats = _room_region(own, floor_img, _to_ij(d["cams"], lo, cell), cfg)
+    region, stats = _room_region(own, floor_img, _to_ij(d["cams"], lo, cell), cfg, lintel_barrier(walls_pts, lo, shape, cfg))
     warnings: list[str] = []
     if region is None or region.sum() * cell**2 < lc["min_room_area_m2"]:
         return _fallback(room_id, cloud.points, ceiling_h, ["free-space carving found no room region"])

@@ -69,3 +69,23 @@ def test_link_pairs_finds_the_shared_view_and_rejects_unrelated_frames():
     pairs = link_pairs(fa, fb, min_inliers=30)
     assert pairs and pairs[0][1:] == (1, 2)  # frame 1 of A <-> frame 2 of B
     assert not link_pairs(fa, [x for x in fb if x[0] == 0], min_inliers=30)  # unrelated texture: no link
+
+
+def test_quicktime_focal_from_the_video_track_meta(tmp_path):
+    """iPhone videos keep camera facts in the video track's own `meta` atom (keys + ilst), E22m."""
+    import struct
+
+    from scan.io.quicktime import focal_35mm
+
+    def atom(t: bytes, payload: bytes) -> bytes:
+        return struct.pack(">I", 8 + len(payload)) + t + payload
+
+    name = b"com.apple.quicktime.camera.focal_length.35mm_equivalent"
+    keys = atom(b"keys", b"\0\0\0\0" + struct.pack(">I", 1) + struct.pack(">I", 8 + len(name)) + b"mdta" + name)
+    ilst = atom(b"ilst", atom(struct.pack(">I", 1), atom(b"data", struct.pack(">I", 1) + b"\0\0\0\0" + b"27")))
+    f = tmp_path / "clip.mov"
+    f.write_bytes(atom(b"ftyp", b"qt  ") + atom(b"moov", atom(b"trak", atom(b"meta", atom(b"hdlr", b"\0" * 24) + keys + ilst))))
+    assert focal_35mm(f) == 27.0
+    g = tmp_path / "plain.mov"
+    g.write_bytes(atom(b"ftyp", b"qt  ") + atom(b"moov", atom(b"trak", b"")))
+    assert focal_35mm(g) is None

@@ -77,8 +77,9 @@ def _inside_share(pts: np.ndarray, poly: Polygon, margin: float) -> float | None
     return float(np.mean([grown.contains(Point(p)) for p in pts]))
 
 
-def place_rooms(clouds: dict, layouts: dict, openings: dict, cfg: dict) -> dict:
-    """-> {room: {"R": 2x2, "t": (2,), "theta_deg": int, "placed": bool, "via": (door_a, door_b) | None}}"""
+def place_rooms(clouds: dict, layouts: dict, openings: dict, cfg: dict, link_edges: list[dict] | None = None) -> dict:
+    """-> {room: {"R": 2x2, "t": (2,), "theta_deg": int, "placed": bool, "via": (a, b) | None, "method": str}}
+    link_edges (video, stitch.links): placements from link frames; used before door matches."""
     sc = cfg["stitch"]
     t, margin = sc["wall_thickness_m"], sc["door_match_margin_m"]
     names = list(layouts)
@@ -112,16 +113,25 @@ def place_rooms(clouds: dict, layouts: dict, openings: dict, cfg: dict) -> dict:
                         best = (score, k, sh, oa.opening_id, ob.opening_id)
             if best:
                 edges.append((ra, rb) + best)
-    # spanning tree from the room with the most photos (max score first)
+    # spanning tree from the room with the most photos: link edges first (most inliers first), then doors
+    tree = [(e["a"], e["b"], e["R"], np.asarray(e["t"], float), (e["a"], e["b"]), round(float(e["inliers"]), 3), "video_links")
+            for e in sorted(link_edges or [], key=lambda e: -e["inliers"])]
+    tree += [(ra, rb, _rot(k), sh, (da, db), round(score, 3), "door_matching")
+             for ra, rb, score, k, sh, da, db in sorted(edges, key=lambda e: -e[2])]
     root = max(names, key=lambda r: len(clouds[r].views["depth"]))
-    place = {r: {"R": np.eye(2), "t": np.zeros(2), "theta_deg": 0, "placed": r == root, "via": None, "score": None} for r in names}
-    for ra, rb, score, k, sh, da, db in sorted(edges, key=lambda e: -e[2]):
-        for a, b, kk, ss, dd in ((ra, rb, k, sh, (da, db)), (rb, ra, -k, -(_rot(-k) @ sh), (db, da))):
-            if place[a]["placed"] and not place[b]["placed"]:
-                Ra, ta = place[a]["R"], place[a]["t"]
-                R = Ra @ _rot(kk)
-                place[b].update(R=R, t=Ra @ ss + ta, theta_deg=round(np.degrees(np.arctan2(R[1, 0], R[0, 0]))) % 360,
-                                placed=True, via=dd, score=round(score, 3))
+    place = {r: {"R": np.eye(2), "t": np.zeros(2), "theta_deg": 0, "placed": r == root, "via": None, "score": None,
+                 "method": None} for r in names}
+    grew = True
+    while grew:  # repeat: an edge seen before its end room was placed can be used on a later pass
+        grew = False
+        for ra, rb, R_ab, t_ab, (da, db), score, method in tree:
+            for a, b, R_, t_, dd in ((ra, rb, R_ab, t_ab, (da, db)), (rb, ra, R_ab.T, -(R_ab.T @ t_ab), (db, da))):
+                if place[a]["placed"] and not place[b]["placed"]:
+                    Ra, ta = place[a]["R"], place[a]["t"]
+                    R = Ra @ R_
+                    place[b].update(R=R, t=Ra @ t_ + ta, theta_deg=round(np.degrees(np.arctan2(R[1, 0], R[0, 0]))) % 360,
+                                    placed=True, via=dd, score=score, method=method)
+                    grew = True
     place["_edges"] = [(ra, rb, round(score, 3), da, db) for ra, rb, score, k, sh, da, db in edges]
     return place
 
@@ -131,8 +141,9 @@ def apply_placement(c, layout, R: np.ndarray, t: np.ndarray) -> None:
     M = np.eye(4)
     M[:2, :2], M[:2, 3] = R, t
     c.points = c.points @ M[:3, :3].T + M[:3, 3]
-    c.views["T_wc"] = np.einsum("ij,sjk->sik", M, c.views["T_wc"])
-    c.views["pts"] = (c.views["pts"].reshape(-1, 3) @ M[:3, :3].T + M[:3, 3]).reshape(c.views["pts"].shape).astype(np.float32)
+    for v in (x for x in (c.views, getattr(c, "run_views", None)) if x is not None):
+        v["T_wc"] = np.einsum("ij,sjk->sik", M, v["T_wc"])
+        v["pts"] = (v["pts"].reshape(-1, 3) @ M[:3, :3].T + M[:3, 3]).reshape(v["pts"].shape).astype(np.float32)
     for w in layout.walls:
         w.start = tuple(np.round(R @ np.array(w.start) + t, 4).tolist())
         w.end = tuple(np.round(R @ np.array(w.end) + t, 4).tolist())

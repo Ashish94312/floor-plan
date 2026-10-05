@@ -22,7 +22,26 @@ geometry:
   rays: exif                     # exif: points = model depth x EXIF rays (focal verified by vanishing points, E12)
                                  # model: MapAnything's own rays (focal ~12% long -> ceilings 6-12% low)
                                  # joint + exif: ceilings -0.1% / +0.6%, walls 5 of 6 within 1.5% (E15, D20)
+  depth_focal_fix: false           # true: depth x (true focal / model focal) per view, points rebuilt with the true focal (E22m)
+                                   # refit: then a second model pass re-solves the poses for that depth (E22n)
+  depth_focal_scale: 1.0           # experiments: true focal = K_exif x this (without re-running the model)
   rotate_portrait: false          # portrait frames go into the model turned 90 deg, outputs turned back (E22i)
+  repose:                          # camera poses re-solved with the true focal (E22o; video.repose switches it on)
+    enabled: false
+    sift_features: 4000            # per frame, working resolution
+    ratio: 0.75                    # SIFT ratio test
+    min_matches: 20                # RANSAC-F matches for a frame pair to be tried
+    min_inliers: 15                # 3D-3D inliers for a pair to count
+    rel_tol: 0.05                  # 3D-3D RANSAC: a match agrees within this share of its depth
+    scale_prior_log: 0.3           # per-frame scale prior: model depth as it is, +-30% (frames no pair reaches)
+    rot_prior_weight: 2.0          # model rotation vs sqrt(inliers)-weighted pair rotations
+    min_baseline_m: 0.3            # pairs used to measure the model's baseline squeeze (diagnostic + prior)
+    sigma_pnp_m: 0.05              # pair relative position (weighted by sqrt(inliers))
+    sigma_prior_m: 0.25            # time neighbours: model offset x measured stretch (bridges frames no pair reaches)
+    huber_m: 0.10                  # robust reweighting of pair rows
+                                   # absolute scale: median of the frames' votes f_true / f_model (no knob)
+  max_aspect: null                 # long side centre-cropped to short side x this before the model (E22n: 1.333 = 3:4)
+  pad_scale: null                  # frame centred on a black canvas this many times its size before the model (E22n)
   f_scale: 1.0                   # multiplies the EXIF focal fed to the model (E13 experiment only)
   conf_percentile: 30            # drop the least confident 30% of masked pixels per run (as in E7-E11)
   voxel_m: 0.02                  # thin the merged cloud to a 2 cm grid
@@ -55,6 +74,9 @@ layout:
   max_rays_per_view: 25000         # lines of sight carved per photo
   ray_stop_short_m: 0.06           # stop each ray this short of its surface
   min_views_free: 1                # a cell is free if at least this many photos saw through it
+  lintel_min_z_m: null             # wall points above this (door height) cut the free space: no carving through a door (E22n)
+  lintel_min_points: 2             # ... per 2 cm cell
+  lintel_close_m: 0.30             # ... gaps up to this along a wall line bridged (sparse points)
   free_gap_fill_m: 0.10            # merge neighbouring lines of sight (they fan out near far walls)
   neck_cut_m: 0.70                 # cut doorway necks narrower than this (per-room runs; joint runs use ownership)
   regularise_open_m: 0.60          # remove thin protrusions (doorway stubs) narrower than this
@@ -73,6 +95,7 @@ layout:
 
 uncertainty:
   interval_level: 0.90             # every [lo, hi] is a nominal 90% interval
+  apply_scale_bias: true           # re-solved video: plan x calibrated size factor (config/calibration.yaml, E22q)
   k_tier: {photo: 1.5, video: 1.5, lidar: 1.5}   # default inflation; config/calibration.yaml overrides per mode + type (D30)
   sigma_geom_m: {photo: 0.03, video: 0.02, lidar: 0.01}  # local geometry noise per tier
   sigma_extra_m:
@@ -90,6 +113,13 @@ stitch:
   door_width_tol_m: 0.15           # door matching: widths of the two sides agree this well
   door_match_margin_m: 0.25        # through-door depth must land inside the other room's outline (+ margin)
   door_match_min_score: 0.5        # share of through-door points that must agree
+  link_placement: true             # video: place rooms from link frames (same points seen from both rooms) before doors (E22n)
+  link_min_points: 12              # matched points with depth in both rooms' runs needed for a link placement
+  link_inlier_m: 0.25              # RANSAC: a matched point agrees within this in x/y (far points carry ~5-10% depth error)
+  link_snap_deg: 12                # rotation within this of a multiple of 90 deg snaps to it (rooms squared to the house axes)
+  relayout_after_placement: true   # placed rooms share a frame: redo the layout with ownership of free space (E22n)
+  link_scale_rel_tol: 0.05         # link size ratio (3D similarity): a point agrees within this share of its camera distance
+  flat_scale: true                 # reposed video: one scale for the flat, rooms tied by the link size ratios (E22p)
 
 eval:
   wall_tolerance: {photo: 0.08, video: 0.03, lidar: 0.03}   # REQUIREMENTS §8: photo ±8%, video ±3%
@@ -134,6 +164,7 @@ damage:
 calibration_fit:                   # scan-calibrate (D30)
   k_min: 0.5                       # never narrower than this, whatever few residuals say
   small_n_inflate: 2.0             # too few residuals for the conformal quantile: max ratio x this
+  min_room_measurements: 3         # size bias: a room enters only with >= 3 taped measurements (median robust to 1 bad)
 
 video:
   decode_fps: 4                    # candidate frames per second
@@ -148,6 +179,7 @@ video:
   link_spread_s: 5.0               # links of one room pair at least this far apart in time (in one of the rooms)
   max_joint_views: 30              # overrides geometry.max_joint_views for video: 16:9 frames carry ~25% fewer model tokens
                                    # than 4:3 photos; 24 views peaked at 9.15 GB (E22k)
+  repose: false                    # camera poses re-solved with the true focal (geometry.repose, E22o)
   rays: model                      # overrides geometry.rays for video: MapAnything ignores the given video focal and keeps
                                    # its own (~22 mm vs ~30-33 by VP); EXIF rays then break multi-view consistency.
                                    # model rays: ceilings 2.16/1.94 -> 2.83/2.91 m (tape 2.79/2.80), E22c

@@ -129,18 +129,33 @@ def fetch_weights(
 
 def calibrate(
     evals: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help="eval.json files from scan-eval"),
+    bias_only: bool = typer.Option(False, help="fit only the size bias (from runs made WITHOUT it); refit k after"),
 ) -> None:
-    """Fit interval inflation k per mode and measurement type (split-conformal), write config/calibration.yaml."""
+    """Fit interval inflation k per mode and measurement type (split-conformal) and, for re-solved video, the
+    systematic size bias; merge into config/calibration.yaml (modes not in these evals are kept)."""
     import json
 
     from scan.config import load_config
-    from scan.uncertainty.calibrate import fit, write
+    from scan.uncertainty.calibrate import fit, fit_size_bias, load, size_rows, write
 
-    cal = fit([json.loads(p.read_text()) for p in evals], load_config())
-    for mode, types in cal.items():
-        for t, v in types.items():
-            typer.echo(f"{mode:15s} {t:8s} k={v['k']:.3f}  n={v['n']}  ({v['method']})  "
-                       f"LOO coverage {v['loo_coverage']} on {v['loo_n']}")
+    evs = [json.loads(p.read_text()) for p in evals]
+    cal = load()
+    if not bias_only:
+        for mode, types in fit(evs, load_config()).items():
+            cal.setdefault(mode, {}).update(types)
+            for t, v in types.items():
+                typer.echo(f"{mode:20s} {t:8s} k={v['k']:.3f}  n={v['n']}  ({v['method']})  "
+                           f"LOO coverage {v['loo_coverage']} on {v['loo_n']}")
+    # one size factor per mode only where a room's error is one isotropic scale: after the camera re-solve (E22q)
+    rows = [r for ev in evs for r in size_rows(ev)]
+    for mode, b in fit_size_bias(rows, load_config()["calibration_fit"]["min_room_measurements"]).items():
+        if not mode.endswith("_repose"):
+            continue
+        cal.setdefault(mode, {})["scale_bias"] = b
+        typer.echo(f"{mode:20s} size bias x{b['factor']:.4f}  spread {b['sigma_log']:.3f} (log)  "
+                   f"{b['rooms']} rooms / {b['physical_rooms']} physical")
+        for x in b["loo"]:
+            typer.echo(f"    held out {x['room']:28s} raw {x['raw_pct']:+6.1f}%  corrected {x['corrected_pct']:+6.1f}%")
     typer.secho(f"Wrote {write(cal)}", fg=typer.colors.GREEN)
 
 

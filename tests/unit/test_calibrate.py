@@ -46,3 +46,24 @@ def test_fit_reports_leave_one_room_out():
     cal = fit([ev("a", 0.02), ev("b", 0.03)], CFG)
     w = cal["photo_joint"]["wall"]
     assert w["n"] == 2 and w["loo_n"] == 2 and w["loo_coverage"] == 1.0 and w["k"] >= CFG["calibration_fit"]["k_min"]
+
+
+def test_size_bias_is_a_median_over_physical_rooms_and_tested_on_held_out_rooms():
+    import math
+
+    from scan.uncertainty.calibrate import fit_size_bias, size_rows
+
+    def ev(cap, rooms):  # rooms: {room: plan/tape ratio}; one wall + the ceiling per room
+        return {"capture_id": cap, "mode": "video_per_room_repose",
+                "rooms": {r: {"walls": [{"pred": 2.5 * q, "gt": 2.5, "err_m": 2.5 * q - 2.5}],
+                              "ceiling": {"pred": 2.8 * q, "gt": 2.8, "err_m": 2.8 * q - 2.8}} for r, q in rooms.items()}}
+
+    evs = [ev("home01_video_a", {"bedroom1": 1.10, "hall": 1.04}), ev("home01_video_b", {"bedroom1": 1.08})]
+    b = fit_size_bias([r for e in evs for r in size_rows(e)], min_meas=1)["video_per_room_repose"]
+    bed = (math.log(1 / 1.10) + math.log(1 / 1.08)) / 2  # bedroom: two captures of one physical room -> their median
+    mu = (bed + math.log(1 / 1.04)) / 2  # two physical rooms
+    assert math.isclose(b["log_bias"], mu, abs_tol=1e-4) and b["rooms"] == 3 and b["physical_rooms"] == 2
+    held = {x["room"]: x for x in b["loo"]}
+    # bedroom held out: corrected with the hall's bias alone
+    assert math.isclose(held["home01_video_a/bedroom1"]["corrected_pct"], 100 * (1.10 / 1.04 - 1), abs_tol=0.01)
+    assert math.isclose(held["home01_video_a/hall"]["raw_pct"], 4.0, abs_tol=0.01)

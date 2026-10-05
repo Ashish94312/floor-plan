@@ -19,7 +19,7 @@ class PhotoMeta:
     device: str | None  # "Apple iPhone 13"
     lens: str | None
     f35_mm: float  # 35 mm-equivalent focal actually used
-    intrinsics_source: Literal["exif_f35", "default"]
+    intrinsics_source: Literal["exif_f35", "quicktime_f35", "vanishing_points", "default"]
     captured_at: str | None  # EXIF DateTimeOriginal
     sharpness: float  # variance of the Laplacian at working resolution
 
@@ -48,6 +48,7 @@ class Capture:
     rooms: dict[str, list[Frame]] = field(default_factory=dict)  # photo tier: room_id -> frames
     devices: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    links: list[tuple[str, str, str, str]] = field(default_factory=list)  # video: (room a, frame a, room b, frame b), E22n
 
 
 @dataclass
@@ -66,6 +67,7 @@ class RoomCloud:
     T_room_world: np.ndarray  # 4x4 room-local -> property frame (identity until stitched)
     frame_id: str = ""  # which reconstruction the points live in: the room id, or "joint" for a joint run
     views: dict[str, np.ndarray] | None = None  # this room's per-view backbone outputs (depth, pose, K, rgb)
+    run_views: dict[str, np.ndarray] | None = None  # every view of the room's model run, link frames included (E22n)
     alignment: object | None = None  # geometry.align.Alignment of this room's frame (step 1.3)
     planes: object | None = None  # geometry.align.RoomPlanes: floor/ceiling in the aligned frame
     layout: object | None = None  # layout.room.Layout: polygon, walls, area (step 1.4)

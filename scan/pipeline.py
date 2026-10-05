@@ -26,13 +26,15 @@ from scan.geometry.align import (
     use_shared_floor,
     view_off_axis_deg,
 )
-from scan.geometry.cloud import build_cloud, save_ply
+from scan.geometry.cloud import build_cloud, depth_focal_fix, save_ply
 from scan.io.ingest import ingest
 from scan.layout.openings import detect_openings, reindex_by_main_door
 from scan.layout.room import classify_open_walls, layout_rooms
 from scan.output import assemble, write
 from scan.render.debug import alignment_plot, layout_plot
 from scan.stitch.doors import apply_placement, place_rooms
+from scan.stitch.links import link_edges
+from scan.stitch.scale import flat_scale, scale_room
 from scan.stitch.snap import merge_open_boundaries, snap_walls
 from scan.types import Capture, RoomCloud, Scale, Tier
 
@@ -52,9 +54,11 @@ def run(
     timing["ingest_s"] = round(time.perf_counter() - t, 2)
     if cap.tier == "video":  # video-specific geometry settings (E22c, E22k)
         cfg = copy.deepcopy(cfg)
-        for k in ("rays", "max_joint_views"):
+        for k in ("rays", "max_joint_views", "depth_focal_fix", "max_aspect", "pad_scale"):
             if cfg["video"].get(k):
                 cfg["geometry"][k] = cfg["video"][k]
+        if cfg["video"].get("repose"):
+            cfg["geometry"]["repose"]["enabled"] = True
     if cap.tier == "lidar":
         raise NotImplementedError("lidar tier")
 
@@ -66,29 +70,71 @@ def run(
     t = time.perf_counter()
     alignments = align_rooms(clouds, cfg, log)
     timing["alignment_s"] = round(time.perf_counter() - t, 2)
+    runs = info["runs"]
+    if (len({c.frame_id for c in clouds.values()}) > 1 and cap.links and cfg["stitch"]["flat_scale"]
+            and all("repose" in runs.get(r, {}) for r in clouds)):
+        # one scale for the flat: link frames measure the rooms' size ratios, all frames vote for the level (E22p)
+        pre = link_edges(clouds, cap.links, cfg)
+        fs = flat_scale(list(clouds), {r: np.array(runs[r]["repose"]["votes_log"]) for r in clouds}, pre)
+        info["flat_scale_links"] = [{k: v for k, v in e.items() if k not in ("R", "t")} for e in pre]
+        for r, f in fs.items():
+            c = clouds[r]
+            scale_room(c, f["c"])
+            c.planes = room_planes(c.points, cfg)
+            c.scale = Scale(s=1.0, sigma_log=max(cfg["geometry"]["sigma_log_floor_photo"], np.nan_to_num(f["sigma_log"])))
+            log(f"  flat scale {r}: x{f['c']:.3f} (group {f['group']}, {f['votes']} votes, spread {f['sigma_log']:.3f})")
+        info["flat_scale"] = fs
+    if cfg["geometry"]["repose"]["enabled"] and cfg["uncertainty"]["apply_scale_bias"]:
+        # the model's systematic size error on this kind of footage, learnt from taped captures (E22q)
+        from scan.uncertainty.calibrate import load as load_calibration
+
+        mode = f"{cap.tier}_{'joint' if info['joint'] else 'per_room'}_repose"
+        b = load_calibration().get(mode, {}).get("scale_bias")
+        if b:
+            for c in clouds.values():
+                scale_room(c, b["factor"])
+                c.planes = room_planes(c.points, cfg)
+                c.scale = Scale(s=1.0, sigma_log=max(c.scale.sigma_log, b["sigma_log"]))
+            info["scale_bias"] = {"mode": mode, "factor": b["factor"], "sigma_log": b["sigma_log"], "rooms": b["rooms"]}
+            log(f"  size bias ({mode}): x{b['factor']:.4f}, spread {b['sigma_log']:.3f} from {b['rooms']} taped rooms")
+        else:
+            cap.warnings.append(f"no size calibration for {mode}: video sizes rest on the model's size sense alone")
     t = time.perf_counter()
     layouts = layout_rooms(clouds, cfg)
     for r, lay in layouts.items():
         clouds[r].layout = lay
         log(f"  layout {r}: {len(lay.walls)} walls, area {lay.floor_area_m2:.2f} m2, {lay.status} ({lay.method})")
     timing["layout_s"] = round(time.perf_counter() - t, 2)
-    snaps = []
+    snaps, links = [], []
     if len({c.frame_id for c in clouds.values()}) > 1:  # separate reconstructions -> place by door matching
         pre = detect_openings(layouts, clouds, cfg)
-        place = place_rooms(clouds, layouts, pre, cfg)
+        links = link_edges(clouds, cap.links, cfg) if cap.links and cfg["stitch"]["link_placement"] else []
+        for e in links:
+            log(f"  link {e['a']} <-> {e['b']}: {e['inliers']}/{e['matches']} points, theta {e['theta_deg']} deg "
+                f"(snapped {e['snap_off_deg']:+.1f}), rms {100 * e['rms_m']:.0f} cm, dz {100 * e['dz_m']:+.0f} cm, "
+                f"scale {e['b']}/{e['a']} {e['scale_b_in_a']}, depth {e['depth_a_m']} / {e['depth_b_m']} m")
+        place = place_rooms(clouds, layouts, pre, cfg, link_edges=links)
         for ra, rb, score, da, db in place.pop("_edges"):
             log(f"  door match {da} <-> {db}: visibility score {score}")
+        used = [pl["method"] for pl in place.values() if pl["method"]]
         for r, pl in place.items():
             c = clouds[r]
             if pl["placed"]:
                 apply_placement(c, layouts[r], pl["R"], pl["t"])
                 c.frame_id = "stitched"
                 c.pose = (float(pl["t"][0]), float(pl["t"][1]), float(pl["theta_deg"]))
-                c.placed_by = "door_matching"
+                c.placed_by = pl["method"] or (used[0] if used else "door_matching")  # the root: how the others joined it
                 log(f"  placed {r}: theta {pl['theta_deg']} deg, shift ({pl['t'][0]:+.2f}, {pl['t'][1]:+.2f}) m"
                     + (f" via {pl['via'][0]} <-> {pl['via'][1]}" if pl["via"] else " (root)"))
             else:
-                log(f"  {r}: no door match, left unplaced")
+                log(f"  {r}: no link or door match, left unplaced")
+        stitched = {r: c for r, c in clouds.items() if c.frame_id == "stitched"}
+        if len(stitched) > 1 and cfg["stitch"]["relayout_after_placement"]:
+            # placed rooms now share a frame: lay them out again so free space seen through a doorway goes to the
+            # room whose own frames saw through it most (ownership, as in a joint run), E22n
+            for r, lay in layout_rooms(stitched, cfg).items():
+                layouts[r] = clouds[r].layout = lay
+                log(f"  relayout {r}: {len(lay.walls)} walls, area {lay.floor_area_m2:.2f} m2 (ownership in the stitched frame)")
     else:
         for c in clouds.values():
             c.placed_by = "joint_reconstruction" if len(clouds) > 1 else "single_room"
@@ -156,6 +202,7 @@ def run(
         "timing_s": timing,
         "warnings": cap.warnings,
         "wall_snaps": snaps,
+        "links": [{k: (np.round(v, 4).tolist() if isinstance(v, np.ndarray) else v) for k, v in e.items()} for e in links],
         "files": {k: str(v.relative_to(out)) for k, v in files.items()},
     }
     t = time.perf_counter()
@@ -187,7 +234,8 @@ def plan_groups(cap: Capture, g: dict) -> tuple[dict[str, list], bool]:
 
 def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -> tuple[dict[str, RoomCloud], dict]:
     """C2 photo tier: MapAnything per room (default) or once over all rooms (geometry.joint)."""
-    from scan.geometry.mapanything_backend import load_model, predict
+    from scan.geometry.mapanything_backend import load_model, predict, refit_with_depth
+    from scan.geometry.repose import repose
 
     g = cfg["geometry"]
     model = None
@@ -208,20 +256,35 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
     for gid, frames in groups.items():
         log(f"  geometry: {gid} ({len(frames)} photos)")
         pred, pinfo = predict(frames, cfg, dev, get_model, use_cache)
+        fix = g.get("depth_focal_fix")
+        if g["repose"]["enabled"]:  # video: poses from PnP with the true focal on focal-corrected depth (E22o)
+            pred, rinfo = repose(pred, frames, cfg)
+            pinfo = pinfo | {"repose": rinfo}
+            log(f"  repose {gid}: {rinfo}")
+        elif fix == "refit":  # video: second pass, poses re-solved for focal-corrected depth (E22n)
+            pred, rinfo = refit_with_depth(pred, cfg, dev, get_model, g.get("depth_focal_scale", 1.0), use_cache)
+            pinfo = pinfo | {"refit": rinfo}
+        elif fix:  # video: model focal ~23-27 mm vs ~32 true squeezes depth (E22m)
+            pred, r = depth_focal_fix(pred, g.get("depth_focal_scale", 1.0))
+            pinfo = pinfo | {"depth_focal_ratio": [round(float(x), 3) for x in np.percentile(r, [10, 50, 90])]}
         runs[gid] = pinfo
         for room in dict.fromkeys(f.room_hint for f in frames):
             # link frames (video) only tie rooms together in the model run; they look into the other room (E22l)
             idx = [i for i, r in enumerate(pred["rooms"]) if r == room and not frames[i].link]
             pts, cols = build_cloud(pred, idx, g["rays"], g["conf_percentile"], g["voxel_m"])
+            run = [i for i, r in enumerate(pred["rooms"]) if r == room]
             clouds[room] = RoomCloud(
                 room_id=room,
                 points=pts,
                 colors=cols,
                 frames=[f for f in cap.rooms[room] if not f.link],
-                scale=Scale(s=1.0, sigma_log=g["sigma_log_floor_photo"]),
+                # reposed video: the spread of the frames' scale votes is the room's scale uncertainty (E22o)
+                scale=Scale(s=1.0, sigma_log=max(g["sigma_log_floor_photo"],
+                                                 np.nan_to_num(pinfo.get("repose", {}).get("scale_sigma_log", 0.0)))),
                 T_room_world=np.eye(4),
                 frame_id=gid,
                 views={k: v[idx] for k, v in pred.items()},
+                run_views={k: v[run] for k, v in pred.items()},
             )
     timing["geometry_s"] = round(time.perf_counter() - t_all, 2)
     info = {"backbone": g["backbone"], "joint": bool(joint), "rays": g["rays"], "f_scale": g["f_scale"], "runs": runs}
@@ -244,8 +307,9 @@ def align_rooms(clouds: dict[str, RoomCloud], cfg, log) -> dict[str, Alignment]:
         shared = len(rooms) > 1
         for c in rooms:
             c.points = apply(a.T, c.points)
-            c.views["T_wc"] = np.einsum("ij,sjk->sik", a.T, c.views["T_wc"])  # poses now in the aligned frame
-            c.views["pts"] = apply(a.T, c.views["pts"].reshape(-1, 3)).reshape(c.views["pts"].shape).astype(np.float32)
+            for v in (x for x in (c.views, c.run_views) if x is not None):
+                v["T_wc"] = np.einsum("ij,sjk->sik", a.T, v["T_wc"])  # poses now in the aligned frame
+                v["pts"] = apply(a.T, v["pts"].reshape(-1, 3)).reshape(v["pts"].shape).astype(np.float32)
             c.alignment = a
             c.planes = room_planes(c.points, cfg)
             check_views(c, cfg, log)

@@ -59,17 +59,16 @@ def shared_walls(lay_a, lay_b, max_gap: float, min_overlap: float) -> tuple[str,
 def stitch(clouds: dict, cfg: dict, warnings: list[str]):
     """-> (placement_method, poses, adjacency, overlaps, drift)"""
     sc = cfg["stitch"]
-    frames = {c.frame_id for c in clouds.values()}
     by = {c.placed_by for c in clouds.values()}
     joint = by == {"joint_reconstruction"}
     single = len(clouds) == 1
-    doors = "door_matching" in by
-    joint or single or (doors and len(frames) == 1)
+    doors = bool(by & {"door_matching", "video_links"})
+    placed_via = " + ".join(m for m in ("video_links", "door_matching") if m in by)  # how per-room runs were placed
     poses = [RoomPose(room_id=r, x=round(c.pose[0], 4), y=round(c.pose[1], 4), theta_deg=c.pose[2],
                       placed=c.placed_by is not None) for r, c in clouds.items()]
     unplaced = [r for r, c in clouds.items() if c.placed_by is None]
     if unplaced:
-        warnings.append(f"not placed in the plan (no door match): {', '.join(unplaced)}")
+        warnings.append(f"not placed in the plan (no link or door match): {', '.join(unplaced)}")
     adjacency, overlaps = [], []
     if not single:
         names = [r for r, c in clouds.items() if c.placed_by is not None]
@@ -85,12 +84,15 @@ def stitch(clouds: dict, cfg: dict, warnings: list[str]):
                 inter = Polygon(la.polygon).intersection(Polygon(lb.polygon)).area
                 if inter > sc["overlap_tolerance_m2"]:
                     overlaps.append(Overlap(room_a=ra, room_b=rb, area_m2=round(inter, 3)))
-    method = "joint_reconstruction" if joint else ("single_room" if single else ("door_matching" if doors else "unplaced"))
+    method = "joint_reconstruction" if joint else ("single_room" if single else (placed_via if doors else "unplaced"))
     snapped = (joint or doors) and sc["snap_walls"]
     drift = DriftCorrection(
         enabled=snapped,
         method=(("joint reconstruction in one shared frame" if joint else
-                 "per-room reconstructions placed by visibility-scored door matching")
+                 "per-room reconstructions placed by " + (" and ".join(
+                     {"video_links": "link frames (points seen from both rooms)",
+                      "door_matching": "visibility-scored door matching"}[m] for m in placed_via.split(" + ")) if placed_via
+                     else "visibility-scored door matching"))
                 + (f" + structural wall snapping (shared partitions to one {sc['wall_thickness_m']} m wall, "
                    "collinear outer walls to one line, best-seen face sets the line)" if snapped else
                    ", wall snapping OFF (ablation)")),

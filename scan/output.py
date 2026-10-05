@@ -86,6 +86,7 @@ def assemble(cap, clouds: dict, cfg: dict, timing: dict) -> ScanResult:
 
     tier = cap.tier
     mode = "joint" if all(c.placed_by == "joint_reconstruction" for c in clouds.values()) else "per_room"
+    mode += "_repose" if cfg["geometry"]["repose"]["enabled"] else ""  # different error population (E22q)
     u = {**cfg["uncertainty"], "mode": mode, "calibration": load_calibration()}
     warnings = list(cap.warnings)
     rooms = [_room(r, c, cfg, tier, u) for r, c in clouds.items()]
