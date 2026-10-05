@@ -228,6 +228,8 @@ Running record of **everything** done on this project: setup, data, captures, me
 | Time | What | Result / link |
 |---|---|---|
 | ~00:10 | **Benchmark regenerated on a clean tree** (`uv run scan-bench` at `b8ddde0`; the old report said `91e974c-dirty`). Every accuracy number identical (gates, repeatability, G4, head-to-head); `benchmark.json` differs only in `timing_s`. Changed: config hash (LiDAR keys in `default.yaml`) and video ingest 156–160 s → 52–54 s (hardware decode, b6248e1); DEVICE_MATRIX timing line updated. Previous outputs kept outside the repo for the comparison | `reports/benchmark.md` |
+| ~00:20 | **Data bundle on Google Drive, hash manifest in git.** Committing `captures/` was ruled out: the repo is public, every photo and video carries the home's GPS position, each video is 116–254 MB (GitHub's limit is 100 MB) and the folder is 3.6 GB. The user uploads `captures/` to Drive; README 'Data bundle' links it. `scripts/captures_manifest.sh` writes `data/captures_manifest.sha256`: SHA256 of the 57 raw inputs the benchmark reads (47 HEIC, 6 MOV, `hints.yaml`, magicplan export); `shasum -a 256 -c` on it proves a download holds the files used | `data/captures_manifest.sha256` |
+| ~00:35 | **Bundle uploaded and checked.** `captures.zip` (3.63 GB, public link) in the README. Checked without downloading it: the zip's central directory (last 2 MB, HTTP range request) lists `captures/` at the top and all 57 manifest files with CRC32 and size equal to the local files. Uploaded as-is, GPS included (user's choice) | README 'Data bundle' |
 
 ### Open data issues
 

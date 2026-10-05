@@ -68,7 +68,7 @@ How to film each tier is a one-page protocol: [docs/CAPTURE_PROTOCOL.md](docs/CA
 
 ## Run every capture in this repo
 
-The captures are too large for git. They ship as a separate data bundle, unpacked into `captures/`; the three assignment LiDAR samples sit at the repo root (see [Data](#data)). Run captures **one at a time** (each run loads its models; two at once can exhaust 16 GB).
+The captures are too large for git. They ship as a separate data bundle, unpacked into `captures/` ([download and check](#data-bundle)); the three assignment LiDAR samples sit at the repo root (see [Data](#data)). Run captures **one at a time** (each run loads its models; two at once can exhaust 16 GB).
 
 ```bash
 # Photo tier (MapAnything): the same three rooms of home01, taped
@@ -233,6 +233,21 @@ Model outputs are cached in `.cache/`, keyed by the inputs and settings. A cache
 | `captures/home01_video_a`, `_b`, `_c`, `_b_hall`, `_d_bh`, `_d_hall`, `home01_photo_portrait`, `vggt_examples` | Earlier captures and the Phase 0 spike | no (experiments only) |
 
 `captures/`, the LiDAR samples, `weights/` and `.cache/` are gitignored.
+
+### Data bundle
+
+The captures are too large for git (each video is 116–254 MB). Download: **[captures.zip on Google Drive](https://drive.google.com/file/d/1J1Evybca12q-nRllFwQ_CxKrwtVrEY3X/view?usp=sharing)** (3.6 GB), or from the command line:
+
+```bash
+curl -L -o captures.zip "https://drive.usercontent.google.com/download?id=1J1Evybca12q-nRllFwQ_CxKrwtVrEY3X&export=download&confirm=t"
+```
+
+1. Unzip at the repo root: `unzip captures.zip -x '__MACOSX/*'`. It creates `captures/`, so paths read `captures/home01_photo_a/photos/...`.
+2. Check that you have exactly the files the benchmark used. Every line must say `OK`:
+   ```bash
+   shasum -a 256 -c data/captures_manifest.sha256
+   ```
+   The manifest ([scripts/captures_manifest.sh](scripts/captures_manifest.sh)) covers the raw inputs of every benchmark capture (photos, videos, `hints.yaml`) and the magicplan export. The `out*/` and `experiments/` folders in the bundle are outputs; `uv run scan-bench` regenerates them.
 
 ## Models and data used
 
