@@ -679,14 +679,14 @@
               "gt_id": "W1",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 2.3579,
-              "lo": 2.0486,
-              "hi": 2.6672,
+              "pred": 2.349,
+              "lo": 2.1637,
+              "hi": 2.5343,
               "gt": 2.39,
-              "err_m": -0.0321,
-              "err_pct": -1.34,
+              "err_m": -0.041,
+              "err_pct": -1.72,
               "covered": true,
-              "half_width_pct": 12.9,
+              "half_width_pct": 7.8,
               "within_tol": true
             },
             {
@@ -694,14 +694,14 @@
               "gt_id": "W2",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 2.6185,
-              "lo": 2.2496,
-              "hi": 2.9874,
+              "pred": 2.7692,
+              "lo": 2.4939,
+              "hi": 3.0445,
               "gt": 2.89,
-              "err_m": -0.2715,
-              "err_pct": -9.39,
+              "err_m": -0.1208,
+              "err_pct": -4.18,
               "covered": true,
-              "half_width_pct": 12.8,
+              "half_width_pct": 9.5,
               "within_tol": false
             },
             {
@@ -709,14 +709,14 @@
               "gt_id": "W3",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 2.3579,
-              "lo": 2.0486,
-              "hi": 2.6672,
+              "pred": 2.349,
+              "lo": 2.1637,
+              "hi": 2.5343,
               "gt": 2.39,
-              "err_m": -0.0321,
-              "err_pct": -1.34,
+              "err_m": -0.041,
+              "err_pct": -1.72,
               "covered": true,
-              "half_width_pct": 12.9,
+              "half_width_pct": 7.8,
               "within_tol": true
             },
             {
@@ -724,14 +724,14 @@
               "gt_id": "W4",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 2.6185,
-              "lo": 2.2496,
-              "hi": 2.9874,
+              "pred": 2.7692,
+              "lo": 2.4939,
+              "hi": 3.0445,
               "gt": 2.94,
-              "err_m": -0.3215,
-              "err_pct": -10.94,
+              "err_m": -0.1708,
+              "err_pct": -5.81,
               "covered": true,
-              "half_width_pct": 12.5,
+              "half_width_pct": 9.4,
               "within_tol": false
             }
           ],
@@ -742,10 +742,10 @@
               "plan": "bedroom1-O1",
               "type": "door",
               "gt_width": 0.9,
-              "width": 1.02,
-              "err_cm": 12.0,
+              "width": 2.36,
+              "err_cm": 146.0,
               "width_ok": false,
-              "covered": true
+              "covered": false
             },
             {
               "kind": "matched",
@@ -753,8 +753,8 @@
               "plan": "bedroom1-O2",
               "type": "window",
               "gt_width": 0.9,
-              "width": 0.843,
-              "err_cm": -5.7,
+              "width": 0.857,
+              "err_cm": -4.3,
               "width_ok": false,
               "covered": true
             }
@@ -768,50 +768,185 @@
           ],
           "checks": [],
           "ceiling": {
-            "pred": 2.8661,
-            "lo": 2.489,
-            "hi": 3.2432,
+            "pred": 2.9268,
+            "lo": 2.701,
+            "hi": 3.1526,
             "gt": 2.7925,
-            "err_m": 0.0736,
-            "err_pct": 2.64,
+            "err_m": 0.1343,
+            "err_pct": 4.81,
             "covered": true,
-            "half_width_pct": 13.5,
-            "err_cm": 7.36,
+            "half_width_pct": 8.1,
+            "err_cm": 13.43,
             "g2_pass": false
           },
           "area": {
-            "pred": 6.1742,
-            "lo": 4.5608,
-            "hi": 7.7876,
+            "pred": 6.5049,
+            "lo": 5.4486,
+            "hi": 7.5612,
             "gt": 6.9669,
-            "err_m": -0.7927,
-            "err_pct": -11.38,
+            "err_m": -0.462,
+            "err_pct": -6.63,
             "covered": true,
-            "half_width_pct": 23.2
+            "half_width_pct": 15.2
           }
         },
         "hall": {
           "status": "ok",
-          "walls": "wall count differs: plan 4, ground truth 6",
+          "shift": 2,
+          "walls": [
+            {
+              "plan": "hall-W3",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 1.0131,
+              "lo": 0.6689,
+              "hi": 1.3573,
+              "gt": 3.61,
+              "err_m": -2.5969,
+              "err_pct": -71.94,
+              "covered": false,
+              "half_width_pct": 9.5,
+              "within_tol": false
+            },
+            {
+              "plan": "hall-W4",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 3.3671,
+              "lo": 2.9185,
+              "hi": 3.8157,
+              "gt": 3.7,
+              "err_m": -0.3329,
+              "err_pct": -9.0,
+              "covered": true,
+              "half_width_pct": 12.1,
+              "within_tol": false
+            },
+            {
+              "plan": "hall-W5",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.1274,
+              "lo": 1.814,
+              "hi": 2.4408,
+              "gt": 2.3,
+              "err_m": -0.1726,
+              "err_pct": -7.5,
+              "covered": true,
+              "half_width_pct": 13.6,
+              "within_tol": false
+            },
+            {
+              "plan": "hall-W6",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 3.3966,
+              "lo": 2.8925,
+              "hi": 3.9007,
+              "gt": 2.805,
+              "err_m": 0.5916,
+              "err_pct": 21.09,
+              "covered": false,
+              "half_width_pct": 18.0,
+              "within_tol": false
+            },
+            {
+              "plan": "hall-W1",
+              "gt_id": "W5",
+              "kind_plan": "wall",
+              "kind_gt": "open",
+              "pred": 1.1143,
+              "lo": 0.7894,
+              "hi": 1.4392,
+              "gt": 1.31,
+              "err_m": -0.1957,
+              "err_pct": -14.94,
+              "covered": true,
+              "half_width_pct": 24.8,
+              "within_tol": false
+            },
+            {
+              "plan": "hall-W2",
+              "gt_id": "W6",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 0.0295,
+              "lo": 0.0,
+              "hi": 0.302,
+              "gt": 0.89,
+              "err_m": -0.8605,
+              "err_pct": -96.69,
+              "covered": false,
+              "half_width_pct": 17.0,
+              "within_tol": false
+            }
+          ],
+          "openings": [
+            {
+              "kind": "matched",
+              "gt": "O1",
+              "plan": "hall-O3",
+              "type": "door",
+              "gt_width": 0.9,
+              "width": 0.739,
+              "err_cm": -16.1,
+              "width_ok": false,
+              "covered": false
+            },
+            {
+              "kind": "missed",
+              "gt": "O4",
+              "gt_width": 0.89,
+              "type": "door"
+            },
+            {
+              "kind": "phantom",
+              "plan": "hall-O1",
+              "type": "window",
+              "width": 0.74
+            },
+            {
+              "kind": "phantom",
+              "plan": "hall-O2",
+              "type": "door",
+              "width": 0.803
+            }
+          ],
+          "damage": [],
+          "checks": [
+            {
+              "sum": [
+                "W4",
+                "W6"
+              ],
+              "pred": 3.4261,
+              "gt": 3.695,
+              "err_pct": -7.28
+            }
+          ],
           "ceiling": {
-            "pred": 2.8436,
-            "lo": 2.4721,
-            "hi": 3.2151,
+            "pred": 2.6127,
+            "lo": 2.2625,
+            "hi": 2.9629,
             "gt": 2.8025,
-            "err_m": 0.0411,
-            "err_pct": 1.47,
+            "err_m": -0.1898,
+            "err_pct": -6.77,
             "covered": true,
-            "half_width_pct": 13.3,
-            "err_cm": 4.11,
+            "half_width_pct": 12.5,
+            "err_cm": -18.98,
             "g2_pass": false
           },
           "area": {
-            "pred": 6.9381,
-            "lo": 5.0183,
-            "hi": 8.8579,
+            "pred": 7.196,
+            "lo": 5.2759,
+            "hi": 9.1161,
             "gt": 9.68,
-            "err_m": -2.7419,
-            "err_pct": -28.33,
+            "err_m": -2.484,
+            "err_pct": -25.66,
             "covered": false,
             "half_width_pct": 19.8
           }
@@ -825,29 +960,29 @@
               "gt_id": "W1",
               "kind_plan": "wall",
               "kind_gt": "open",
-              "pred": 1.1455,
-              "lo": 0.9013,
-              "hi": 1.3897,
+              "pred": 1.2618,
+              "lo": 1.0324,
+              "hi": 1.4912,
               "gt": 1.17,
-              "err_m": -0.0245,
-              "err_pct": -2.09,
+              "err_m": 0.0918,
+              "err_pct": 7.85,
               "covered": true,
-              "half_width_pct": 20.9,
-              "within_tol": true
+              "half_width_pct": 19.6,
+              "within_tol": false
             },
             {
               "plan": "kitchen-W3",
               "gt_id": "W2",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 3.3345,
-              "lo": 2.9029,
-              "hi": 3.7661,
+              "pred": 3.3966,
+              "lo": 2.9519,
+              "hi": 3.8413,
               "gt": 2.805,
-              "err_m": 0.5295,
-              "err_pct": 18.88,
+              "err_m": 0.5916,
+              "err_pct": 21.09,
               "covered": false,
-              "half_width_pct": 15.4,
+              "half_width_pct": 15.9,
               "within_tol": false
             },
             {
@@ -855,29 +990,29 @@
               "gt_id": "W3",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 1.1455,
-              "lo": 0.9013,
-              "hi": 1.3897,
+              "pred": 1.2618,
+              "lo": 1.0324,
+              "hi": 1.4912,
               "gt": 1.17,
-              "err_m": -0.0245,
-              "err_pct": -2.09,
+              "err_m": 0.0918,
+              "err_pct": 7.85,
               "covered": true,
-              "half_width_pct": 20.9,
-              "within_tol": true
+              "half_width_pct": 19.6,
+              "within_tol": false
             },
             {
               "plan": "kitchen-W1",
               "gt_id": "W4",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 3.3345,
-              "lo": 2.9029,
-              "hi": 3.7661,
+              "pred": 3.3966,
+              "lo": 2.9519,
+              "hi": 3.8413,
               "gt": 2.805,
-              "err_m": 0.5295,
-              "err_pct": 18.88,
+              "err_m": 0.5916,
+              "err_pct": 21.09,
               "covered": false,
-              "half_width_pct": 15.4,
+              "half_width_pct": 15.9,
               "within_tol": false
             }
           ],
@@ -885,14 +1020,8 @@
             {
               "kind": "phantom",
               "plan": "kitchen-O1",
-              "type": "opening",
-              "width": 1.8
-            },
-            {
-              "kind": "phantom",
-              "plan": "kitchen-O2",
               "type": "door",
-              "width": 0.62
+              "width": 1.48
             }
           ],
           "damage": [
@@ -949,26 +1078,26 @@
           ],
           "checks": [],
           "ceiling": {
-            "pred": 2.8886,
-            "lo": 2.5098,
-            "hi": 3.2674,
+            "pred": 2.6533,
+            "lo": 2.3203,
+            "hi": 2.9863,
             "gt": 2.79,
-            "err_m": 0.0986,
-            "err_pct": 3.53,
+            "err_m": -0.1367,
+            "err_pct": -4.9,
             "covered": true,
-            "half_width_pct": 13.6,
-            "err_cm": 9.86,
+            "half_width_pct": 11.9,
+            "err_cm": -13.67,
             "g2_pass": false
           },
           "area": {
-            "pred": 3.8197,
-            "lo": 2.6442,
-            "hi": 4.9952,
+            "pred": 4.2858,
+            "lo": 3.0557,
+            "hi": 5.5159,
             "gt": 3.2818,
-            "err_m": 0.5379,
-            "err_pct": 16.39,
+            "err_m": 1.004,
+            "err_pct": 30.59,
             "covered": true,
-            "half_width_pct": 35.8
+            "half_width_pct": 37.5
           }
         }
       },
@@ -1001,31 +1130,31 @@
       },
       "overlaps": 0,
       "footprint": {
-        "pred": 16.932,
-        "lo": 14.1625,
-        "hi": 19.7015,
+        "pred": 17.9867,
+        "lo": 15.4736,
+        "hi": 20.4998,
         "gt": 19.9287,
-        "err_m": -2.9967,
-        "err_pct": -15.04,
-        "covered": false,
-        "half_width_pct": 13.9
+        "err_m": -1.942,
+        "err_pct": -9.74,
+        "covered": true,
+        "half_width_pct": 12.6
       },
       "summary": {
-        "walls_scored": 8,
-        "mean_abs_wall_err_pct": 8.12,
-        "max_abs_wall_err_pct": 18.88,
-        "coverage": 0.786,
-        "mean_half_width_pct": 17.3
+        "walls_scored": 14,
+        "mean_abs_wall_err_pct": 20.89,
+        "max_abs_wall_err_pct": 96.69,
+        "coverage": 0.7,
+        "mean_half_width_pct": 15.3
       },
       "gates": {
-        "G1 openings (width <= 2 cm, >= 85%)": "fail: 0/4 = 0% (2 measured, 2 phantom)",
+        "G1 openings (width <= 2 cm, >= 85%)": "fail: 0/7 = 0% (4 measured, 3 phantom)",
         "G2 ceiling <= 1.5 cm": "fail",
         "G3 repeatability": "n/a (needs a repeat capture, e.g. home01_photo_b)",
         "G4 drift handling": "on: per-room reconstructions placed by link frames (points seen from both rooms) + structural wall snapping (shared partitions to one 0.12 m wall, collinear outer walls to one line, best-seen face sets the line)",
         "G5 stitch": "fail",
         "damage": "found 0/1, phantom 10",
-        "walls within \u00b13%": "4/8",
-        "calibration (target 90%)": "79% of 14 intervals contain the truth"
+        "walls within \u00b13%": "2/14",
+        "calibration (target 90%)": "70% of 20 intervals contain the truth"
       }
     },
     "captures/home01_video_e": {
@@ -1042,58 +1171,140 @@
       "rooms": {
         "bedroom1": {
           "status": "ok",
-          "walls": "wall count differs: plan 6, ground truth 4",
+          "shift": 0,
+          "walls": [
+            {
+              "plan": "bedroom1-W1",
+              "gt_id": "W1",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.3099,
+              "lo": 1.9899,
+              "hi": 2.6299,
+              "gt": 2.39,
+              "err_m": -0.0801,
+              "err_pct": -3.35,
+              "covered": true,
+              "half_width_pct": 13.4,
+              "within_tol": false
+            },
+            {
+              "plan": "bedroom1-W2",
+              "gt_id": "W2",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.7735,
+              "lo": 2.3273,
+              "hi": 3.2197,
+              "gt": 2.89,
+              "err_m": -0.1165,
+              "err_pct": -4.03,
+              "covered": true,
+              "half_width_pct": 15.4,
+              "within_tol": false
+            },
+            {
+              "plan": "bedroom1-W3",
+              "gt_id": "W3",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.3099,
+              "lo": 1.9899,
+              "hi": 2.6299,
+              "gt": 2.39,
+              "err_m": -0.0801,
+              "err_pct": -3.35,
+              "covered": true,
+              "half_width_pct": 13.4,
+              "within_tol": false
+            },
+            {
+              "plan": "bedroom1-W4",
+              "gt_id": "W4",
+              "kind_plan": "wall",
+              "kind_gt": "wall",
+              "pred": 2.7735,
+              "lo": 2.3273,
+              "hi": 3.2197,
+              "gt": 2.94,
+              "err_m": -0.1665,
+              "err_pct": -5.66,
+              "covered": true,
+              "half_width_pct": 15.2,
+              "within_tol": false
+            }
+          ],
+          "openings": [
+            {
+              "kind": "matched",
+              "gt": "O1",
+              "plan": "bedroom1-O1",
+              "type": "door",
+              "gt_width": 0.9,
+              "width": 0.72,
+              "err_cm": -18.0,
+              "width_ok": false,
+              "covered": false
+            },
+            {
+              "kind": "matched",
+              "gt": "O2",
+              "plan": "bedroom1-O2",
+              "type": "window",
+              "gt_width": 0.9,
+              "width": 0.855,
+              "err_cm": -4.5,
+              "width_ok": false,
+              "covered": true
+            }
+          ],
+          "damage": [
+            {
+              "kind": "missed",
+              "gt": "D1",
+              "class": "water_stain"
+            }
+          ],
+          "checks": [],
           "ceiling": {
-            "pred": 2.5492,
-            "lo": 2.2149,
-            "hi": 2.8835,
+            "pred": 1.9339,
+            "lo": 1.6484,
+            "hi": 2.2194,
             "gt": 2.7925,
-            "err_m": -0.2433,
-            "err_pct": -8.71,
-            "covered": true,
-            "half_width_pct": 12.0,
-            "err_cm": -24.33,
+            "err_m": -0.8586,
+            "err_pct": -30.75,
+            "covered": false,
+            "half_width_pct": 10.2,
+            "err_cm": -85.86,
             "g2_pass": false
           },
           "area": {
-            "pred": 7.8938,
-            "lo": 5.6108,
-            "hi": 10.1768,
+            "pred": 6.4065,
+            "lo": 4.637,
+            "hi": 8.176,
             "gt": 6.9669,
-            "err_m": 0.9269,
-            "err_pct": 13.31,
+            "err_m": -0.5604,
+            "err_pct": -8.04,
             "covered": true,
-            "half_width_pct": 32.8
+            "half_width_pct": 25.4
           }
         },
         "hall": {
-          "status": "ok",
+          "status": "partial",
           "walls": "wall count differs: plan 4, ground truth 6",
-          "ceiling": {
-            "pred": 2.8521,
-            "lo": 2.4871,
-            "hi": 3.2171,
-            "gt": 2.8025,
-            "err_m": 0.0496,
-            "err_pct": 1.77,
-            "covered": true,
-            "half_width_pct": 13.0,
-            "err_cm": 4.96,
-            "g2_pass": false
-          },
           "area": {
-            "pred": 5.5183,
-            "lo": 3.2716,
-            "hi": 7.765,
+            "pred": 8.2609,
+            "lo": 6.4559,
+            "hi": 10.0659,
             "gt": 9.68,
-            "err_m": -4.1617,
-            "err_pct": -42.99,
-            "covered": false,
-            "half_width_pct": 23.2
+            "err_m": -1.4191,
+            "err_pct": -14.66,
+            "covered": true,
+            "half_width_pct": 18.6
           }
         },
         "kitchen": {
-          "status": "ok",
+          "status": "partial",
           "shift": 1,
           "walls": [
             {
@@ -1101,14 +1312,14 @@
               "gt_id": "W1",
               "kind_plan": "wall",
               "kind_gt": "open",
-              "pred": 1.112,
-              "lo": 0.7929,
-              "hi": 1.4311,
+              "pred": 1.2162,
+              "lo": 0.9785,
+              "hi": 1.4539,
               "gt": 1.17,
-              "err_m": -0.058,
-              "err_pct": -4.96,
+              "err_m": 0.0462,
+              "err_pct": 3.95,
               "covered": true,
-              "half_width_pct": 27.3,
+              "half_width_pct": 20.3,
               "within_tol": false
             },
             {
@@ -1116,14 +1327,14 @@
               "gt_id": "W2",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 2.5858,
-              "lo": 2.0627,
-              "hi": 3.1089,
+              "pred": 3.6151,
+              "lo": 3.1373,
+              "hi": 4.0929,
               "gt": 2.805,
-              "err_m": -0.2192,
-              "err_pct": -7.81,
-              "covered": true,
-              "half_width_pct": 18.6,
+              "err_m": 0.8101,
+              "err_pct": 28.88,
+              "covered": false,
+              "half_width_pct": 17.0,
               "within_tol": false
             },
             {
@@ -1131,14 +1342,14 @@
               "gt_id": "W3",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 1.112,
-              "lo": 0.7929,
-              "hi": 1.4311,
+              "pred": 1.2162,
+              "lo": 0.9785,
+              "hi": 1.4539,
               "gt": 1.17,
-              "err_m": -0.058,
-              "err_pct": -4.96,
+              "err_m": 0.0462,
+              "err_pct": 3.95,
               "covered": true,
-              "half_width_pct": 27.3,
+              "half_width_pct": 20.3,
               "within_tol": false
             },
             {
@@ -1146,14 +1357,14 @@
               "gt_id": "W4",
               "kind_plan": "wall",
               "kind_gt": "wall",
-              "pred": 2.5858,
-              "lo": 2.0627,
-              "hi": 3.1089,
+              "pred": 3.6151,
+              "lo": 3.1373,
+              "hi": 4.0929,
               "gt": 2.805,
-              "err_m": -0.2192,
-              "err_pct": -7.81,
-              "covered": true,
-              "half_width_pct": 18.6,
+              "err_m": 0.8101,
+              "err_pct": 28.88,
+              "covered": false,
+              "half_width_pct": 17.0,
               "within_tol": false
             }
           ],
@@ -1162,19 +1373,13 @@
               "kind": "phantom",
               "plan": "kitchen-O1",
               "type": "opening",
-              "width": 0.92
+              "width": 0.8
             },
             {
               "kind": "phantom",
               "plan": "kitchen-O2",
-              "type": "opening",
-              "width": 0.72
-            },
-            {
-              "kind": "phantom",
-              "plan": "kitchen-O3",
               "type": "window",
-              "width": 1.02
+              "width": 0.908
             }
           ],
           "damage": [
@@ -1201,12 +1406,12 @@
             {
               "kind": "phantom",
               "plan": "kitchen-D5",
-              "class": "crack"
+              "class": "water_stain"
             },
             {
               "kind": "phantom",
               "plan": "kitchen-D6",
-              "class": "water_stain"
+              "class": "crack"
             },
             {
               "kind": "phantom",
@@ -1215,27 +1420,15 @@
             }
           ],
           "checks": [],
-          "ceiling": {
-            "pred": 2.0107,
-            "lo": 1.7206,
-            "hi": 2.3008,
-            "gt": 2.79,
-            "err_m": -0.7793,
-            "err_pct": -27.93,
-            "covered": false,
-            "half_width_pct": 10.4,
-            "err_cm": -77.93,
-            "g2_pass": false
-          },
           "area": {
-            "pred": 2.8755,
-            "lo": 1.7396,
-            "hi": 4.0114,
+            "pred": 4.3967,
+            "lo": 3.093,
+            "hi": 5.7004,
             "gt": 3.2818,
-            "err_m": -0.4063,
-            "err_pct": -12.38,
+            "err_m": 1.1149,
+            "err_pct": 33.97,
             "covered": true,
-            "half_width_pct": 34.6
+            "half_width_pct": 39.7
           }
         }
       },
@@ -1244,6 +1437,14 @@
           [
             "bedroom1",
             "hall"
+          ],
+          [
+            "bedroom1",
+            "kitchen"
+          ],
+          [
+            "hall",
+            "kitchen"
           ]
         ],
         "gt": [
@@ -1258,68 +1459,68 @@
         ],
         "equal": false
       },
-      "overlaps": 2,
+      "overlaps": 0,
       "footprint": {
-        "pred": 16.2876,
-        "lo": 12.889,
-        "hi": 19.6862,
+        "pred": 19.0641,
+        "lo": 16.22,
+        "hi": 21.9082,
         "gt": 19.9287,
-        "err_m": -3.6411,
-        "err_pct": -18.27,
-        "covered": false,
-        "half_width_pct": 17.1
+        "err_m": -0.8646,
+        "err_pct": -4.34,
+        "covered": true,
+        "half_width_pct": 14.3
       },
       "summary": {
-        "walls_scored": 4,
-        "mean_abs_wall_err_pct": 6.38,
-        "max_abs_wall_err_pct": 7.81,
-        "coverage": 0.8,
-        "mean_half_width_pct": 21.8
+        "walls_scored": 8,
+        "mean_abs_wall_err_pct": 10.26,
+        "max_abs_wall_err_pct": 28.88,
+        "coverage": 0.75,
+        "mean_half_width_pct": 18.8
       },
       "gates": {
-        "G1 openings (width <= 2 cm, >= 85%)": "fail: 0/3 = 0% (0 measured, 3 phantom)",
+        "G1 openings (width <= 2 cm, >= 85%)": "fail: 0/4 = 0% (2 measured, 2 phantom)",
         "G2 ceiling <= 1.5 cm": "fail",
         "G3 repeatability": "n/a (needs a repeat capture, e.g. home01_photo_b)",
         "G4 drift handling": "on: per-room reconstructions placed by link frames (points seen from both rooms) + structural wall snapping (shared partitions to one 0.12 m wall, collinear outer walls to one line, best-seen face sets the line)",
         "G5 stitch": "fail",
-        "damage": "found 0/0, phantom 7",
-        "walls within \u00b13%": "0/4",
-        "calibration (target 90%)": "80% of 10 intervals contain the truth"
+        "damage": "found 0/1, phantom 7",
+        "walls within \u00b13%": "0/8",
+        "calibration (target 90%)": "75% of 12 intervals contain the truth"
       }
     }
   },
   "timing": {
     "captures/home01_photo_a": {
-      "ingest_s": 2.9,
-      "geometry_s": 1.91,
-      "alignment_s": 2.84,
-      "layout_s": 1.65,
-      "openings_s": 0.03,
+      "ingest_s": 3.4,
+      "geometry_s": 1.85,
+      "alignment_s": 2.51,
+      "layout_s": 1.3,
+      "openings_s": 0.04,
       "detector_damage_s": 0.02
     },
     "captures/home01_photo_b": {
-      "ingest_s": 4.31,
-      "geometry_s": 1.78,
-      "alignment_s": 4.15,
-      "layout_s": 1.22,
-      "openings_s": 0.04,
+      "ingest_s": 4.02,
+      "geometry_s": 1.84,
+      "alignment_s": 3.69,
+      "layout_s": 1.28,
+      "openings_s": 0.03,
       "detector_damage_s": 0.02
     },
     "captures/home01_video_d": {
-      "ingest_s": 214.87,
-      "geometry_s": 2.48,
-      "alignment_s": 4.2,
-      "layout_s": 1.86,
-      "openings_s": 0.05,
+      "ingest_s": 159.61,
+      "geometry_s": 3.81,
+      "alignment_s": 9.51,
+      "layout_s": 3.99,
+      "openings_s": 0.04,
       "detector_damage_s": 0.02
     },
     "captures/home01_video_e": {
-      "ingest_s": 157.13,
-      "geometry_s": 2.07,
-      "alignment_s": 4.74,
-      "layout_s": 1.54,
-      "openings_s": 0.04,
-      "detector_damage_s": 0.04
+      "ingest_s": 155.7,
+      "geometry_s": 2.17,
+      "alignment_s": 4.49,
+      "layout_s": 3.7,
+      "openings_s": 0.03,
+      "detector_damage_s": 0.03
     }
   },
   "nodrift": {
@@ -1344,14 +1545,14 @@
       "half_width_pct": 34.0
     },
     "captures/home01_video_e": {
-      "pred": 16.9987,
-      "lo": 13.4799,
-      "hi": 20.5175,
+      "pred": 19.2036,
+      "lo": 16.2867,
+      "hi": 22.1205,
       "gt": 19.9287,
-      "err_m": -2.93,
-      "err_pct": -14.7,
+      "err_m": -0.7251,
+      "err_pct": -3.64,
       "covered": true,
-      "half_width_pct": 17.7
+      "half_width_pct": 14.6
     }
   },
   "head_to_head": {
@@ -1571,8 +1772,8 @@
         ],
         "app": 2.32,
         "truth": 2.39,
-        "ours": null,
-        "err_ours": null,
+        "ours": 2.3099,
+        "err_ours": 0.08010000000000028,
         "err_app": 0.07000000000000028,
         "result": "loss"
       },
@@ -1586,10 +1787,10 @@
         ],
         "app": 2.45,
         "truth": 2.915,
-        "ours": null,
-        "err_ours": null,
+        "ours": 2.7735,
+        "err_ours": 0.14150000000000018,
         "err_app": 0.46499999999999986,
-        "result": "loss"
+        "result": "win"
       },
       {
         "room": "bedroom1",
@@ -1597,10 +1798,10 @@
         "kind": "ceiling",
         "app": 2.14,
         "truth": 2.7925,
-        "ours": 2.5492,
-        "err_ours": 0.24330000000000007,
+        "ours": 1.9339,
+        "err_ours": 0.8586,
         "err_app": 0.6524999999999999,
-        "result": "win"
+        "result": "loss"
       },
       {
         "room": "bedroom1",
@@ -1608,8 +1809,8 @@
         "kind": "area",
         "app": 4.83,
         "truth": 6.966850000000001,
-        "ours": 7.8938,
-        "err_ours": 0.9269499999999988,
+        "ours": 6.4065,
+        "err_ours": 0.5603500000000006,
         "err_app": 2.136850000000001,
         "result": "win"
       },
@@ -1647,10 +1848,10 @@
         "kind": "ceiling",
         "app": 2.72,
         "truth": 2.8025,
-        "ours": 2.8521,
-        "err_ours": 0.049599999999999866,
+        "ours": null,
+        "err_ours": null,
         "err_app": 0.08250000000000002,
-        "result": "win"
+        "result": "loss"
       },
       {
         "room": "hall",
@@ -1658,10 +1859,10 @@
         "kind": "area",
         "app": 8.15,
         "truth": 9.68,
-        "ours": 5.5183,
-        "err_ours": 4.1617,
+        "ours": 8.2609,
+        "err_ours": 1.4191000000000003,
         "err_app": 1.5299999999999994,
-        "result": "loss"
+        "result": "win"
       }
     ]
   }

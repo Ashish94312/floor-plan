@@ -41,12 +41,12 @@ Requirement IDs refer to [REQUIREMENTS.md](../REQUIREMENTS.md). Numbers come fro
 | FR-GEO-03 | Metric scale at every tier | `scan/geometry/cloud.py` (photo focal vote), `scan/uncertainty/calibrate.py` | `reports/fix_loop.md` | ✅ photo: focal vote + calibrated level |
 | FR-GEO-04, FR-DMG-05 | An interval on every measurement | `scan/uncertainty/intervals.py`, `scan/schema.py` (`Measurement`) | every number in `result.json` | ✅ |
 | G2, FR-EVAL-06 | Ceiling ≤ 1.5 cm, spread ≤ 1 cm; bias or variance stated | `scan/layout/room.py` | benchmark: gates, repeatability | ❌ photo: −2.9 … −9.8 cm, **biased low**, nearly repeatable (spread 1.4–2.5 cm). Video: **unrepeatable** (spread up to 88 cm) |
-| G3, NFR-13 | Two captures agree within max(1 cm, 0.5%) per wall | `scan/eval/bench.py` | benchmark: repeatability | ❌ photo 0/16 (landscape bedroom and hall outlines not scorable; kitchen 15–18 cm apart), video 1/11. Same input → same output holds (E19) |
-| FR-STI-01/02/03 | Stitched plan, correct adjacency, no overlaps | `scan/stitch/` | `plan.png`; benchmark G5 column | ✅ photo (both captures). ❌ video |
+| G3, NFR-13 | Two captures agree within max(1 cm, 0.5%) per wall | `scan/eval/bench.py` | benchmark: repeatability | ❌ photo 0/16 (landscape bedroom and hall outlines not scorable; kitchen 15–18 cm apart), video 2/15. Same input → same output holds (E19) |
+| FR-STI-01/02/03 | Stitched plan, correct adjacency, no overlaps | `scan/stitch/` | `plan.png`; benchmark G5 column | ✅ photo (both captures). ❌ video: 0 overlaps (final config), but one extra bedroom–kitchen adjacency |
 | FR-STI-04, G5 | Photo tier stitches per-room folders, footprint ±8% | `scan/pipeline.py` (joint run), `scan/stitch/doors.py` | benchmark: gates | ✅ footprint −2.7% (photo_a), +2.8% (photo_b), adjacency right, 0 overlaps |
-| FR-DRI-01/02, G4 | Drift correction, toggleable, ablation on/off | `scan/stitch/snap.py`, `scan/stitch/links.py`, `--no-drift-correction` | benchmark: G4 table | ✅ method and ablation reported: on vs off footprint −2.7 / −1.4% (photo_a), +2.8 / +5.6% (photo_b), −18.3 / −14.7% (video_e). It helps only on photo_b |
-| Accuracy | Photo ±8%, video ±3%, LiDAR (Round 1 gates) | `scan/eval/gates.py` | benchmark: gates | ⚠️ photo 12/14 (photo_a), 2/4 scorable (photo_b). ❌ video 4/8 and 0/4 within ±3%. LiDAR not measured (no device) |
-| NFR-08, FR-EVAL-05 | Calibrated intervals at every tier; no confident garbage | `scan/uncertainty/calibrate.py`, `config/calibration.yaml` | benchmark: coverage column | ✅ photo 100%. ⚠️ video 79–80% (target 90%) |
+| FR-DRI-01/02, G4 | Drift correction, toggleable, ablation on/off | `scan/stitch/snap.py`, `scan/stitch/links.py`, `--no-drift-correction` | benchmark: G4 table | ✅ method and ablation reported: on vs off footprint −2.7 / −1.4% (photo_a), +2.8 / +5.6% (photo_b), −4.3 / −3.6% (video_e). It helps only on photo_b |
+| Accuracy | Photo ±8%, video ±3%, LiDAR (Round 1 gates) | `scan/eval/gates.py` | benchmark: gates | ⚠️ photo 12/14 (photo_a), 2/4 scorable (photo_b). ❌ video 2/14 (video_d) and 0/8 (video_e) within ±3%. LiDAR not measured (no device) |
+| NFR-08, FR-EVAL-05 | Calibrated intervals at every tier; no confident garbage | `scan/uncertainty/calibrate.py`, `config/calibration.yaml` | benchmark: coverage column | ✅ photo 100%. ⚠️ video 70–75% (target 90%) |
 
 ## Damage and scope
 

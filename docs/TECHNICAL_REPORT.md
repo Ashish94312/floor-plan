@@ -20,7 +20,7 @@ The capture route is Route 2: the stock Camera app for photos and video, Stray S
 | Tier | State on the benchmark (home01: bedroom, L-shaped hall, kitchen; laser ground truth) |
 |---|---|
 | Photo | Works end to end, including the stitch. Portrait capture: 12/14 walls within ±8%, mean 2.9%, footprint −2.7%. Landscape capture: footprint +2.8%, but two room outlines are not scorable (§7). Intervals contain the tape value 100% of the time. |
-| Video | Runs end to end; the stitched plan has no overlaps. Fails the ±3% target (§7). |
+| Video | Runs end to end. Final config (§3): no overlaps, footprint −4.3%. Walls: mean 10.3%, 0/8 within the ±3% target. Intervals contain the tape value 75% of the time (§7). |
 | LiDAR | Stray Scanner reader built and tested on synthetic rooms. No Pro iPhone was available, so there is no tape-measured LiDAR result. |
 
 ## 2. Architecture
@@ -67,7 +67,7 @@ A photo carries no depth, so absolute size comes from the model's sense of how b
 |---|---|---|
 | photo_a | −2.7% | −1.4% |
 | photo_b | +2.8% | +5.6% |
-| video_e | see benchmark | see benchmark |
+| video_e | −4.3% | −3.6% |
 
 Snapping helps when rooms disagree (photo_b). On photo_a, which is already consistent, it costs 1.3%. The footprint is the sum of net room areas (D10), so snapping moves it only through the shared walls.
 
@@ -85,7 +85,7 @@ Snapping helps when rooms disagree (photo_b). On photo_a, which is already consi
 ## 6. Calibration analysis
 
 - **Interval model.** For a length L: σ² = (L·σ_log)² + σ_position². The level's spread goes into σ_log. A split-conformal factor k per mode and measurement type is fitted on taped residuals (D30). Sample guards apply: with n < 10 we use max ratio × 2, floored at 0.5.
-- **Coverage:** photo 100% (target 90%); video about 80%.
+- **Coverage:** photo 100% (target 90%); video 70–75%. Video intervals are too narrow: its per-room size error (±6%, E22q) is larger than the door anchor's spread suggests.
 - **The fix loop removed confident garbage on the protocol capture.** photo_b went from 17% coverage, with narrow intervals 12% off, to 100%.
 - **Caveat.** Calibration rests on two captures of one flat (5 rooms, 3 physical). The leave-one-room-out errors of the level are −3.0% to +8.3%. The walk-in on an unseen flat is the real test, which is why σ_log is kept at or above 5% (`sigma_log_floor_photo`) and widened by the level's own spread.
 
@@ -124,7 +124,7 @@ We compared against magicplan 2026.38.0 on the same iPhone 13 (camera scan, free
 |---|---|
 | photo_a | 7/8 (88%) |
 | photo_b (headline, chosen before the run) | 4/8 (50%): the unscorable outlines count as losses |
-| video_e | see benchmark |
+| video_e | 3/8 (38%) |
 
 magicplan's bedroom ceiling read 2.14 m against 2.79 m on the tape, and it drew the L-shaped hall as a rectangle.
 

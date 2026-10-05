@@ -5,7 +5,7 @@ Each row is one tier: the hardware it needs, what it was tested on, and how accu
 | Tier | Hardware | Capture app | Tested on | Walls | Ceilings | Intervals contain the tape value |
 |---|---|---|---|---|---|---|
 | Photo | Any iPhone 15 or newer; 1× lens, HEIC/JPEG with EXIF | Camera (Photo) | iPhone 13, 1× lens (26 mm eq.), 2 captures | Portrait capture: mean 2.9%, 12/14 within ±8%. Landscape capture: mean 6.7%, but the bedroom and hall outlines are not scorable (doubled walls) | −3 to −10 cm (biased low) | 100% (target 90%) |
-| Video | Any iPhone 15 or newer; 1× lens | Camera (Video) | iPhone 13, 1080p, 2 captures | Mean 6–8%; not within the ±3% target | +10 to −78 cm (unrepeatable) | about 80% |
+| Video | Any iPhone 15 or newer; 1× lens | Camera (Video) | iPhone 13, 1080p, 2 captures | Landscape (final config): mean 10.3%, footprint −4.3%. Portrait: mean 20.9%. Not within the ±3% target | −14 to −86 cm (unrepeatable) | 70–75% |
 | LiDAR | Pro iPhone (12 Pro or newer) | Stray Scanner (free) | Assignment sample recordings and synthetic rooms; no tape-measured LiDAR capture | not measured | not measured | not measured |
 
 ## Notes
