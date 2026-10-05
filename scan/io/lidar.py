@@ -1,13 +1,16 @@
 """LiDAR tier: Stray Scanner exports -> frames carrying ARKit depth, confidence and camera poses.
 
 Stray Scanner (free App Store app, Pro iPhones) writes one folder per recording:
-  odometry.csv           timestamp, frame, x, y, z, qx, qy, qz, qw, fx, fy, cx, cy: camera-to-world pose in ARKit
-                         axes and intrinsics of the 1920x1440 colour frame, one row per frame
+  odometry.csv           timestamp, frame, x, y, z, qx, qy, qz, qw, fx, fy, cx, cy: camera-to-world pose and intrinsics
+                         of the 1920x1440 colour frame, one row per frame. World: ARKit's (gravity-aligned, +y up).
+                         Camera axes: OpenCV (x right, y down, z ahead), as written; the ARKit camera flip (y, z)
+                         makes two frames of the same wall disagree by ~30 cm instead of ~1 cm (E25a)
   depth/NNNNNN.png       uint16 millimetres, 256x192 (ARKit scene depth: z-depth)
   confidence/NNNNNN.png  uint8 0/1/2 (low / medium / high)
   rgb.mp4                the colour frames, one per odometry row
-Layouts (ingest): a bare export at the capture root or in <capture>/lidar/ is one room; <capture>/lidar/<room>/ holds
-one recording per room (each its own ARKit session, so rooms are placed by door matching, as per-room photo runs).
+Layouts (ingest): a bare export at the capture root or in <capture>/lidar/ is one walk through the home (UNSPLIT: the
+pipeline splits it into rooms at doorways, scan/layout/segment.py); <capture>/lidar/<room>/ holds one recording per
+room (each its own ARKit session, so rooms are placed by door matching, as per-room photo runs).
 
 No learned model is involved: depth and poses come from the phone. The pipeline gets the same per-view arrays the
 MapAnything backend returns (lidar_views), so alignment, layout, openings, stitching and output are shared.
@@ -30,16 +33,17 @@ from scan.geometry.cloud import unproject
 from scan.types import Capture, Frame, PhotoMeta
 
 ROOM_NAME = re.compile(r"^[a-z0-9_]+$")
-ARKIT_TO_CV = np.diag([1.0, -1.0, -1.0, 1.0])  # ARKit camera: x right, y up, looks along -z. OpenCV: y down, +z ahead
+UNSPLIT = "home"  # room id of a bare export until segmentation names its rooms
+WORLD_UP = np.array([0.0, 1.0, 0.0])  # ARKit world: gravity-aligned, +y up
 
 
 def recordings(root: Path) -> dict[str, Path]:
     """room -> recording folder for the accepted layouts."""
     if (root / "odometry.csv").is_file():
-        return {"room1": root}
+        return {UNSPLIT: root}
     lidar = root / "lidar"
     if (lidar / "odometry.csv").is_file():
-        return {"room1": lidar}
+        return {UNSPLIT: lidar}
     recs = {d.name: d for d in sorted(lidar.iterdir()) if d.is_dir() and (d / "odometry.csv").is_file()}
     if not recs:
         raise InputError(f"{lidar}: no Stray Scanner recording (a folder with odometry.csv) found.")
@@ -47,13 +51,13 @@ def recordings(root: Path) -> dict[str, Path]:
 
 
 def read_odometry(path: Path) -> dict[str, np.ndarray]:
-    """Columns of odometry.csv; poses as 4x4 camera-to-world in OpenCV camera axes."""
+    """Columns of odometry.csv; poses as 4x4 camera-to-world (OpenCV camera axes, as written: E25a)."""
     rows = [r.split(",") for r in path.read_text().strip().splitlines()[1:]]
     a = np.array([[float(x) for x in r[:13]] for r in rows])
     T = np.repeat(np.eye(4)[None], len(a), 0)
     T[:, :3, :3] = Rotation.from_quat(a[:, 5:9]).as_matrix()  # (qx, qy, qz, qw)
     T[:, :3, 3] = a[:, 2:5]
-    return {"t": a[:, 0], "frame": a[:, 1].astype(int), "T_wc": T @ ARKIT_TO_CV, "f": a[:, 9:11], "c": a[:, 11:13]}
+    return {"t": a[:, 0], "frame": a[:, 1].astype(int), "T_wc": T, "f": a[:, 9:11], "c": a[:, 11:13]}
 
 
 def pick_frames(t: np.ndarray, n_max: int, min_dt: float) -> np.ndarray:

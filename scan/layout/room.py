@@ -342,7 +342,8 @@ def view_rays(cloud, cfg) -> list[tuple[np.ndarray, np.ndarray]]:
 def layout_rooms(clouds: dict, cfg: dict) -> dict[str, Layout]:
     """Lay out every room. Rooms sharing a reconstruction frame (joint run) split the carved free space
     by ownership: a cell belongs to the room whose own photos saw through it most, so lines of sight
-    through a doorway into the next room don't leak into this room's outline."""
+    through a doorway into the next room don't leak into this room's outline. Rooms split from one walk-through
+    (RoomCloud.region, scan/layout/segment.py) take their own segment instead: disjoint, cut at the doorways."""
     lc = cfg["layout"]
     cell = lc["cell_m"]
     out: dict[str, Layout] = {}
@@ -368,8 +369,20 @@ def layout_rooms(clouds: dict, cfg: dict) -> dict[str, Layout]:
         else:
             own = {names[0]: free[names[0]] >= lc["min_views_free"]}
         for r, c in rooms.items():
+            if c.region is not None:  # split walk-through: the room's own segment (doorway to doorway), E25
+                own[r] = region_on_grid(c.region, lo, shape, cell)
             out[r] = _layout_one(r, c, data[r], own[r], free[r], lo, shape, cfg)
     return out
+
+
+def region_on_grid(region, lo, shape, cell) -> np.ndarray:
+    """A segment (label image, its origin, its cell, the label) resampled to this grid's cell centres."""
+    labels, lo_s, cell_s, k = region
+    j = np.floor((lo[0] + (np.arange(shape[0]) + 0.5) * cell - lo_s[0]) / cell_s).astype(int)
+    i = np.floor((lo[1] + (np.arange(shape[1]) + 0.5) * cell - lo_s[1]) / cell_s).astype(int)
+    oj, oi = (j >= 0) & (j < labels.shape[1]), (i >= 0) & (i < labels.shape[0])
+    sub = labels[np.clip(i, 0, labels.shape[0] - 1)][:, np.clip(j, 0, labels.shape[1] - 1)] == k
+    return sub & oi[:, None] & oj[None]
 
 
 def _layout_one(room_id, cloud, d, own, free, lo, shape, cfg) -> Layout:

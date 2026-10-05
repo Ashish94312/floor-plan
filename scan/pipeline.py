@@ -29,6 +29,7 @@ from scan.geometry.align import (
 )
 from scan.geometry.cloud import build_cloud, depth_focal_fix, focal_scale_vote, save_ply, scale_pred
 from scan.io.ingest import ingest
+from scan.io.lidar import UNSPLIT
 from scan.layout.openings import (
     detect_openings,
     drop_one_sided_doors,
@@ -67,16 +68,25 @@ def run(
             cfg["stitch"]["door_height_prior_m"] = cfg["video"]["door_height_prior_m"]
         if cfg["video"].get("repose"):
             cfg["geometry"]["repose"]["enabled"] = True
-    if cap.tier == "lidar":
-        raise NotImplementedError("lidar tier")
 
     go_offline()
     seed_everything()
     dev = select_device(device)
     out = out or capture_dir / "out"
-    clouds, info = geometry_photo(cap, cfg, dev, use_cache, timing, log)
+    if cap.tier == "lidar":
+        clouds, info = geometry_lidar(cap, cfg, timing, log)
+    else:
+        clouds, info = geometry_photo(cap, cfg, dev, use_cache, timing, log)
     t = time.perf_counter()
-    alignments = align_rooms(clouds, cfg, log)
+    alignments = align_rooms(clouds, cfg, log, check=cap.tier != "lidar")
+    if cap.tier == "lidar" and UNSPLIT in clouds:  # one walk through the home: rooms split at doorways (E25)
+        from scan.layout.segment import split_recording
+
+        whole = clouds.pop(UNSPLIT)
+        rooms = split_recording(whole, cfg, log)
+        clouds.update(rooms)
+        cap.rooms.pop(UNSPLIT)
+        cap.rooms.update({r: c.frames for r, c in rooms.items()})
     timing["alignment_s"] = round(time.perf_counter() - t, 2)
     runs = info["runs"]
     if (len({c.frame_id for c in clouds.values()}) > 1 and cap.links and cfg["stitch"]["flat_scale"]
@@ -386,14 +396,36 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
     return clouds, info
 
 
-def align_rooms(clouds: dict[str, RoomCloud], cfg, log) -> dict[str, Alignment]:
+def geometry_lidar(cap: Capture, cfg, timing: dict, log) -> tuple[dict[str, RoomCloud], dict]:
+    """C2 LiDAR tier: the phone's depth through the phone's poses (no learned model). Each recording is its own
+    ARKit session (own frame), metric to the sensor's accuracy."""
+    from scan.io.lidar import WORLD_UP, lidar_views
+
+    g = cfg["geometry"]
+    t = time.perf_counter()
+    clouds: dict[str, RoomCloud] = {}
+    for room, frames in cap.rooms.items():
+        v = lidar_views(frames, cfg)
+        # K_exif == K_model and pts == depth through them: any rays setting reads the same points
+        pts, cols = build_cloud(v, list(range(len(frames))), g["rays"], g["conf_percentile"], g["voxel_m"])
+        log(f"  geometry: {room} ({len(frames)} LiDAR frames, {v['mask'].mean():.0%} of depth pixels kept) -> {len(pts)} points")
+        clouds[room] = RoomCloud(room_id=room, points=pts, colors=cols, frames=frames,
+                                 scale=Scale(s=1.0, sigma_log=cfg["lidar"]["sigma_log"]), T_room_world=np.eye(4),
+                                 frame_id=room, views=v, up_world=WORLD_UP)
+    timing["geometry_s"] = round(time.perf_counter() - t, 2)
+    return clouds, {"backbone": "arkit_lidar", "joint": False, "rays": g["rays"], "runs": {}, "scale_vote": False}
+
+
+def align_rooms(clouds: dict[str, RoomCloud], cfg, log, check: bool = True) -> dict[str, Alignment]:
     """C3: one alignment per reconstruction frame (all rooms in a joint run share it), then each
-    room's own floor/ceiling planes. Points and camera poses move into the aligned frame."""
+    room's own floor/ceiling planes. Points and camera poses move into the aligned frame.
+    check: drop views the backbone misplaced (check_views); off for measured (LiDAR) poses."""
     alignments: dict[str, Alignment] = {}
     for fid in dict.fromkeys(c.frame_id for c in clouds.values()):
         rooms = [c for c in clouds.values() if c.frame_id == fid]
         a = estimate_alignment(
-            np.concatenate([c.points for c in rooms]), np.concatenate([c.views["T_wc"] for c in rooms]), cfg
+            np.concatenate([c.points for c in rooms]), np.concatenate([c.views["T_wc"] for c in rooms]), cfg,
+            up=rooms[0].up_world,
         )
         alignments[fid] = a
         log(f"  alignment {fid}: tilt corrected {a.tilt_correction_deg} deg, floor-ceiling angle "
@@ -407,7 +439,8 @@ def align_rooms(clouds: dict[str, RoomCloud], cfg, log) -> dict[str, Alignment]:
                 v["pts"] = apply(a.T, v["pts"].reshape(-1, 3)).reshape(v["pts"].shape).astype(np.float32)
             c.alignment = a
             c.planes = room_planes(c.points, cfg)
-            check_views(c, cfg, log)
+            if check:
+                check_views(c, cfg, log)
             if shared:
                 c.planes = use_shared_floor(c.planes, cfg["alignment"]["shared_floor_tol_m"])
         if shared:

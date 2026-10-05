@@ -4,19 +4,19 @@ import numpy as np
 import pytest
 
 from scan.config import load_config
-from scan.io.lidar import ARKIT_TO_CV, lidar_views, load_recording, pick_frames, read_odometry
+from scan.io.lidar import lidar_views, load_recording, pick_frames, read_odometry
 from scan.synth.stray import write_box_room
 
 CFG = load_config(overrides={"lidar": {"max_frames_per_room": 40, "min_dt_s": 0.0, "min_confidence": 2, "max_depth_m": 5.0}})
 
 
-def test_arkit_pose_becomes_opencv_camera(tmp_path):
-    # identity ARKit pose: the camera looks along world -z, so OpenCV's +z (ahead) must map to world -z
+def test_pose_is_read_in_opencv_camera_axes(tmp_path):
+    # Stray Scanner writes OpenCV camera axes (E25a: real recordings agree frame to frame only so): identity pose
+    # = camera looking along world +z, image down along world +y
     (tmp_path / "odometry.csv").write_text("timestamp, frame, x, y, z, qx, qy, qz, qw, fx, fy, cx, cy\n"
                                            "0.0, 000000, 1.0, 2.0, 3.0, 0, 0, 0, 1, 100, 100, 50, 40\n")
     T = read_odometry(tmp_path / "odometry.csv")["T_wc"][0]
-    assert np.allclose(T[:3, :3] @ [0, 0, 1], [0, 0, -1]) and np.allclose(T[:3, :3] @ [0, 1, 0], [0, -1, 0])
-    assert np.allclose(T[:3, 3], [1, 2, 3]) and np.allclose(ARKIT_TO_CV @ ARKIT_TO_CV, np.eye(4))
+    assert np.allclose(T[:3, :3], np.eye(3)) and np.allclose(T[:3, 3], [1, 2, 3])
 
 
 def test_pick_frames_spreads_over_time():

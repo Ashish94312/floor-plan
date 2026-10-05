@@ -1,7 +1,8 @@
 """Synthetic Stray Scanner recordings of box rooms with known size (tests of the LiDAR tier; PLAN step 3.1).
 
 A camera stands in the room and turns a full circle; depth is ray-cast against the box walls, floor and ceiling and
-written in Stray Scanner's format (odometry.csv in ARKit axes, depth/ and confidence/ PNGs, rgb.mp4).
+written in Stray Scanner's format (odometry.csv: ARKit world, OpenCV camera axes (E25a); depth/ and confidence/
+PNGs; rgb.mp4).
 """
 
 from __future__ import annotations
@@ -12,8 +13,6 @@ import cv2
 import numpy as np
 from PIL import Image
 from scipy.spatial.transform import Rotation
-
-ARKIT_TO_CV = np.diag([1.0, -1.0, -1.0])
 
 
 def _R_cv(yaw: float, pitch: float) -> np.ndarray:
@@ -52,7 +51,7 @@ def write_box_room(out: Path, size=(4.0, 2.6, 3.0), cam=(2.0, 1.4, 1.5), n=24, h
         Image.fromarray(np.full((h, w), 2, np.uint8)).save(out / "confidence" / f"{i:06d}.png")
         shade = (255 * (1 - depth / depth.max())).astype(np.uint8)
         vid.write(cv2.resize(cv2.merge([shade, shade, shade]), (W, Hc), interpolation=cv2.INTER_NEAREST))
-        q = Rotation.from_matrix(R @ ARKIT_TO_CV).as_quat()  # ARKit camera axes
+        q = Rotation.from_matrix(R).as_quat()  # OpenCV camera axes, as Stray Scanner writes them
         fs = f * rgb_scale
         rows.append(f"{i / 30:.6f}, {i:06d}, {p[0]}, {p[1]}, {p[2]}, {q[0]}, {q[1]}, {q[2]}, {q[3]}, "
                     f"{fs}, {fs}, {W / 2}, {Hc / 2}, , ")

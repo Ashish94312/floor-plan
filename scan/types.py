@@ -76,3 +76,5 @@ class RoomCloud:
     damage: list = field(default_factory=list)  # damage.detect.DamageSeg (step 1.9)
     pose: tuple[float, float, float] = (0.0, 0.0, 0.0)  # x, y, theta_deg of the room frame in the property frame
     placed_by: str | None = None  # joint_reconstruction | door_matching | single_room | None (unplaced)
+    up_world: np.ndarray | None = None  # LiDAR: gravity up in the recording's world (ARKit +y); None = from the cameras
+    region: tuple | None = None  # split walk-through: (label image, origin xy, cell, label) of the room's free space

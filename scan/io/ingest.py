@@ -72,6 +72,10 @@ def ingest(root: Path, tier: Tier | None, cfg: dict[str, Any]) -> Capture:
         from scan.io.video import ingest_video
 
         ingest_video(cap, cfg)
+    else:
+        from scan.io.lidar import ingest_lidar
+
+        ingest_lidar(cap, cfg)
     return cap
 
 

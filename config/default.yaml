@@ -202,3 +202,17 @@ video:
   default_f35_mm: 32.0             # fallback only: iPhone 13 1x video measured ~31.9 mm by vanishing points (16:9 + stabilisation crop)
   vp_frames_per_clip: 20           # sharpest frames per clip used to estimate the focal
   min_vp_frames: 3                 # keyframes with a valid vanishing-point focal needed to trust it
+
+segment:                           # one recording through several rooms -> rooms (LiDAR, E25: scan/layout/segment.py)
+  cell_m: 0.05                     # free-space grid
+  door_max_m: 1.00                 # necks narrower than this are doorways (interior door leaves 0.6-0.9 m); wider = one space
+  min_views_per_room: 3            # a room needs this many frames filmed from inside it (else: a glimpse through a door)
+  lintel_min_z_m: 2.15             # wall points above door height (doors 2.0-2.1 m, E22z) cut the free space: the lintel
+                                   # over a doorway separates rooms; needs the upper walls filmed (none = no effect)
+
+lidar:                             # Stray Scanner exports (ARKit depth + poses; no learned geometry model)
+  max_frames_per_room: 120         # frames spread evenly over each recording's time (layout, openings, detector)
+  min_dt_s: 0.5                    # ... at least this far apart
+  min_confidence: 2                # ARKit depth confidence 0/1/2: keep high only (low/medium = edges, flying pixels)
+  max_depth_m: 5.0                 # LiDAR range (~5 m, REQUIREMENTS 10.4); farther depth is extrapolated
+  sigma_log: 0.01                  # scale uncertainty of ARKit metric depth (uncalibrated: no taped LiDAR capture yet)

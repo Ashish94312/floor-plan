@@ -70,6 +70,9 @@ def _print_capture(cap) -> None:
     typer.echo(f"Capture {cap.capture_id}: tier={cap.tier}, devices={', '.join(cap.devices) or 'unknown'}")
     for room, frames in cap.rooms.items():
         o = frames[0].meta.orientation
+        if cap.tier == "lidar":  # ARKit intrinsics per frame, no 35 mm focal
+            typer.echo(f"  {room:12s} {len(frames)} LiDAR frames, sensor {o}")
+            continue
         f35 = sorted({fr.meta.f35_mm for fr in frames})
         typer.echo(f"  {room:12s} {len(frames)} photos, {o}, f35={'/'.join(f'{x:g}' for x in f35)} mm")
     for w in cap.warnings:

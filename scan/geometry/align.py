@@ -100,12 +100,13 @@ def horizontal_planes(P, N, up, cfg):
     return floor, ceiling
 
 
-def estimate_alignment(points: np.ndarray, T_wc: np.ndarray, cfg: dict) -> Alignment:
+def estimate_alignment(points: np.ndarray, T_wc: np.ndarray, cfg: dict, up: np.ndarray | None = None) -> Alignment:
     a = cfg["alignment"]
     N = normals(points, a["normal_radius_m"])
-    # 1. rough up from how the phones were held: camera +y (image down) in world is column 1 of R_wc
-    up0 = -T_wc[:, :3, 1].mean(0)
-    up0 /= np.linalg.norm(up0)
+    # 1. rough up: gravity when the phone measured it (LiDAR: ARKit world), else from how the phones were held:
+    # camera +y (image down) in world is column 1 of R_wc (photos/video upright; not so for a LiDAR sensor frame)
+    up0 = np.asarray(up, float) if up is not None else -T_wc[:, :3, 1].mean(0)
+    up0 = up0 / np.linalg.norm(up0)
     # 2. floor (+ ceiling) planes -> gravity
     floor, ceiling = horizontal_planes(points, N, up0, cfg)
     if floor is None:
