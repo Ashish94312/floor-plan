@@ -79,5 +79,5 @@ Requirement IDs refer to [REQUIREMENTS.md](../REQUIREMENTS.md). Numbers come fro
 | NFR-06 | Every number regenerable from raw inputs | `scan-bench`, `scripts/calibrate_photo_vote.sh` | `reports/benchmark.md` | ✅ (raw captures in the data bundle) |
 | NFR-09 | Mirrors, glass, wet-look, low light | `scan/damage/detect.py` (mirror removes phantom opening), `scan/pipeline.py` (`check_views` drops misplaced photos), confidence filtering | technical report | ⚠️ mirrors handled; glass, wet-look, low light only by protocol and confidence filtering |
 | NFR-17 | Incremental git history | git | `git log` | ✅ |
-| NFR-19 | Technical report ≤ 6 pages | `docs/TECHNICAL_REPORT.md` | — | ⏳ |
+| NFR-19 | Technical report ≤ 6 pages | `docs/TECHNICAL_REPORT.md` | `scripts/build_pdfs.sh` → `deliverables/TECHNICAL_REPORT.pdf` | ✅ 5 pages (A4) |
 | NFR-20 | Pinned dependencies | `uv.lock` | — | ✅ |

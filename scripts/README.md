@@ -19,6 +19,7 @@ Notes:
 
 | Script | What it does | Run |
 |---|---|---|
+| `build_pdfs.sh` | Render the submission docs (brief's Deliverables 1, 2, 5, 6, 7) from Markdown to PDF in deliverables/, and print each PDF's page count against the brief's caps (protocol 1 page, fix declaration 1 page, technical report 6 pages). Needs pandoc, weasyprint and poppler (brew install pandoc poppler; pip install weasyprint). Style: scripts/pdf/style.css; one-page docs also get scripts/pdf/compact.css. | `scripts/build_pdfs.sh` |
 | `calibrate_photo_vote.sh` | Calibrate the photo focal vote (FIX_DECLARATION.md) from the taped photo captures, from scratch: 1. runs with the vote only (no level)        -> scan-calibrate --bias-only fits the level 2. runs with the level                       -> scan-calibrate fits the interval widths 3. final runs and evals | `scripts/calibrate_photo_vote.sh` |
 | `check_determinism.py` | Determinism check (ARCHITECTURE §12/§16, FR-RUN-05, NFR-07). | `uv run python scripts/check_determinism.py <capture_dir> <report_dir>` |
 | `spike_phase0.py` | Phase 0 spike (PLAN.md): one measured room's photos -> metric point cloud. | `uv run python scripts/spike_phase0.py captures/spike/photos/bedroom --tape-short 312 --tape-long 405 --tape-height 274 # cm, optional` |
