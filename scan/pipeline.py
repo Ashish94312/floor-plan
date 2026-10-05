@@ -79,15 +79,19 @@ def run(
         clouds, info = geometry_photo(cap, cfg, dev, use_cache, timing, log)
     t = time.perf_counter()
     alignments = align_rooms(clouds, cfg, log, check=cap.tier != "lidar")
+    timing["alignment_s"] = round(time.perf_counter() - t, 2)
     if cap.tier == "lidar" and UNSPLIT in clouds:  # one walk through the home: rooms split at doorways (E25)
+        from scan.damage.detect import detect
         from scan.layout.segment import split_recording
 
+        t = time.perf_counter()
         whole = clouds.pop(UNSPLIT)
-        rooms = split_recording(whole, cfg, log)
+        info["detections"] = detect(whole.frames, cfg, dev, use_cache)  # doorways for the split; reused below
+        rooms = split_recording(whole, cfg, log, info["detections"])
         clouds.update(rooms)
         cap.rooms.pop(UNSPLIT)
         cap.rooms.update({r: c.frames for r, c in rooms.items()})
-    timing["alignment_s"] = round(time.perf_counter() - t, 2)
+        timing["segment_s"] = round(time.perf_counter() - t, 2)  # includes the detector pass
     runs = info["runs"]
     if (len({c.frame_id for c in clouds.values()}) > 1 and cap.links and cfg["stitch"]["flat_scale"]
             and all("repose" in runs.get(r, {}) for r in clouds)):
@@ -229,7 +233,7 @@ def run(
 
     # detector: closed doors / covered windows / mirrors + damage (after W1 is fixed: no renumbering)
     t = time.perf_counter()
-    boxes = surface_boxes(cap, clouds, cfg, dev, use_cache)
+    boxes = surface_boxes(cap, clouds, cfg, dev, use_cache, info.pop("detections", None))
     for line in detector_openings(boxes, {r: c.openings for r, c in clouds.items()}, cfg):
         log(f"  {line}")
     for line in drop_reflections(layouts, clouds, {r: c.openings for r, c in clouds.items()}, cfg):

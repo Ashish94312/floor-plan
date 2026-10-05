@@ -64,3 +64,31 @@ def test_region_resampled_to_layout_grid():
     ys, xs = np.nonzero(own)
     assert own.sum() * 0.02**2 == pytest.approx(0.5 * 0.5, rel=0.1)
     assert -0.1 + xs.min() * 0.02 == pytest.approx(0.5, abs=0.03) and ys.max() * 0.02 == pytest.approx(0.73, abs=0.03)
+
+
+def test_doorway_from_detector_box():
+    from types import SimpleNamespace
+
+    from scan.geometry.cloud import unproject
+    from scan.layout.segment import door_segments
+
+    # aligned frame (z up): camera at (0, 0, 1.4) looking along +x; wall x = 2 with a 0.8 m opening (|y| < 0.4)
+    # through which the next room's wall at x = 5 is seen
+    H, W, f = 48, 64, 40.0
+    u, _ = np.meshgrid(np.arange(W) + 0.5, np.arange(H) + 0.5)
+    y_at_wall = -(u - W / 2) / f * 2.0  # camera x (image right) = world -y
+    depth = np.where(np.abs(y_at_wall) < 0.4, 5.0, 2.0)
+    T = np.eye(4)
+    T[:3, 0], T[:3, 1], T[:3, 2], T[:3, 3] = [0, -1, 0], [0, 0, -1], [1, 0, 0], [0, 0, 1.4]
+    K = np.array([[f, 0, W / 2], [0, f, H / 2], [0, 0, 1]])
+    pts = unproject(depth, K, T)
+    views = {"names": np.array(["a", "b"]), "depth": np.stack([depth] * 2), "mask": np.ones((2, H, W), bool),
+             "pts": np.stack([pts] * 2)}
+    frames = [SimpleNamespace(image_path=SimpleNamespace(name=n), rgb=np.zeros((H, W, 3)), upright_turns=0) for n in "ab"]
+    box = {"cls": "door", "score": 0.5, "box": [24.0, 12.0, 40.0, 47.0]}  # hugs the opening
+    doors = door_segments(views, frames, {"a": [box], "b": [box]}, CFG)
+    assert len(doors) == 1
+    a, b, n = doors[0]
+    assert n == 2 and a[0] == pytest.approx(2.0, abs=0.05) and b[0] == pytest.approx(2.0, abs=0.05)  # on the wall line
+    assert 0.8 <= abs(b[1] - a[1]) <= 1.0  # jamb to jamb, slightly wide (the strips reach past the jambs)
+    assert door_segments(views, frames[:1], {"a": [box]}, CFG) == []  # one frame only: no consensus

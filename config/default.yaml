@@ -209,6 +209,9 @@ segment:                           # one recording through several rooms -> room
   min_views_per_room: 3            # a room needs this many frames filmed from inside it (else: a glimpse through a door)
   lintel_min_z_m: 2.15             # wall points above door height (doors 2.0-2.1 m, E22z) cut the free space: the lintel
                                    # over a doorway separates rooms; needs the upper walls filmed (none = no effect)
+  door_box_width_m: [0.5, 1.4]     # detector door -> doorway if its jamb-to-jamb width is door-sized (as detector_openings)
+  door_axis_tol_deg: 20            # ... and it lies along a house axis (doors sit in walls); snapped to it
+  door_merge_m: 0.3                # same doorway in several frames: centres this close (as detector_openings' merge)
 
 lidar:                             # Stray Scanner exports (ARKit depth + poses; no learned geometry model)
   max_frames_per_room: 120         # frames spread evenly over each recording's time (layout, openings, detector)

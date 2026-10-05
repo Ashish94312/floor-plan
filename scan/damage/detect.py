@@ -34,13 +34,26 @@ def _cache_key(frames, cfg):
     from scan.weights import MODELS
 
     d = cfg["detector"]
+    turns = [f.upright_turns for f in frames]
     return cache_key(kind="owlv2", images=[f.meta.sha256 for f in frames], weights=MODELS["owlv2-base-ensemble"].revision,
                      classes=d["classes"], side=d["image_side"], nms=d["nms_iou"],
-                     working_max_side=cfg["ingest"]["working_max_side"])
+                     working_max_side=cfg["ingest"]["working_max_side"], **({"turns": turns} if any(turns) else {}))
+
+
+def unrotate_box(box, turns: int, hw) -> list[float]:
+    """Box (x0, y0, x1, y1) in np.rot90(img, turns) pixels -> the original image's pixels; hw = original (H, W)."""
+    H, W = hw
+    pts = np.array([box[:2], box[2:]], float)
+    for t in reversed(range(turns)):  # undo one counter-clockwise turn: x = width before it - y', y = x'
+        w_before = W if t % 2 == 0 else H
+        pts = np.c_[w_before - pts[:, 1], pts[:, 0]]
+    return [round(float(v), 1) for v in (*pts.min(0), *pts.max(0))]
 
 
 def detect(frames, cfg, device, use_cache=True) -> dict[str, list[dict]]:
-    """photo name -> [{cls, score, box (x0, y0, x1, y1) in the frame's rgb pixels}]."""
+    """photo name -> [{cls, score, box (x0, y0, x1, y1) in the frame's rgb pixels}]. Frames turned sideways
+    (Frame.upright_turns: LiDAR sensor frames of a phone held portrait) are detected upright: sideways, OWLv2 found
+    no door in 40 frames that upright show 21 (E25g)."""
     import json
 
     from scan import cache
@@ -67,7 +80,7 @@ def detect(frames, cfg, device, use_cache=True) -> dict[str, list[dict]]:
     out: dict[str, list[dict]] = {}
     with torch.inference_mode():
         for f in frames:
-            img = Image.fromarray(f.rgb)
+            img = Image.fromarray(np.ascontiguousarray(np.rot90(f.rgb, f.upright_turns)) if f.upright_turns else f.rgb)
             side = max(img.size)  # OWLv2 pads to a square (top-left anchored)
             inputs = proc(text=[labels], images=img, return_tensors="pt").to(device)
             res = proc.post_process_grounded_object_detection(
@@ -81,8 +94,9 @@ def detect(frames, cfg, device, use_cache=True) -> dict[str, list[dict]]:
                     continue
                 boxes, scores = res["boxes"][idx].float().cpu(), res["scores"][idx].float().cpu()
                 for k in nms(boxes, scores, d["nms_iou"]).tolist():
+                    box = [round(float(v), 1) for v in boxes[k].tolist()]
                     dets.append({"cls": cls, "score": round(float(scores[k]), 4),
-                                 "box": [round(float(v), 1) for v in boxes[k].tolist()]})
+                                 "box": unrotate_box(box, f.upright_turns, f.rgb.shape[:2]) if f.upright_turns else box})
             out[f.image_path.name] = dets
     if use_cache:
         cache.save(cfg, "owlv2", key, {"json": np.array(json.dumps(out))})
@@ -201,10 +215,11 @@ class DamageSeg:
     photos: int
 
 
-def surface_boxes(cap, clouds, cfg, device, use_cache=True) -> dict[str, list[SurfaceBox]]:
-    """Detector boxes lifted onto each room's surfaces, tagged with their photo."""
-    frames = [f for fs in cap.rooms.values() for f in fs]
-    dets = detect(frames, cfg, device, use_cache)
+def surface_boxes(cap, clouds, cfg, device, use_cache=True, dets=None) -> dict[str, list[SurfaceBox]]:
+    """Detector boxes lifted onto each room's surfaces, tagged with their photo. dets: already detected (LiDAR
+    walk-through: before the room split, which reorders the frames and so would miss the cache)."""
+    if dets is None:
+        dets = detect([f for fs in cap.rooms.values() for f in fs], cfg, device, use_cache)
     out: dict[str, list[SurfaceBox]] = {}
     for r, c in clouds.items():
         names = [str(n) for n in c.views["names"]]

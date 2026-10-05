@@ -36,6 +36,7 @@ class Frame:
     timestamp: float | None = None  # video / LiDAR
     meta: PhotoMeta | None = None
     link: bool = False  # video: added only to tie rooms together in the model run; not used to measure (E22l)
+    upright_turns: int = 0  # np.rot90 turns that make rgb upright (LiDAR: sensor frames of a phone held portrait)
 
 
 @dataclass

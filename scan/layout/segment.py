@@ -5,7 +5,8 @@ half the widest interior door (segment.door_max_m) from any obstacle cannot be i
 room (erosion, not opening: on either side of a thin wall, opened disks would touch through the door). The watershed
 of the distance to the nearest obstacle, seeded with the cores, then gives every free cell to a room and puts each
 boundary at the narrowest point of its neck: the doorway. An opening wider than a door (open kitchen, archway)
-keeps both sides one space. Each view goes to the room its camera stood in, so the rooms come out as if filmed one
+keeps both sides one space. Where the walk shows more than the floor, doorways also cut the free space directly:
+wall above door height (a lintel, E22n) and doors the detector found (door_segments, E25g). Each view goes to the room its camera stood in, so the rooms come out as if filmed one
 by one in a shared frame, and each room's layout starts from its own segment (RoomCloud.region).
 """
 
@@ -24,9 +25,76 @@ from scan.layout.room import _grid, _to_ij, carve_free_space, lintel_barrier, vi
 from scan.types import RoomCloud
 
 
-def free_space_rooms(rays, cams_xy: np.ndarray, cfg: dict, walls_pts: np.ndarray | None = None):
+def door_segments(views: dict, frames: list, dets: dict, cfg: dict) -> list[tuple[np.ndarray, np.ndarray, int]]:
+    """Doorways from detector door boxes, in the aligned frame: (end a xy, end b xy, frames seen in).
+
+    A box's two upright side edges are the door's jambs. In a strip straddling each (10% of the width outside to 15%
+    inside: boxes often hug the opening, and inside it the depth sees through), the nearest surface is the jamb or
+    the wall beside it: its median position is that end. Kept: door-sized (as detector_openings), along a house
+    axis (snapped to it), and the same doorway in >= damage.min_photos frames (median of their ends)."""
+    from scan.damage.detect import _frame_to_view
+
+    sc = cfg["segment"]
+    lo_w, hi_w = sc["door_box_width_m"]
+    tol = np.radians(sc["door_axis_tol_deg"])
+    idx = {str(n): i for i, n in enumerate(views["names"])}
+    found = []  # (axis 0 = along x / 1 = along y, centre xy, width, frame name)
+    for f in frames:
+        i = idx.get(f.image_path.name)
+        if i is None:
+            continue
+        H, W = views["depth"][i].shape
+        s_, ox, oy = _frame_to_view(f.rgb.shape[:2], (H, W))
+        horiz_x = f.upright_turns % 2 == 0  # the image axis that is horizontal in the world
+        for d in dets.get(f.image_path.name, []):
+            if d["cls"] != "door":
+                continue
+            x0, y0, x1, y1 = d["box"][0] * s_ - ox, d["box"][1] * s_ - oy, d["box"][2] * s_ - ox, d["box"][3] * s_ - oy
+            (a0, a1), (c0, c1) = ((x0, x1), (y0, y1)) if horiz_x else ((y0, y1), (x0, x1))
+            L, C = a1 - a0, c1 - c0
+            ends = []
+            for lo_a, hi_a in ((a0 - 0.10 * L, a0 + 0.15 * L), (a1 - 0.15 * L, a1 + 0.10 * L)):
+                ra = slice(max(0, int(lo_a)), max(0, int(np.ceil(hi_a))))
+                rc = slice(max(0, int(c0 + 0.3 * C)), max(0, int(np.ceil(c0 + 0.7 * C))))
+                rows, cols = (rc, ra) if horiz_x else (ra, rc)
+                m = views["mask"][i][rows, cols]
+                if m.sum() < 5:
+                    break
+                dep = views["depth"][i][rows, cols][m]
+                P = views["pts"][i][rows, cols][m][:, :2]
+                near = dep <= np.percentile(dep, 20) + 0.15  # the jamb / wall, not what is seen through the door
+                ends.append(np.median(P[near], 0))
+            if len(ends) < 2:
+                continue
+            v = ends[1] - ends[0]
+            w = float(np.linalg.norm(v))
+            ang = np.arctan2(abs(v[1]), abs(v[0]))  # 0 = along x
+            axis = 0 if ang < tol else 1 if ang > np.pi / 2 - tol else None
+            if axis is None or not lo_w < w < hi_w:
+                continue
+            found.append((axis, (ends[0] + ends[1]) / 2, w, f.image_path.name))
+    out = []
+    used = [False] * len(found)
+    for k, (axis, c, _, _) in enumerate(found):  # greedy consensus by centre
+        if used[k]:
+            continue
+        grp = [j for j, g in enumerate(found) if not used[j] and g[0] == axis and np.linalg.norm(g[1] - c) < sc["door_merge_m"]]
+        for j in grp:
+            used[j] = True
+        n = len({found[j][3] for j in grp})
+        if n < cfg["damage"]["min_photos"]:
+            continue
+        cen = np.median([found[j][1] for j in grp], 0)
+        half = np.median([found[j][2] for j in grp]) / 2
+        e = np.array([1.0, 0.0]) if axis == 0 else np.array([0.0, 1.0])
+        out.append((cen - half * e, cen + half * e, n))
+    return out
+
+
+def free_space_rooms(rays, cams_xy: np.ndarray, cfg: dict, walls_pts: np.ndarray | None = None, doors=()):
     """Label image of rooms on a grid (0 = not free), its origin and cell, and each camera's room label.
-    walls_pts: wall points (aligned frame); those above door height (lintels) cut the free space (E22n)."""
+    walls_pts: wall points (aligned frame); those above door height (lintels) cut the free space (E22n).
+    doors: doorway segments (door_segments) also cut it."""
     sc, lc = cfg["segment"], cfg["layout"]
     cell = sc["cell_m"]
     allxy = np.vstack([cams_xy] + [P[:, :2] for _, P in rays])
@@ -39,6 +107,13 @@ def free_space_rooms(rays, cams_xy: np.ndarray, cfg: dict, walls_pts: np.ndarray
         # pass under it), so it separates rooms even where the floor runs through; an open side has no wall above
         bar = lintel_barrier(walls_pts, lo, shape, {"layout": {**lc, "cell_m": cell, "lintel_min_z_m": sc["lintel_min_z_m"]}})
         free &= ~bar
+    if len(doors):
+        bar = np.zeros(free.shape, np.uint8)
+        for a, b, _ in doors:
+            e = (b - a) / max(np.linalg.norm(b - a), 1e-9) * cell  # one cell longer each end: meet the jambs
+            (i0, j0), (i1, j1) = _to_ij(np.array([a - e, b + e]), lo, cell)
+            cv2.line(bar, (int(i0), int(j0)), (int(i1), int(j1)), 1, 2)
+        free &= ~bar.astype(bool)
     clear = ndimage.distance_transform_edt(free) * cell  # to the nearest cell no line of sight crossed
     cores, n = ndimage.label(clear > sc["door_max_m"] / 2)
     labels = watershed(-clear, cores, mask=free) if n else cores
@@ -57,14 +132,18 @@ def free_space_rooms(rays, cams_xy: np.ndarray, cfg: dict, walls_pts: np.ndarray
     return labels, lo, cell, cam_lab
 
 
-def split_recording(cloud: RoomCloud, cfg: dict, log=print) -> dict[str, RoomCloud]:
+def split_recording(cloud: RoomCloud, cfg: dict, log=print, dets: dict | None = None) -> dict[str, RoomCloud]:
     """One aligned recording -> one RoomCloud per room (room1, room2, ... in the order first filmed), sharing the
-    recording's frame. Unchanged (one room) if the free space holds a single room."""
+    recording's frame. Unchanged (one room) if the free space holds a single room. dets: detector boxes per frame."""
     g, sc = cfg["geometry"], cfg["segment"]
     rays = view_rays(cloud, cfg)
     cams = np.array([c for c, _ in rays])
     walls = wall_points(cloud.points, normals(cloud.points, cfg["alignment"]["normal_radius_m"]), cloud.planes.ceiling_z, cfg)
-    labels, lo, cell, cam_lab = free_space_rooms(rays, cams, cfg, walls)
+    doors = door_segments(cloud.views, cloud.frames, dets, cfg) if dets else []
+    if doors:
+        log(f"  segment {cloud.room_id}: {len(doors)} doorways from the detector "
+            f"({', '.join(f'{np.linalg.norm(b - a):.2f} m x{n}' for a, b, n in doors)})")
+    labels, lo, cell, cam_lab = free_space_rooms(rays, cams, cfg, walls, doors)
     order = list(dict.fromkeys(int(k) for k in cam_lab if k > 0))  # first visit order
     keep = [k for k in order if (cam_lab == k).sum() >= sc["min_views_per_room"]]
     areas = {k: round(float((labels == k).sum() * cell**2), 2) for k in keep}

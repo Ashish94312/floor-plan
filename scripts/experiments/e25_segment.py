@@ -1,7 +1,7 @@
 """E25: room segmentation of one LiDAR walk-through, without the detector (fast loop on scan/layout/segment.py).
 
-ingest -> LiDAR geometry -> alignment -> free space, cores, watershed rooms; plots free space, cores and rooms with
-the camera path coloured by its room.
+ingest -> LiDAR geometry -> alignment -> free space, cores, watershed rooms (lintels + detector doorways, magenta);
+plots free space, cores and rooms with the camera path coloured by its room.
 
   uv run python scripts/experiments/e25_segment.py <recording> <png> [key=value config overrides, e.g. segment.door_max_m=1.2]
 """
@@ -17,10 +17,12 @@ import numpy as np
 from scipy import ndimage
 
 from scan.config import load_config
+from scan.damage.detect import detect
+from scan.device import select_device
 from scan.geometry.align import normals
 from scan.io.ingest import ingest
 from scan.layout.room import view_rays, wall_points
-from scan.layout.segment import free_space_rooms
+from scan.layout.segment import door_segments, free_space_rooms
 from scan.pipeline import align_rooms, geometry_lidar
 
 rec, png = Path(sys.argv[1]), Path(sys.argv[2])
@@ -40,7 +42,8 @@ c = next(iter(clouds.values()))
 rays = view_rays(c, cfg)
 cams = np.array([x for x, _ in rays])
 walls = wall_points(c.points, normals(c.points, cfg["alignment"]["normal_radius_m"]), c.planes.ceiling_z, cfg)
-labels, lo, cell, cam_lab = free_space_rooms(rays, cams, cfg, walls)
+doors = door_segments(c.views, c.frames, detect(c.frames, cfg, select_device(None), True), cfg)  # cached by the pipeline
+labels, lo, cell, cam_lab = free_space_rooms(rays, cams, cfg, walls, doors)
 free = labels > 0
 clear = ndimage.distance_transform_edt(free) * cell
 cores, n = ndimage.label(clear > cfg["segment"]["door_max_m"] / 2)
@@ -50,6 +53,8 @@ for a, img, title in zip(ax, [clear, cores, labels], ["clearance to nearest obst
     a.imshow(np.ma.masked_equal(img, 0), origin="lower", extent=ext, cmap="viridis" if a is ax[0] else "tab10")
     a.scatter(cams[:, 0], cams[:, 1], c=cam_lab, cmap="tab10", s=12, edgecolors="k", linewidths=0.3)
     a.plot(cams[:, 0], cams[:, 1], "r-", lw=0.5)
+    for d0, d1, _ in doors:  # detector doorways
+        a.plot([d0[0], d1[0]], [d0[1], d1[1]], "m-", lw=3)
     a.set_title(f"{rec.name}: {title}")
     a.set_aspect("equal")
 png.parent.mkdir(parents=True, exist_ok=True)

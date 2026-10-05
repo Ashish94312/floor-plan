@@ -38,3 +38,25 @@ def test_box_room_points_land_on_its_walls(tmp_path, size):
     d = np.minimum(np.abs(P), np.abs(P - np.array(size))).min(1)
     assert np.percentile(d, 99) < 0.003
     assert np.allclose(P.max(0) - P.min(0), size, atol=0.01)
+
+
+@pytest.mark.parametrize("turns", [0, 1, 2, 3])
+def test_detector_box_maps_back_from_upright(turns):
+    from scan.damage.detect import unrotate_box
+
+    img = np.zeros((6, 10), np.uint8)
+    img[1:3, 4:9] = 1  # box x 4-9, y 1-3 (pixel edges)
+    r = np.rot90(img, turns)
+    ys, xs = np.nonzero(r)
+    assert unrotate_box([xs.min(), ys.min(), xs.max() + 1, ys.max() + 1], turns, img.shape) == [4, 1, 9, 3]
+
+
+def test_upright_turns_from_gravity():
+    from scan.io.lidar import upright_turns
+
+    T = np.eye(4)
+    # image right = world up (phone held portrait, sensor landscape): one counter-clockwise turn
+    T[:3, 0], T[:3, 1], T[:3, 2] = [0, 1, 0], [1, 0, 0], [0, 0, -1]
+    assert upright_turns(T) == 1
+    T[:3, 0], T[:3, 1], T[:3, 2] = [1, 0, 0], [0, -1, 0], [0, 0, 1]  # image down = world down: upright already
+    assert upright_turns(T) == 0

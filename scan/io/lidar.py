@@ -60,6 +60,12 @@ def read_odometry(path: Path) -> dict[str, np.ndarray]:
     return {"t": a[:, 0], "frame": a[:, 1].astype(int), "T_wc": T, "f": a[:, 9:11], "c": a[:, 11:13]}
 
 
+def upright_turns(T_wc: np.ndarray) -> int:
+    """np.rot90 turns (counter-clockwise) that put world up at the image top: the image axis nearest to up goes up."""
+    kx, ky = T_wc[:3, 0] @ WORLD_UP, T_wc[:3, 1] @ WORLD_UP  # image right / image down, in world up
+    return 1 if kx > abs(ky) else 3 if -kx > abs(ky) else 2 if ky > 0 else 0
+
+
 def pick_frames(t: np.ndarray, n_max: int, min_dt: float) -> np.ndarray:
     """Indices spread evenly over the recording's time, at most n_max, at least min_dt seconds apart."""
     n = int(min(n_max, max(1, (t[-1] - t[0]) // min_dt + 1))) if min_dt > 0 else n_max
@@ -105,7 +111,8 @@ def load_recording(rec: Path, room: str, cfg: dict[str, Any]) -> tuple[list[Fram
                          sharpness=float(cv2.Laplacian(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY), cv2.CV_64F).var()))
         # one name per frame (views are matched to frames by name): rgb.mp4#<frame>
         frames.append(Frame(image_path=rec / f"rgb.mp4#{fid:06d}", K=K, rgb=img, room_hint=room, T_wc=odo["T_wc"][i],
-                            depth=depth, depth_conf=conf, timestamp=float(odo["t"][i]), meta=meta))
+                            depth=depth, depth_conf=conf, timestamp=float(odo["t"][i]), meta=meta,
+                            upright_turns=upright_turns(odo["T_wc"][i])))
     if len(frames) < 2:
         raise InputError(f"{rec}: fewer than 2 usable frames (colour + depth) in the recording.")
     return frames, warnings
