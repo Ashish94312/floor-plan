@@ -270,14 +270,15 @@ def detector_openings(boxes: dict[str, list[SurfaceBox]], openings: dict, cfg) -
             if n < dc["min_photos"] or "-W" not in g[0].surface_id:
                 continue
             w, h = u1 - u0, v1 - v0
-            if g[0].cls == "door" and (v0 > 0.35 or h < 1.6 or not 0.5 < w < 1.4):
+            if g[0].cls == "door" and (v0 > 0.35 or h < cfg["openings"]["min_door_height_m"] or not 0.5 < w < 1.4):
                 continue  # a door reaches the floor and is door-sized
             if any(o.wall_id == g[0].surface_id and min(u1, o.offset_m + o.width_m) - max(u0, o.offset_m) > 0.3 * w for o in ops):
                 continue  # the geometric opening already covers it (and measures it better)
             kind = g[0].cls
             ops.append(OpeningSeg(f"{r}-O{len(ops) + 1}", kind, g[0].surface_id, round(u0, 3), round(w, 3),
                                   round(v1 if kind == "door" else h, 3), None if kind == "door" else round(v0, 3), n,
-                                  notes=["detector (closed door / covered window): box extent, wider interval"]))
+                                  notes=["detector (closed door / covered window): box extent, wider interval"],
+                                  score=round(float(np.median([b.score for b in g])), 3)))
             log.append(f"{r}-O{len(ops)}: {kind} from the detector on {g[0].surface_id}, {w:.2f} x {h:.2f} m ({n} photos)")
     return log
 

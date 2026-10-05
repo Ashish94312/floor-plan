@@ -15,20 +15,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from scan.layout.openings import extract, wall_votes
-
-
-def lintel_seen(open_v: np.ndarray, wall_v: np.ndarray, cols: slice, top_m: float, cfg: dict) -> bool:
-    """Was the wall above an opening's top seen? In the band above the top (vote grid rows = cell_z_m) at least 2 rows
-    hold votes and, over the band, wall votes dominate. Over the band, not per row: the reported top is a percentile of
-    the open cells, so the first row above it straddles the edge and still holds some see-through votes."""
-    oc, sc = cfg["openings"], cfg["stitch"]
-    dz = oc["cell_z_m"]
-    k0 = int(np.ceil(top_m / dz - 1e-6))
-    k1 = min(open_v.shape[0], k0 + round(sc["door_lintel_band_m"] / dz))
-    o, w = open_v[k0:k1, cols].sum(1), wall_v[k0:k1, cols].sum(1)
-    voted = (o + w) > 0
-    return bool(voted.sum() >= 2 and w.sum() >= oc["min_votes"] and w.sum() / (o.sum() + w.sum()) >= oc["min_open_ratio"])
+from scan.layout.openings import extract, lintel_seen, wall_votes
 
 
 def measured_door_heights(cloud, layout, cfg: dict) -> list[float]:

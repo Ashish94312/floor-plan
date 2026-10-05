@@ -148,6 +148,7 @@ openings:
   sigma_width_m: 0.03              # opening edge uncertainty (cell size + jamb definition)
   floor_gap_m: 0.25                # an opening starting this close to the floor reaches the floor (door / doorway)
   lintel_min_m: 0.25               # door top further than this below the ceiling = lintel (door); else an opening
+  min_door_height_m: 1.6           # a floor-reaching opening whose top was seen lower than this is not a doorway (detector too)
 
 detector:                          # OWLv2 open-vocabulary detector (one pass per photo, cached)
   image_side: 960                  # OWLv2 works at 960 px

@@ -40,6 +40,10 @@ def snap_walls(layouts: dict, cfg: dict) -> list[dict]:
     """Snap in place. Returns one record per moved wall: room, wall_id, shift_m."""
     sc = cfg["stitch"]
     t, tol = sc["wall_thickness_m"], sc["snap_tolerance_m"]
+    # a face with no wall points is not a measurement: its place came from the free space, or the layout pushed it
+    # camera_wall_margin_m behind the cameras (a camera in the doorway pushes it into the next room), E23a
+    unseen = cfg["layout"]["min_wall_support"]
+    pushed = cfg["layout"]["camera_wall_margin_m"]
     items = []  # (room, wall index, line)
     for r, lay in layouts.items():
         if lay.method != "free_space_carving":
@@ -53,11 +57,12 @@ def snap_walls(layouts: dict, cfg: dict) -> list[dict]:
             if ra == rb or a["o"] != b["o"]:
                 continue
             centre_a, centre_b = a["c"] + a["s"] * t / 2, b["c"] + b["s"] * t / 2
-            if abs(centre_a - centre_b) > tol:
+            if abs(centre_a - centre_b) > tol + (pushed if min(a["w"], b["w"]) - 1 < unseen else 0.0):
                 continue
             overlap = min(a["span"][1], b["span"][1]) - max(a["span"][0], b["span"][0])
-            facing = a["s"] != b["s"] and a["s"] * (b["c"] - a["c"]) > 0
-            partition = facing and overlap >= sc["adjacency_min_overlap_m"]
+            # opposite faces of two rooms: facing across a gap, or crossed (the rooms overlap, which no partition
+            # allows: the two faces are one wall misplaced), E23a
+            partition = a["s"] != b["s"] and overlap >= sc["adjacency_min_overlap_m"]
             collinear = a["s"] == b["s"] and -sc["snap_max_along_gap_m"] <= overlap <= 0.05
             if partition or collinear:
                 parent[_find(parent, i)] = _find(parent, j)

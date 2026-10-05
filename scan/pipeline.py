@@ -28,7 +28,12 @@ from scan.geometry.align import (
 )
 from scan.geometry.cloud import build_cloud, depth_focal_fix, focal_scale_vote, save_ply, scale_pred
 from scan.io.ingest import ingest
-from scan.layout.openings import detect_openings, reindex_by_main_door
+from scan.layout.openings import (
+    detect_openings,
+    drop_one_sided_doors,
+    drop_reflections,
+    reindex_by_main_door,
+)
 from scan.layout.room import classify_open_walls, layout_rooms
 from scan.output import assemble, scale_vote_on, write
 from scan.render.debug import alignment_plot, layout_plot
@@ -184,6 +189,10 @@ def run(
     t = time.perf_counter()
     boxes = surface_boxes(cap, clouds, cfg, dev, use_cache)
     for line in detector_openings(boxes, {r: c.openings for r, c in clouds.items()}, cfg):
+        log(f"  {line}")
+    for line in drop_reflections(layouts, clouds, {r: c.openings for r, c in clouds.items()}, cfg):
+        log(f"  {line}")
+    for line in drop_one_sided_doors(layouts, {r: c.openings for r, c in clouds.items()}, cfg):
         log(f"  {line}")
     for r, regs in damage_regions(boxes, cfg).items():
         clouds[r].damage = regs

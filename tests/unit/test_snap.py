@@ -49,6 +49,24 @@ def test_collinear_outer_walls_snap_to_better_seen():
     assert wall_at(b, "y", 3.0) is not None and wall_at(a, "y", 3.0) is not None
 
 
+def test_crossed_partition_with_an_unseen_face_takes_the_seen_face():
+    # bedroom-like room B's west face (no wall points: pushed behind a camera in the doorway) lies 0.185 m INSIDE
+    # room A, whose east face is well seen (E23a): the rooms overlap; B's face goes to A's face + one wall thickness
+    a = layout("a", [(0, 0), (3, 0), (3, 3), (0, 3)], support=5000)
+    b = layout("b", [(2.815, 0), (6, 0), (6, 3), (2.815, 3)], support=5000)
+    wall_at(b, "x", 2.815).support = 4
+    snap_walls({"a": a, "b": b}, CFG)
+    assert wall_at(a, "x", 3.0) is not None and wall_at(b, "x", 3.0 + T) is not None
+
+
+def test_crossed_seen_faces_beyond_tolerance_untouched():
+    # two well-seen faces crossed by 0.30 m: their wall centres disagree by 0.42 m, more than snap_tolerance_m
+    a = layout("a", [(0, 0), (3, 0), (3, 3), (0, 3)], support=5000)
+    b = layout("b", [(2.7, 0), (6, 0), (6, 3), (2.7, 3)], support=5000)
+    snap_walls({"a": a, "b": b}, CFG)
+    assert wall_at(b, "x", 2.7) is not None
+
+
 def test_far_apart_walls_untouched():
     a = layout("a", [(0, 0), (3, 0), (3, 3), (0, 3)], support=1000)
     b = layout("b", [(3.8, 0), (6, 0), (6, 3.6), (3.8, 3.6)], support=1000)  # 80 cm away, 60 cm higher
