@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import cv2
@@ -44,8 +45,12 @@ def decode(path: Path, fps: float, max_side: int) -> tuple[np.ndarray, np.ndarra
     info = probe(path)
     k = max_side / max(info["W"], info["H"])
     w, h = int(round(info["W"] * k / 2) * 2), int(round(info["H"] * k / 2) * 2)
-    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", f"fps={fps},scale={w}:{h}",
-                        "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=False)
+    args = ["-i", str(path), "-vf", f"fps={fps},scale={w}:{h}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+    # the hardware decoder where there is one (Mac: VideoToolbox, ~2x faster); the codec is exact, so the frames are
+    # bit-identical to software decoding (checked on home01_video_e). Software if the hardware path fails
+    p = subprocess.run(["ffmpeg", "-v", "error", "-hwaccel", "auto", *args], capture_output=True, check=False)
+    if p.returncode != 0 or not p.stdout:
+        p = subprocess.run(["ffmpeg", "-v", "error", *args], capture_output=True, check=False)
     if p.returncode != 0 or not p.stdout:
         raise InputError(f"{path}: video decode failed ({p.stderr.decode()[:200]})")
     frames = np.frombuffer(p.stdout, np.uint8).reshape(-1, h, w, 3)
@@ -140,11 +145,16 @@ def ingest_video(cap, cfg: dict) -> None:
     raw, fs = {}, []
     lcand: dict[str, list] = {}  # room -> [(frame, name, sharpness)] link candidates
     lfeat: dict[str, list] = {}  # room -> [(index into lcand[room], keypoints, descriptors)]
+    # every clip decodes at once (separate ffmpeg processes); the clips are then used one by one, in order
+    pool = ThreadPoolExecutor(max_workers=min(4, sum(map(len, clips.values()))))
+    decoded = {f: pool.submit(decode, f, vc["decode_fps"], cfg["ingest"]["working_max_side"])
+               for files in clips.values() for f in files}
+    pool.shutdown(wait=False)
     for room, files in clips.items():
         fr_list, names, sharps, flags = [], [], [], []
         lcand[room], lfeat[room] = [], []
         for f in files:
-            frames, ts, info = decode(f, vc["decode_fps"], cfg["ingest"]["working_max_side"])
+            frames, ts, info = decoded.pop(f).result()
             picks, sharp = keyframes(frames, max(1, per_room // len(files)), vc["min_sharpness"],
                                      min_gap=round(vc["min_keyframe_gap_s"] * vc["decode_fps"]))
             picks = sorted(set(picks) | set(extra_picks(f, len(frames), vc)))
