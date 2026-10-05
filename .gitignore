@@ -3,6 +3,7 @@
 
 # Raw captures and outputs (large; shipped as a separate data bundle)
 captures/
+captures.zip
 
 # Model weights (fetched by script)
 weights/
