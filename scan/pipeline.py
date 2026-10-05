@@ -26,11 +26,11 @@ from scan.geometry.align import (
     use_shared_floor,
     view_off_axis_deg,
 )
-from scan.geometry.cloud import build_cloud, depth_focal_fix, save_ply
+from scan.geometry.cloud import build_cloud, depth_focal_fix, focal_scale_vote, save_ply, scale_pred
 from scan.io.ingest import ingest
 from scan.layout.openings import detect_openings, reindex_by_main_door
 from scan.layout.room import classify_open_walls, layout_rooms
-from scan.output import assemble, write
+from scan.output import assemble, scale_vote_on, write
 from scan.render.debug import alignment_plot, layout_plot
 from scan.stitch.doors import apply_placement, place_rooms
 from scan.stitch.links import link_edges
@@ -232,6 +232,18 @@ def plan_groups(cap: Capture, g: dict) -> tuple[dict[str, list], bool]:
     return ({"joint": [f for fs in cap.rooms.values() for f in fs]} if joint else dict(cap.rooms)), joint
 
 
+def vote_level(cap: Capture, cfg, joint: bool) -> dict | None:
+    """The photo vote's level: the model's absolute size sense, calibrated on taped captures (FIX_DECLARATION.md).
+    None (with a warning) until scan-calibrate --bias-only has fitted it for this mode."""
+    from scan.uncertainty.calibrate import load as load_calibration
+
+    mode = f"photo_{'joint' if joint else 'per_room'}_vote"
+    b = load_calibration().get(mode, {}).get("scale_bias") if cfg["uncertainty"]["apply_scale_bias"] else None
+    if not b:
+        cap.warnings.append(f"no size calibration for {mode}: sizes rest on the model's size sense alone")
+    return b
+
+
 def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -> tuple[dict[str, RoomCloud], dict]:
     """C2 photo tier: MapAnything per room (default) or once over all rooms (geometry.joint)."""
     from scan.geometry.mapanything_backend import load_model, predict, refit_with_depth
@@ -250,6 +262,8 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
         return model
 
     groups, joint = plan_groups(cap, g)
+    vote = scale_vote_on(cfg, cap.tier)
+    level = vote_level(cap, cfg, joint) if vote else None
     clouds: dict[str, RoomCloud] = {}
     runs = {}
     t_all = time.perf_counter()
@@ -267,6 +281,12 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
         elif fix:  # video: model focal ~23-27 mm vs ~32 true squeezes depth (E22m)
             pred, r = depth_focal_fix(pred, g.get("depth_focal_scale", 1.0))
             pinfo = pinfo | {"depth_focal_ratio": [round(float(x), 3) for x in np.percentile(r, [10, 50, 90])]}
+        if vote:  # photo: the model's depth follows its orientation-dependent focal reading (FIX_DECLARATION.md)
+            k, vinfo = focal_scale_vote(pred)
+            c = level["factor"] if level else 1.0
+            pred = scale_pred(pred, k * c)  # once, on the raw run: alignment and layout see metric geometry
+            pinfo = pinfo | {"scale_vote": vinfo | {"level": c}}
+            log(f"  scale vote {gid}: x{k:.3f} (room votes {vinfo['room_votes']}), level x{c:.4f}")
         runs[gid] = pinfo
         for room in dict.fromkeys(f.room_hint for f in frames):
             # link frames (video) only tie rooms together in the model run; they look into the other room (E22l)
@@ -278,16 +298,19 @@ def geometry_photo(cap: Capture, cfg, dev, use_cache: bool, timing: dict, log) -
                 points=pts,
                 colors=cols,
                 frames=[f for f in cap.rooms[room] if not f.link],
-                # reposed video: the spread of the frames' scale votes is the room's scale uncertainty (E22o)
-                scale=Scale(s=1.0, sigma_log=max(g["sigma_log_floor_photo"],
-                                                 np.nan_to_num(pinfo.get("repose", {}).get("scale_sigma_log", 0.0)))),
+                # reposed video: the spread of the frames' scale votes is the room's scale uncertainty (E22o);
+                # photo vote: the level's own uncertainty adds to the per-room scatter (independent sources)
+                scale=Scale(s=1.0, sigma_log=math.hypot(g["sigma_log_floor_photo"], level["sigma_log"]) if level else
+                            max(g["sigma_log_floor_photo"],
+                                np.nan_to_num(pinfo.get("repose", {}).get("scale_sigma_log", 0.0)))),
                 T_room_world=np.eye(4),
                 frame_id=gid,
                 views={k: v[idx] for k, v in pred.items()},
                 run_views={k: v[run] for k, v in pred.items()},
             )
     timing["geometry_s"] = round(time.perf_counter() - t_all, 2)
-    info = {"backbone": g["backbone"], "joint": bool(joint), "rays": g["rays"], "f_scale": g["f_scale"], "runs": runs}
+    info = {"backbone": g["backbone"], "joint": bool(joint), "rays": g["rays"], "f_scale": g["f_scale"], "runs": runs,
+            "scale_vote": vote}
     return clouds, info
 
 

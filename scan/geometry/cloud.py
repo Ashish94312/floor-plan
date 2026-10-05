@@ -35,6 +35,32 @@ def depth_focal_fix(pred: dict[str, np.ndarray], scale: float = 1.0) -> tuple[di
     return out, r
 
 
+def focal_scale_vote(pred: dict[str, np.ndarray]) -> tuple[float, dict]:
+    """Photo tier: one scale for a model run from the model's own focal reading (FIX_DECLARATION.md).
+
+    A size prior fixes Z/f, not Z (E22o), so the model's depth follows the focal it reads, and that reading
+    depends on orientation: portrait ~1.13x EXIF, landscape ~0.96x. With EXIF rays the whole run is then
+    scaled by f_model / f_exif. Each view votes log(f_exif / f_model,i); a room's views share its bias, so
+    the room is the unit of evidence (E22p): k = median over rooms of each room's median vote. Per-view
+    correction is not used (E22o: it does not predict a view's own depth error). Returns (k, info)."""
+    v = np.log(pred["K_exif"][:, 0, 0] / pred["K_model"][:, 0, 0])
+    rooms = np.asarray(pred["rooms"])
+    med = {str(r): float(np.median(v[rooms == r])) for r in dict.fromkeys(rooms.tolist())}
+    k = float(np.exp(np.median(list(med.values()))))
+    return k, {"k": round(k, 4), "room_votes": {r: round(float(np.exp(m)), 4) for r, m in med.items()}}
+
+
+def scale_pred(pred: dict[str, np.ndarray], k: float) -> dict[str, np.ndarray]:
+    """The whole run scaled by k about its origin: depth, points and camera positions together (one similarity,
+    so the views stay consistent with each other). Rotations and intrinsics are unchanged."""
+    out = dict(pred)
+    out["depth"] = (pred["depth"] * k).astype(np.float32)
+    out["pts"] = (pred["pts"] * k).astype(np.float32)
+    out["T_wc"] = pred["T_wc"].copy()
+    out["T_wc"][:, :3, 3] *= k
+    return out
+
+
 def ray_K(views: dict[str, np.ndarray], i: int, rays: str) -> np.ndarray:
     """Intrinsics consistent with view_points(views, i, rays): the model's for rays='model' (video,
     E22c), EXIF for rays='exif'. Anything that projects into a view or back out of it must use these."""

@@ -80,6 +80,11 @@ def _room(r: str, c, cfg: dict, tier: str, u: dict) -> Room:
                 floor_area=area, openings=ops, layout_method=lay.method, warnings=list(pl.warnings) + list(lay.warnings))
 
 
+def scale_vote_on(cfg: dict, tier: str) -> bool:
+    """Photo runs are rescaled by the views' focal vote (FIX_DECLARATION.md); a different error population."""
+    return tier == "photo" and bool(cfg["geometry"].get("scale_vote"))
+
+
 def assemble(cap, clouds: dict, cfg: dict, timing: dict) -> ScanResult:
     from scan.uncertainty.calibrate import load as load_calibration
     from scan.uncertainty.intervals import k_for
@@ -87,6 +92,7 @@ def assemble(cap, clouds: dict, cfg: dict, timing: dict) -> ScanResult:
     tier = cap.tier
     mode = "joint" if all(c.placed_by == "joint_reconstruction" for c in clouds.values()) else "per_room"
     mode += "_repose" if cfg["geometry"]["repose"]["enabled"] else ""  # different error population (E22q)
+    mode += "_vote" if scale_vote_on(cfg, tier) else ""
     u = {**cfg["uncertainty"], "mode": mode, "calibration": load_calibration()}
     warnings = list(cap.warnings)
     rooms = [_room(r, c, cfg, tier, u) for r, c in clouds.items()]

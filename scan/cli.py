@@ -131,8 +131,8 @@ def calibrate(
     evals: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help="eval.json files from scan-eval"),
     bias_only: bool = typer.Option(False, help="fit only the size bias (from runs made WITHOUT it); refit k after"),
 ) -> None:
-    """Fit interval inflation k per mode and measurement type (split-conformal) and, for re-solved video, the
-    systematic size bias; merge into config/calibration.yaml (modes not in these evals are kept)."""
+    """Fit interval inflation k per mode and measurement type (split-conformal), or with --bias-only the systematic
+    size bias (re-solved video, photo focal vote); merge into config/calibration.yaml (other modes are kept)."""
     import json
 
     from scan.config import load_config
@@ -146,10 +146,14 @@ def calibrate(
             for t, v in types.items():
                 typer.echo(f"{mode:20s} {t:8s} k={v['k']:.3f}  n={v['n']}  ({v['method']})  "
                            f"LOO coverage {v['loo_coverage']} on {v['loo_n']}")
+        # these runs already carry the size bias: refitting it on them would undo it (factor -> ~1)
+        typer.secho(f"Wrote {write(cal)}", fg=typer.colors.GREEN)
+        return
     # one size factor per mode only where a room's error is one isotropic scale: after the camera re-solve (E22q)
+    # or the photo focal vote (FIX_DECLARATION.md)
     rows = [r for ev in evs for r in size_rows(ev)]
     for mode, b in fit_size_bias(rows, load_config()["calibration_fit"]["min_room_measurements"]).items():
-        if not mode.endswith("_repose"):
+        if not mode.endswith(("_repose", "_vote")):
             continue
         cal.setdefault(mode, {})["scale_bias"] = b
         typer.echo(f"{mode:20s} size bias x{b['factor']:.4f}  spread {b['sigma_log']:.3f} (log)  "

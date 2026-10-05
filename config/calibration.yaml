@@ -22,6 +22,50 @@ photo_joint:
     max_ratio_at_k_used: 0.115
     method: 'n=7 too small for q=0.9: max x 2.0, floored at k_min=0.5'
     n: 7
+photo_joint_vote:
+  area:
+    k: 1.1081
+    loo_coverage: 1.0
+    loo_n: 4
+    max_ratio_at_k_used: 0.3694
+    method: 'n=4 too small for q=0.9: max x 2.0'
+    n: 4
+  ceiling:
+    k: 0.6627
+    loo_coverage: 1.0
+    loo_n: 5
+    max_ratio_at_k_used: 0.2209
+    method: 'n=5 too small for q=0.9: max x 2.0'
+    n: 5
+  scale_bias:
+    factor: 1.0821
+    log_bias: 0.0789
+    loo:
+    - corrected_pct: -1.49
+      raw_pct: -8.95
+      room: home01_photo_a/bedroom1
+    - corrected_pct: 1.48
+      raw_pct: -6.21
+      room: home01_photo_b/bedroom1
+    - corrected_pct: -2.38
+      raw_pct: -9.05
+      room: home01_photo_a/hall
+    - corrected_pct: -3.04
+      raw_pct: -11.11
+      room: home01_photo_a/kitchen
+    - corrected_pct: 8.28
+      raw_pct: -0.73
+      room: home01_photo_b/kitchen
+    physical_rooms: 3
+    rooms: 5
+    sigma_log: 0.0383
+  wall:
+    k: 0.7086
+    loo_coverage: 0.889
+    loo_n: 18
+    max_ratio_at_k_used: 0.4724
+    method: conformal order statistic 18/18
+    n: 18
 video_per_room_repose:
   scale_bias:
     factor: 1.0173

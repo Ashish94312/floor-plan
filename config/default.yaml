@@ -46,6 +46,8 @@ geometry:
   conf_percentile: 30            # drop the least confident 30% of masked pixels per run (as in E7-E11)
   voxel_m: 0.02                  # thin the merged cloud to a 2 cm grid
   sigma_log_floor_photo: 0.05    # minimum scale uncertainty (log space) until calibrated; per-room scale spread ~5% (E14, E15)
+  scale_vote: true               # photo: run scaled by the views' focal votes, median over rooms of median
+                                 # log(f_exif / f_model); level from config/calibration.yaml (FIX_DECLARATION.md)
 
 cache:
   dir: .cache                    # model outputs, keyed by input hashes + settings (gitignored)
@@ -95,7 +97,7 @@ layout:
 
 uncertainty:
   interval_level: 0.90             # every [lo, hi] is a nominal 90% interval
-  apply_scale_bias: true           # re-solved video: plan x calibrated size factor (config/calibration.yaml, E22q)
+  apply_scale_bias: true           # re-solved video, photo scale vote: plan x calibrated size factor (config/calibration.yaml, E22q)
   k_tier: {photo: 1.5, video: 1.5, lidar: 1.5}   # default inflation; config/calibration.yaml overrides per mode + type (D30)
   sigma_geom_m: {photo: 0.03, video: 0.02, lidar: 0.01}  # local geometry noise per tier
   sigma_extra_m:
