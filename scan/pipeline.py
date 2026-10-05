@@ -63,6 +63,8 @@ def run(
         for k in ("rays", "max_joint_views", "depth_focal_fix", "max_aspect", "pad_scale", "pad_to_aspect"):
             if cfg["video"].get(k):
                 cfg["geometry"][k] = cfg["video"][k]
+        if cfg["video"].get("door_height_prior_m"):  # video: room size anchored on seen door tops (E22z)
+            cfg["stitch"]["door_height_prior_m"] = cfg["video"]["door_height_prior_m"]
         if cfg["video"].get("repose"):
             cfg["geometry"]["repose"]["enabled"] = True
     if cap.tier == "lidar":

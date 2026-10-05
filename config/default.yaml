@@ -190,7 +190,10 @@ video:
   max_joint_views: 30              # overrides geometry.max_joint_views for video: 16:9 frames carry ~25% fewer model tokens
                                    # than 4:3 photos; 24 views peaked at 9.15 GB (E22k)
   repose: false                    # camera poses re-solved with the true focal (geometry.repose, E22o)
-  pad_to_aspect: null              # 1.3333: 16:9 frames on a 4:3 canvas; the model then reads the focal within ~10% (E22s)
+  pad_to_aspect: 1.3333            # 16:9 frames on a 4:3 canvas; the model then reads the focal within ~10% (E22s)
+  door_height_prior_m: 2.05        # each room's size from doors whose top was seen (E22z); video only
+                                   # final video config (user, 2026-10-05): with these two, home01_video_e has no
+                                   # overlaps and its footprint is -4.4% (defaults off: 2 overlaps, -18.3%)
   extra_keyframes: []             # frame names (<clip>_t<seconds>) added to the time-sliced keyframes (E22u: chosen for coverage)
   rays: model                      # overrides geometry.rays for video: MapAnything ignores the given video focal and keeps
                                    # its own (~22 mm vs ~30-33 by VP); EXIF rays then break multi-view consistency.
