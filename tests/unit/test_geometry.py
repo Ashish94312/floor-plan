@@ -226,8 +226,8 @@ def test_pad_frame_content_box_matches_mapanything_preprocessing():
     assert canvas.shape[:2] == (1280, 720) and np.array_equal(canvas[off[1]:off[1] + 1024, off[0]:off[0] + 576], img)
     v = preprocess_inputs([{"img": Image.fromarray(canvas), "intrinsics": torch.tensor(Kc, dtype=torch.float32)}])[0]
     Ko = v["intrinsics"][0].numpy().astype(np.float64)
-    xa, ya, xb, yb = content_box(Kc, Ko, off, img.shape[:2])
     raw = (v["img"][0].permute(1, 2, 0).numpy())  # normalised image; black canvas -> one constant value
+    xa, ya, xb, yb = content_box(Kc, Ko, off, img.shape[:2], raw.shape[:2])
     black = raw[0, 0]
     inside = raw[ya:yb, xa:xb]
     assert not np.any(np.all(np.isclose(inside, black, atol=1e-3), axis=-1))  # no canvas pixel inside the box
@@ -284,3 +284,30 @@ def test_similarity_ransac_never_refits_on_an_empty_set():
     A = B * 1.1 + [0.2, 0.0, 0.1]
     res = similarity_ransac(A, B, np.full(40, 0.01))
     assert res is None or (res[3].sum() >= 3 and 0.3 < res[0] < 3.0)
+
+
+@pytest.mark.parametrize("hw", [(576, 1024), (1024, 576)])
+def test_pad_to_aspect_keeps_rays_and_the_content_box_matches_preprocessing(hw):
+    import torch
+    from mapanything.utils.image import preprocess_inputs
+    from PIL import Image
+
+    from scan.geometry.mapanything_backend import content_box, pad_to_aspect
+
+    img = np.random.default_rng(0).integers(40, 255, (*hw, 3), dtype=np.uint8)
+    K = np.array([[904.0, 0, hw[1] / 2], [0, 904.0, hw[0] / 2], [0, 0, 1]])
+    canvas, Kc, off = pad_to_aspect(img, K, 4 / 3)
+    assert np.isclose(max(canvas.shape[:2]) / min(canvas.shape[:2]), 4 / 3, atol=0.01)
+    assert np.allclose(np.linalg.inv(Kc) @ [10 + off[0], 20 + off[1], 1], np.linalg.inv(K) @ [10, 20, 1])  # same ray
+    v = preprocess_inputs([{"img": Image.fromarray(canvas), "intrinsics": torch.tensor(Kc, dtype=torch.float32)}])[0]
+    Ko = v["intrinsics"][0].numpy().astype(np.float64)
+    raw = v["img"][0].permute(1, 2, 0).numpy()
+    H, W = raw.shape[:2]
+    xa, ya, xb, yb = content_box(Kc, Ko, off, hw, (H, W))
+    assert 0 <= xa < xb <= W and 0 <= ya < yb <= H  # inside the image (a negative start would wrap the slice)
+    black = raw[0, 0] if off[1] else raw[:, 0][0]
+    box = raw[ya:yb, xa:xb]
+    assert box.shape[:2] == (yb - ya, xb - xa)
+    assert not np.any(np.all(np.isclose(box, black, atol=1e-3), axis=-1))
+    s = Ko[0, 0] / Kc[0, 0]  # content size at the model's scale, less what preprocessing cropped off
+    assert abs((xb - xa) - min(hw[1] * s, W)) <= 4 and abs((yb - ya) - min(hw[0] * s, H)) <= 4

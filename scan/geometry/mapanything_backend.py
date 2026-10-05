@@ -97,6 +97,7 @@ def _cache_key(frames, cfg) -> str:
         **({"rotate_portrait": True} if _turns(frames, cfg) else {}),  # old keys unchanged when off
         **({"max_aspect": g["max_aspect"]} if g.get("max_aspect") else {}),
         **({"pad_scale": g["pad_scale"]} if g.get("pad_scale") else {}),
+        **({"pad_to_aspect": g["pad_to_aspect"]} if g.get("pad_to_aspect") else {}),
     )
 
 
@@ -118,14 +119,34 @@ def pad_frame(img: np.ndarray, K: np.ndarray, pad_scale: float | None) -> tuple[
     return canvas, K, (x0, y0)
 
 
-def content_box(K_in: np.ndarray, K_out: np.ndarray, off: tuple[int, int], hw: tuple[int, int]) -> tuple[int, int, int, int]:
+def pad_to_aspect(img: np.ndarray, K: np.ndarray, aspect: float | None) -> tuple[np.ndarray, np.ndarray, tuple[int, int]]:
+    """Centre the image on a black canvas whose long / short side ratio is `aspect` (E22s: 16:9 video frames on a
+    4:3 canvas). MapAnything misreads the field of view of 16:9 frames (focal 45-80% of the truth, scattered per
+    frame) but reads it within ~10% on a 4:3 canvas; every content pixel keeps its true ray (only the principal
+    point moves). Returns (canvas, K on the canvas, content offset x, y)."""
+    h, w = img.shape[:2]
+    if not aspect or max(h, w) / min(h, w) <= aspect + 1e-6:
+        return img, K, (0, 0)
+    Hc, Wc = (round(w / aspect / 2) * 2, w) if w >= h else (h, round(h / aspect / 2) * 2)
+    x0, y0 = (Wc - w) // 2, (Hc - h) // 2
+    canvas = np.zeros((Hc, Wc, 3), img.dtype)
+    canvas[y0:y0 + h, x0:x0 + w] = img
+    K = K.copy()
+    K[0, 2] += x0
+    K[1, 2] += y0
+    return canvas, K, (x0, y0)
+
+
+def content_box(K_in: np.ndarray, K_out: np.ndarray, off: tuple[int, int], hw: tuple[int, int],
+                out_hw: tuple[int, int]) -> tuple[int, int, int, int]:
     """Pixel box (x0, y0, x1, y1) of the padded frame's content at the model's resolution. K_in: canvas K at
-    working resolution, K_out: the same after preprocess_inputs (scale + centre crop); hw: content H, W."""
+    working resolution, K_out: the same after preprocess_inputs (scale + centre crop); hw: content H, W;
+    out_hw: the model's H, W. Where preprocessing cropped into the content the box stops at the image edge."""
     s = K_out[0, 0] / K_in[0, 0]
     ox, oy = s * K_in[0, 2] - K_out[0, 2], s * K_in[1, 2] - K_out[1, 2]
     xa, ya = int(np.ceil(s * off[0] - ox)) + 1, int(np.ceil(s * off[1] - oy)) + 1  # 1 px in from the black edge
     xb, yb = int(np.floor(s * (off[0] + hw[1]) - ox)) - 1, int(np.floor(s * (off[1] + hw[0]) - oy)) - 1
-    return xa, ya, xb, yb
+    return max(xa, 0), max(ya, 0), min(xb, out_hw[1]), min(yb, out_hw[0])
 
 
 def crop_aspect(img: np.ndarray, K: np.ndarray, max_aspect: float | None) -> tuple[np.ndarray, np.ndarray]:
@@ -264,6 +285,9 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
         img, K = crop_aspect(f.rgb, f.K, g.get("max_aspect"))
         hw = img.shape[:2]
         img, K, off = pad_frame(img, K, g.get("pad_scale"))
+        if g.get("pad_to_aspect"):
+            img, K, off2 = pad_to_aspect(img, K, g["pad_to_aspect"])
+            off = (off[0] + off2[0], off[1] + off2[1])
         pads.append((K.copy(), off, hw))
         if t:
             K, img = turn_K(K, img.shape[0]), np.ascontiguousarray(np.rot90(img, -1))
@@ -304,8 +328,8 @@ def predict(frames, cfg, device, get_model, use_cache: bool = True) -> tuple[dic
         "names": np.array([f.image_path.name for f in frames]),
         "rooms": np.array([f.room_hint for f in frames]),
     }
-    if g.get("pad_scale") and g["pad_scale"] > 1:  # back to the content: every view has the same box (same frame size)
-        xa, ya, xb, yb = content_box(pads[0][0], K_exif[0], pads[0][1], pads[0][2])  # both without f_scale
+    if (g.get("pad_scale") and g["pad_scale"] > 1) or g.get("pad_to_aspect"):  # back to the content (same box every view)
+        xa, ya, xb, yb = content_box(pads[0][0], K_exif[0], pads[0][1], pads[0][2], out["pts"].shape[1:3])  # both without f_scale
         for k in ("pts", "depth", "conf", "mask", "rgb"):
             out[k] = np.ascontiguousarray(out[k][:, ya:yb, xa:xb])
         for k in ("K_model", "K_exif"):

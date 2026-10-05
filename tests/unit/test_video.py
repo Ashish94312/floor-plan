@@ -8,7 +8,7 @@ import pytest
 from scan.config import load_config
 from scan.errors import InputError
 from scan.io.ingest import ingest, resolve_tier
-from scan.io.video import keyframes
+from scan.io.video import extra_picks, keyframes
 
 CFG = load_config()
 
@@ -89,3 +89,11 @@ def test_quicktime_focal_from_the_video_track_meta(tmp_path):
     g = tmp_path / "plain.mov"
     g.write_bytes(atom(b"ftyp", b"qt  ") + atom(b"moov", atom(b"trak", b"")))
     assert focal_35mm(g) is None
+
+
+def test_extra_keyframes_by_frame_name():
+    from pathlib import Path
+
+    vc = {"decode_fps": 4, "extra_keyframes": ["IMG_1_t071.25", "IMG_2_t001.00", "IMG_1_t999.00", "IMG_1_t000.50"]}
+    assert extra_picks(Path("v/hall/IMG_1.MOV"), 400, vc) == [285, 2]  # other clip and out-of-range names ignored
+    assert extra_picks(Path("v/hall/IMG_1.MOV"), 400, {"decode_fps": 4}) == []

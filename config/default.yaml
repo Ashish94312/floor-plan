@@ -42,6 +42,7 @@ geometry:
                                    # absolute scale: median of the frames' votes f_true / f_model (no knob)
   max_aspect: null                 # long side centre-cropped to short side x this before the model (E22n: 1.333 = 3:4)
   pad_scale: null                  # frame centred on a black canvas this many times its size before the model (E22n)
+  pad_to_aspect: null              # frame centred on a black canvas of this long/short ratio (E22s; video.pad_to_aspect)
   f_scale: 1.0                   # multiplies the EXIF focal fed to the model (E13 experiment only)
   conf_percentile: 30            # drop the least confident 30% of masked pixels per run (as in E7-E11)
   voxel_m: 0.02                  # thin the merged cloud to a 2 cm grid
@@ -122,6 +123,9 @@ stitch:
   relayout_after_placement: true   # placed rooms share a frame: redo the layout with ownership of free space (E22n)
   link_scale_rel_tol: 0.05         # link size ratio (3D similarity): a point agrees within this share of its camera distance
   flat_scale: true                 # reposed video: one scale for the flat, rooms tied by the link size ratios (E22p)
+  door_height_prior_m: null       # 2.05: each room's size from doors whose top was seen (doors 2.0-2.1 m; general, not tape), E22z
+  door_height_sigma_m: 0.05       # spread of door heights between homes
+  door_lintel_band_m: 0.20        # wall votes in this band above a door's top = its top was seen (else the view ended)
 
 eval:
   wall_tolerance: {photo: 0.08, video: 0.03, lidar: 0.03}   # REQUIREMENTS §8: photo ±8%, video ±3%
@@ -182,6 +186,8 @@ video:
   max_joint_views: 30              # overrides geometry.max_joint_views for video: 16:9 frames carry ~25% fewer model tokens
                                    # than 4:3 photos; 24 views peaked at 9.15 GB (E22k)
   repose: false                    # camera poses re-solved with the true focal (geometry.repose, E22o)
+  pad_to_aspect: null              # 1.3333: 16:9 frames on a 4:3 canvas; the model then reads the focal within ~10% (E22s)
+  extra_keyframes: []             # frame names (<clip>_t<seconds>) added to the time-sliced keyframes (E22u: chosen for coverage)
   rays: model                      # overrides geometry.rays for video: MapAnything ignores the given video focal and keeps
                                    # its own (~22 mm vs ~30-33 by VP); EXIF rays then break multi-view consistency.
                                    # model rays: ceilings 2.16/1.94 -> 2.83/2.91 m (tape 2.79/2.80), E22c

@@ -54,7 +54,7 @@ def run(
     timing["ingest_s"] = round(time.perf_counter() - t, 2)
     if cap.tier == "video":  # video-specific geometry settings (E22c, E22k)
         cfg = copy.deepcopy(cfg)
-        for k in ("rays", "max_joint_views", "depth_focal_fix", "max_aspect", "pad_scale"):
+        for k in ("rays", "max_joint_views", "depth_focal_fix", "max_aspect", "pad_scale", "pad_to_aspect"):
             if cfg["video"].get(k):
                 cfg["geometry"][k] = cfg["video"][k]
         if cfg["video"].get("repose"):
@@ -104,6 +104,24 @@ def run(
     for r, lay in layouts.items():
         clouds[r].layout = lay
         log(f"  layout {r}: {len(lay.walls)} walls, area {lay.floor_area_m2:.2f} m2, {lay.status} ({lay.method})")
+    if cfg["stitch"].get("door_height_prior_m") and len({c.frame_id for c in clouds.values()}) > 1:
+        # each room's size from its doors whose top was seen: a standard door height against the model's (E22z)
+        from scan.stitch.door_scale import door_scale, measured_door_heights
+
+        info["door_scale"] = {}
+        for r, c in clouds.items():
+            hs = measured_door_heights(c, layouts[r], cfg)
+            ds = door_scale(hs, max(float(np.nan_to_num(c.scale.sigma_log)), cfg["geometry"]["sigma_log_floor_photo"]), cfg)
+            info["door_scale"][r] = {"heights_m": [round(h, 3) for h in hs], "factor": ds and round(ds[0], 4)}
+            if ds:
+                scale_room(c, ds[0])
+                c.planes = room_planes(c.points, cfg)
+                c.scale = Scale(s=1.0, sigma_log=ds[1])
+                log(f"  door scale {r}: doors {', '.join(f'{h:.2f}' for h in hs)} m -> x{ds[0]:.3f} (spread {ds[1]:.3f})")
+        if any(v["factor"] for v in info["door_scale"].values()):
+            layouts = layout_rooms(clouds, cfg)
+            for r, lay in layouts.items():
+                clouds[r].layout = lay
     timing["layout_s"] = round(time.perf_counter() - t, 2)
     snaps, links = [], []
     if len({c.frame_id for c in clouds.values()}) > 1:  # separate reconstructions -> place by door matching

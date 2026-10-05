@@ -21,11 +21,12 @@ from scan.pipeline import run
 cap_dir = Path(sys.argv[1])
 budgets = [int(k) for k in sys.argv[2:] if "=" not in k] or [6, 8, 12, 16]
 extra: dict = {}
-for a in (a for a in sys.argv[2:] if "=" in a):
+tag = next((a.split("=", 1)[1] for a in sys.argv[2:] if a.startswith("--tag=")), None)  # output name instead of the values
+for a in (a for a in sys.argv[2:] if "=" in a and not a.startswith("--tag=")):
     key, val = a.split("=", 1)
     sec, name = key.split(".", 1)
     extra.setdefault(sec, {})[name] = yaml.safe_load(val)
-suffix = "".join(f"_{v}" for sec in extra.values() for v in sec.values())
+suffix = f"_{tag}" if tag else "".join(f"_{v}" for sec in extra.values() for v in sec.values())
 gt_path = Path("data/ground_truth") / f"{cap_dir.name.split('_')[0]}.yaml"
 gt = load_gt(gt_path)
 

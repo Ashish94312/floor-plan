@@ -147,6 +147,7 @@ def ingest_video(cap, cfg: dict) -> None:
             frames, ts, info = decode(f, vc["decode_fps"], cfg["ingest"]["working_max_side"])
             picks, sharp = keyframes(frames, max(1, per_room // len(files)), vc["min_sharpness"],
                                      min_gap=round(vc["min_keyframe_gap_s"] * vc["decode_fps"]))
+            picks = sorted(set(picks) | set(extra_picks(f, len(frames), vc)))
             for i in np.argsort(sharp)[::-1][: vc["vp_frames_per_clip"] if need_vp else 0]:  # many sharp frames
                 f_px = focal_px(frames[i], seed=int(i))
                 if f_px is not None:
@@ -207,6 +208,19 @@ def ingest_video(cap, cfg: dict) -> None:
 def frame_name(clip: Path, t: float) -> str:
     """Name of the keyframe of `clip` at time t (Frame.image_path.name, model-run view name)."""
     return f"{clip.stem}_t{t:06.2f}"
+
+
+def extra_picks(clip: Path, n_frames: int, vc: dict) -> list[int]:
+    """Frame indices of `clip` named in video.extra_keyframes (frame_name format), added to the time-sliced
+    keyframes: frames chosen for what they show (E22u: coverage of surfaces the time slices missed)."""
+    out = []
+    for name in vc.get("extra_keyframes") or []:
+        stem, _, t = str(name).rpartition("_t")
+        if stem == clip.stem:
+            i = round(float(t) * vc["decode_fps"])
+            if 0 <= i < n_frames:
+                out.append(i)
+    return out
 
 
 def _add_links(raw: dict, lcand: dict, lfeat: dict, vc: dict) -> list[tuple]:
